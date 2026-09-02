@@ -242,7 +242,7 @@ pub struct Gateway<C, P, R, T, F = DeterministicLeaseDecision> {
     pub(crate) instances: std::collections::BTreeMap<InstanceId, lifecycle::InstanceRecord>,
     pub(crate) next_instance_id: u64,
     pub(crate) next_lease_id: u64,
-    pub(crate) admitting: bool,
+    pub(crate) is_admitting: bool,
 }
 
 impl<C, P, R, T> Gateway<C, P, R, T, DeterministicLeaseDecision> {
@@ -279,7 +279,7 @@ impl<C, P, R, T, F> Gateway<C, P, R, T, F> {
             instances: std::collections::BTreeMap::new(),
             next_instance_id: 1,
             next_lease_id: 1,
-            admitting: true,
+            is_admitting: true,
         }
     }
 }

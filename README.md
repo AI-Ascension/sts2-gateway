@@ -52,7 +52,7 @@ documentation exemplar. Planning and retained evidence are inputs labelled `prop
 proprietary game file, save, provider credential, or generated product output is copied here. The
 protocol artifact is copied as explicit release-like data only.
 
-The current state is `statically derived` from this tree and its policy files, with `confirmed`
+The current state is `source-derived` from this tree and its policy files, with `confirmed`
 deterministic fake-instance unit/integration outcomes limited to the package's in-memory seams.
 Concrete process startup, health/readiness transport, route compatibility, authentication at an
 external boundary, isolation under real concurrency, host compatibility, and release behavior

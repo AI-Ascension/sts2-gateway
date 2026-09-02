@@ -32,7 +32,7 @@ where
     }
 
     pub fn shutdown(&mut self) -> ShutdownReport {
-        self.admitting = false;
+        self.is_admitting = false;
         let instance_ids: Vec<InstanceId> = self.instances.keys().copied().collect();
         let mut stopped = 0;
         let mut failed = 0;

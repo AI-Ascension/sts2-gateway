@@ -54,7 +54,7 @@ or disconnect requires a status/reconciliation oracle; it must not trigger a bli
 ## Evidence levels
 
 - `confirmed`: an authorized controlled test passed its stated oracle;
-- `statically derived`: source/configuration directly establishes the claim;
+- `source-derived`: source/configuration directly establishes the claim;
 - `inferred`: a documented consequence not yet exercised;
 - `proposed`: future design input; and
 - `unverified`: missing runtime or contract proof with a safe validation procedure.

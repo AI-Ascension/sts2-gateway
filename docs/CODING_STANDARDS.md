@@ -54,3 +54,10 @@ Before adding a dependency, check the standard library and existing ports, then 
 MSRV, feature, security, and boundary impact. Pin versions through the workspace lockfile. This
 initialization package adds no network, runtime, process, or serialization dependency; any future
 adapter dependency needs an explicit boundary decision.
+
+## Aggregate naming authority
+
+Use the aggregate NAMING_CONVENTIONS.md and naming-registry.yaml for casing,
+identity namespaces, lifecycle vocabulary, evidence states, and protected routes or fields. Gateway
+identities such as sessions, instances, operations, and lease epochs remain distinct from MCP,
+host, core, and harness identities.
