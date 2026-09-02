@@ -32,7 +32,6 @@ contract; runtime communication remains the separate
 
 ## Naming authority
 
-The aggregate [`NAMING_CONVENTIONS.md`](../../planning/naming_conventions/NAMING_CONVENTIONS.md) and
-its [`naming-registry.yaml`](../../planning/naming_conventions/naming-registry.yaml) define shared
+The aggregate NAMING_CONVENTIONS.md and its naming-registry.yaml define shared
 casing and identity vocabulary. Gateway-owned route or wire names require this target's compatibility
 review; a concise directory or equal suffix does not create a shared identity.
