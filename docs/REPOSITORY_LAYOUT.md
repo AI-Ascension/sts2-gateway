@@ -29,3 +29,10 @@ checked-in artifact copy and has no protocol implementation path dependency. A f
 dependency on `sts2-protocol` is allowed only for an accepted language-neutral and transport-neutral
 contract; runtime communication remains the separate
 `harness -> MCP server -> gateway -> isolated game-mod -> host` path.
+
+## Naming authority
+
+The aggregate [`NAMING_CONVENTIONS.md`](../../planning/naming_conventions/NAMING_CONVENTIONS.md) and
+its [`naming-registry.yaml`](../../planning/naming_conventions/naming-registry.yaml) define shared
+casing and identity vocabulary. Gateway-owned route or wire names require this target's compatibility
+review; a concise directory or equal suffix does not create a shared identity.

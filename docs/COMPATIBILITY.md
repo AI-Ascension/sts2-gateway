@@ -49,4 +49,4 @@ versioned, neutral protocol contract is accepted by its named consumers.
 Future records must include exact target revision, toolchain, OS/architecture, game/mod/host versions
 when applicable, contract digests, instance and lease identities, clock/seed, disposable fixture
 status, sanitized commands/logs, and evidence level. Use `confirmed` only for an authorized controlled
-test; use `statically derived`, `inferred`, `proposed`, or `unverified` precisely.
+test; use `source-derived`, `inferred`, `proposed`, or `unverified` precisely.

@@ -79,7 +79,7 @@ fn release_then_cleanup_removes_instance() -> Result<(), String> {
         .status(allocation.instance_id())
         .map_err(|error| error.to_string())?;
     assert_eq!(stopped.state(), sts2_gateway::LifecycleState::Stopped);
-    assert!(!stopped.process_attached());
+    assert!(!stopped.has_process());
     assert_eq!(process.stop_modes(), vec![StopMode::Graceful]);
 
     gateway
@@ -110,7 +110,7 @@ fn expiry_revokes_lease_and_cleans_process() -> Result<(), String> {
         .map_err(|error| error.to_string())?;
     assert_eq!(expired.state(), sts2_gateway::LifecycleState::Expired);
     assert_eq!(expired.lease(), None);
-    assert!(!expired.process_attached());
+    assert!(!expired.has_process());
     assert_eq!(process.stop_modes(), vec![StopMode::Force]);
     gateway
         .cleanup(allocation.instance_id(), owner(), session())
@@ -132,7 +132,7 @@ fn start_failure_is_visible_and_cleanable() -> Result<(), String> {
         .map_err(|error| error.to_string())?;
     assert_eq!(failed.state(), sts2_gateway::LifecycleState::Failed);
     assert_eq!(failed.lease(), None);
-    assert!(!failed.process_attached());
+    assert!(!failed.has_process());
     gateway
         .cleanup(InstanceId::new(1), owner(), session())
         .map_err(|error| error.to_string())?;

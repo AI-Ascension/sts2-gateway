@@ -32,7 +32,7 @@ pub struct InstanceSnapshot {
     caller_id: CallerId,
     session_id: SessionId,
     state: LifecycleState,
-    process_attached: bool,
+    has_process: bool,
     lease: Option<Lease>,
 }
 
@@ -53,8 +53,8 @@ impl InstanceSnapshot {
         self.state
     }
 
-    pub const fn process_attached(&self) -> bool {
-        self.process_attached
+    pub const fn has_process(&self) -> bool {
+        self.has_process
     }
 
     pub const fn lease(&self) -> Option<Lease> {
@@ -163,7 +163,7 @@ impl InstanceRecord {
             caller_id: self.caller_id,
             session_id: self.session_id,
             state: self.state,
-            process_attached: self.process.is_some(),
+            has_process: self.process.is_some(),
             lease: self.lease,
         }
     }
