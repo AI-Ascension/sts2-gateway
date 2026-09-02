@@ -80,5 +80,5 @@ game process, MCP server, provider, or host.
   records gateway ownership and dependency rules.
 - [docs/decisions/0002-sixth-target-protocol-boundary.md](docs/decisions/0002-sixth-target-protocol-boundary.md)
   records the current sixth-target protocol decision.
-- The staged [gateway investigation prompt](../planning/prompt-corpus/staged/sts2-gateway-INVESTIGATION_PROMPT.md)
-  is a discovery input, not an implementation or runtime proof.
+- The staged gateway investigation prompt is a discovery input, not an implementation or runtime
+  proof; it is maintained outside this repository.
