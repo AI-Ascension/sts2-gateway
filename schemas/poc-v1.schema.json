@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sts2-poc-v1",
+  "title": "STS2 deterministic proof-of-concept contract",
+  "description": "One bounded state read and typed action result; no host or transport semantics.",
+  "oneOf": [
+    { "$ref": "#/$defs/state_request" },
+    { "$ref": "#/$defs/state_response" },
+    { "$ref": "#/$defs/action_request" },
+    { "$ref": "#/$defs/action_response" }
+  ],
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact", "source", "generator"],
+      "properties": {
+        "artifact": { "const": "sts2-protocol/poc-v1" },
+        "source": { "const": "schemas/poc-v1.schema.json" },
+        "generator": { "const": "hand-authored" }
+      }
+    },
+    "base": {
+      "type": "object",
+      "required": [
+        "protocol_version",
+        "schema_digest",
+        "provenance",
+        "correlation_id",
+        "instance_id",
+        "generation"
+      ],
+      "properties": {
+        "protocol_version": { "const": "poc-v1" },
+        "schema_digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "provenance": { "$ref": "#/$defs/provenance" },
+        "correlation_id": { "type": "string", "pattern": "^[A-Za-z0-9_.:/-]{1,128}$" },
+        "instance_id": { "type": "string", "pattern": "^[A-Za-z0-9_.:/-]{1,128}$" },
+        "generation": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+      }
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["available_units", "settled_effects"],
+      "properties": {
+        "available_units": { "type": "integer", "minimum": 0, "maximum": 8 },
+        "settled_effects": { "type": "integer", "minimum": 0, "maximum": 4 }
+      }
+    },
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action_id", "units"],
+      "properties": {
+        "action_id": { "const": "use_budget" },
+        "units": { "type": "integer", "minimum": 0, "maximum": 8 }
+      }
+    },
+    "state_request": {
+      "allOf": [
+        { "$ref": "#/$defs/base" },
+        {
+          "type": "object",
+          "required": ["kind", "observation", "action", "status", "error_code"],
+          "properties": {
+            "kind": { "const": "state_request" },
+            "observation": { "type": "null" },
+            "action": { "type": "null" },
+            "status": { "type": "null" },
+            "error_code": { "type": "null" }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "state_response": {
+      "allOf": [
+        { "$ref": "#/$defs/base" },
+        {
+          "type": "object",
+          "required": ["kind", "observation", "action", "status", "error_code"],
+          "properties": {
+            "kind": { "const": "state_response" },
+            "observation": { "$ref": "#/$defs/observation" },
+            "action": { "type": "null" },
+            "status": { "type": "null" },
+            "error_code": { "type": "null" }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "action_request": {
+      "allOf": [
+        { "$ref": "#/$defs/base" },
+        {
+          "type": "object",
+          "required": ["kind", "observation", "action", "status", "error_code"],
+          "properties": {
+            "kind": { "const": "action_request" },
+            "observation": { "type": "null" },
+            "action": { "$ref": "#/$defs/action" },
+            "status": { "type": "null" },
+            "error_code": { "type": "null" }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "action_response": {
+      "allOf": [
+        { "$ref": "#/$defs/base" },
+        {
+          "type": "object",
+          "required": ["kind", "observation", "action", "status", "error_code"],
+          "properties": {
+            "kind": { "const": "action_response" },
+            "observation": { "$ref": "#/$defs/observation" },
+            "action": { "$ref": "#/$defs/action" },
+            "status": { "enum": ["accepted", "rejected"] },
+            "error_code": {
+              "anyOf": [
+                { "type": "string", "pattern": "^[A-Za-z0-9_.:/-]{1,128}$" },
+                { "type": "null" }
+              ]
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    }
+  }
+}

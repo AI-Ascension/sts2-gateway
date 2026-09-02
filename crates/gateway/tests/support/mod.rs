@@ -158,6 +158,7 @@ impl ReadinessPort for SharedReadiness {
 
 struct FakeTransportState {
     calls: usize,
+    last_request: Option<TransportRequest>,
     response: TransportResponse,
     fault: Option<TransportFault>,
 }
@@ -169,6 +170,7 @@ impl SharedTransport {
     fn new() -> Self {
         Self(Rc::new(RefCell::new(FakeTransportState {
             calls: 0,
+            last_request: None,
             response: TransportResponse::new(200, vec![1]),
             fault: None,
         })))
@@ -181,12 +183,18 @@ impl SharedTransport {
     pub(crate) fn calls(&self) -> usize {
         self.0.borrow().calls
     }
+
+    #[allow(dead_code)]
+    pub(crate) fn last_request(&self) -> Option<TransportRequest> {
+        self.0.borrow().last_request.clone()
+    }
 }
 
 impl TransportPort for SharedTransport {
-    fn forward(&mut self, _request: TransportRequest) -> Result<TransportResponse, TransportFault> {
+    fn forward(&mut self, request: TransportRequest) -> Result<TransportResponse, TransportFault> {
         let mut state = self.0.borrow_mut();
         state.calls += 1;
+        state.last_request = Some(request);
         if let Some(fault) = state.fault {
             return Err(fault);
         }

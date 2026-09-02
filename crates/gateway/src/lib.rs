@@ -7,6 +7,7 @@ mod identity;
 mod lifecycle;
 mod maintenance;
 mod ports;
+mod protocol_artifact;
 
 use std::fmt;
 
@@ -19,6 +20,10 @@ pub use ports::{
     Clock, DeterministicLeaseDecision, FixedRoute, HealthFault, LaunchSpec, LeaseDecisionPort,
     ProcessFault, ProcessHandle, ProcessPort, ProcessState, Readiness, ReadinessPort, StopMode,
     TransportFault, TransportPort, TransportRequest, TransportResponse,
+};
+pub use protocol_artifact::{
+    ArtifactError, POC_ARTIFACT, POC_GENERATOR, POC_MAX_SETTLED_EFFECTS, POC_MAX_UNITS,
+    POC_PROTOCOL_VERSION, POC_SCHEMA_DIGEST, POC_SCHEMA_SOURCE, verify_poc_artifact,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

@@ -15,9 +15,9 @@
 >
 > AI-Ascension is an independent project. It is not affiliated with or endorsed by Mega Crit or Valve and grants no rights to game files, assets, or marks.
 
-Status: Wave 2 codebase initialization. The target-owned gateway package provides a deterministic
-control-plane core and injected boundary ports; no listener, concrete process supervisor, game
-connection, or live runtime claim exists in this target.
+Status: Wave 2 POC proof. The target-owned gateway package provides a deterministic control-plane
+core, injected boundary ports, and a `poc-v1` artifact/routing proof; no listener, concrete process
+supervisor, game connection, or live runtime claim exists in this target.
 
 ## Owner and boundary
 
@@ -34,17 +34,23 @@ the [architecture](docs/ARCHITECTURE.md).
 
 The gateway does not own game rules, host objects, managed loader code, MCP semantics or tool
 catalogs, model/provider execution, harness episodes or artifacts, direct game files, saves,
-credentials, arbitrary proxying, or implicit remote discovery. A forwarded request must have a
-validated instance, session, lease, lease epoch, route, method, and bounded body; listener
-reachability is not authentication.
+credentials, arbitrary proxying, or implicit remote discovery. It consumes only an inert copied
+`sts2-protocol/poc-v1` artifact for this proof. A forwarded request must have a validated instance,
+session, lease, lease epoch, route, method, and bounded body; listener reachability is not
+authentication.
+
+The POC test allocates and readies fake instances, forwards a fixed command route, and proves that
+stale epochs and a proof from another instance are rejected before transport. It is a gateway
+control-plane test, not evidence that a game-mod process is running or that an action settled.
 
 ## Evidence and provenance
 
-This target is intentionally initialization-only. The project policy and target decisions are
+This target is intentionally source/test bounded. The project policy and target decisions are
 normative for this repository. Existing planning material is used only as a structural and
 documentation exemplar. Planning and retained evidence are inputs labelled `proposed`, `inferred`, or
 `unverified` unless a controlled test establishes otherwise. No reference implementation source,
-proprietary game file, save, provider credential, or generated product output is copied here.
+proprietary game file, save, provider credential, or generated product output is copied here. The
+protocol artifact is copied as explicit release-like data only.
 
 The current state is `statically derived` from this tree and its policy files, with `confirmed`
 deterministic fake-instance unit/integration outcomes limited to the package's in-memory seams.
@@ -62,6 +68,7 @@ cargo run --locked --package repo-policy -- --strict
 cargo fmt --all --check
 cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 cargo test --workspace --all-targets --all-features --locked
+(cd protocol-artifact/poc-v1 && sha256sum -c SHA256SUMS)
 ```
 
 The first command is the local policy entrypoint and checks required paths, licenses, links,
@@ -81,4 +88,4 @@ game process, MCP server, provider, or host.
 - [docs/decisions/0002-sixth-target-protocol-boundary.md](docs/decisions/0002-sixth-target-protocol-boundary.md)
   records the current sixth-target protocol decision.
 - The staged gateway investigation prompt is a discovery input, not an implementation or runtime
-  proof; it is maintained outside this repository.
+  proof; it is maintained outside and is not copied into this repository.

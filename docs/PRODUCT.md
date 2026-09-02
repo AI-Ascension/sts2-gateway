@@ -37,7 +37,8 @@ arbitrary proxying. It does not contact a provider or discover remote game proce
 The repository has an initialized control-plane package. Its local evidence includes static policy,
 format, lint, build, and deterministic fake-instance tests for allocation, readiness, process
 inspection/crash, expiry, wrong instance, stale epoch, cleanup, shutdown, bounded forwarding, and
-transport failure. Concrete authentication, external process startup, health/readiness transport,
-route compatibility, concurrency isolation, timeout/disconnect reconciliation, duplicate operation
-identity, and bounded queue behavior remain unverified. Controlled host/runtime validation is a
-separate authorized gate; see [TESTING.md](TESTING.md) and [COMPATIBILITY.md](COMPATIBILITY.md).
+transport failure. The minimal POC also verifies the copied protocol artifact and the fixed route
+fence proof. Concrete authentication, external process startup, health/readiness transport, route
+compatibility with a live mod, concurrency isolation, timeout/disconnect reconciliation, duplicate
+operation identity, and bounded queue behavior remain unverified. Controlled host/runtime
+validation is a separate authorized gate; see [TESTING.md](TESTING.md) and [COMPATIBILITY.md](COMPATIBILITY.md).

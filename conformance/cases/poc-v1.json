@@ -1,0 +1,26 @@
+{
+  "case_id": "CT-POC-V1-001",
+  "contract": "sts2.protocol/poc-v1",
+  "profile": "poc-v1",
+  "schema": "schemas/poc-v1.schema.json",
+  "goldens": [
+    "artifacts/poc-v1/golden/state-request.json",
+    "artifacts/poc-v1/golden/state-response.json",
+    "artifacts/poc-v1/golden/action-request.json",
+    "artifacts/poc-v1/golden/action-accepted.json",
+    "artifacts/poc-v1/golden/action-rejected.json"
+  ],
+  "invalid": "artifacts/poc-v1/fixtures/invalid-action.json",
+  "checksums": "artifacts/poc-v1/SHA256SUMS",
+  "setup": {
+    "live_runtime": false,
+    "network": false,
+    "credentials": false,
+    "proprietary_data": false
+  },
+  "oracle": [
+    "all four message shapes decode, validate, and have canonical goldens",
+    "canonical JSON bytes are stable after decode and re-encode",
+    "the invalid typed action is structurally valid; semantic-owner rejection is outside this target"
+  ]
+}

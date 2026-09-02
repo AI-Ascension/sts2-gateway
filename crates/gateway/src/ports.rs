@@ -124,7 +124,7 @@ pub enum FixedRoute {
     Receipt,
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TransportRequest {
     instance_id: InstanceId,
     process: ProcessHandle,

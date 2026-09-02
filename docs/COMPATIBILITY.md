@@ -2,6 +2,15 @@
 
 ## Current evidence
 
+The `protocol-artifact/poc-v1/` directory is an offline release-like copy consumed by the POC
+test. Exact artifact identity and fixture bytes are confirmed locally; this does not establish
+compatibility with a live game-mod, host, network, or runtime.
+
+The copy is synchronized verbatim from the normative protocol artifact at source revision
+`cad3c85d3cba3363ad387f9c26a3c3cac2782267` (protocol PR #2). Its manifest binds the package
+schema path to the canonical source digest, and the gateway's copied source/package paths are
+verified separately.
+
 This target has repository governance plus one target-owned control-plane package and deterministic
 fake tests. No gateway listener, concrete process supervisor, game-mod artifact, host assembly, MCP
 server, harness client, or deployment was used. Therefore external process startup, health/readiness
