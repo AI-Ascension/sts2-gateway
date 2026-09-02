@@ -8,8 +8,8 @@ readiness, health, fixed routing, isolation, bounded backpressure, and cleanup. 
 authority, host adapter, MCP server, model runner, or generic reverse proxy.
 
 This document describes the accepted boundary and the initialized package seams. The package is a
-small in-memory control-plane core; concrete runtime adapters and runtime behavior remain
-`unverified`.
+small in-memory control-plane core; its attached runtime adapter has a confirmed exact-host trace,
+while general lifecycle behavior remains `unverified`.
 
 ## Runtime topology
 
@@ -101,3 +101,19 @@ authentication credential verification, and restart reconciliation only behind r
 
 Each seam needs a named consumer, resource limit, shutdown path, deterministic fake, and evidence
 level. The package has deterministic fakes for its current tests; they are not runtime adapters.
+
+## Attached runtime adapter
+
+ADR 0005 adds a separate binary under `crates/gateway/src/bin/`. `sts2-gateway-runtime` is an
+attached single-instance adapter, not a replacement for the generic `Gateway` control-plane core.
+It binds a configured loopback address, terminates the gateway bearer token, handles one configured
+allocation/lease, and validates the complete instance/caller/session/lease/epoch/correlation fence
+before data forwarding. It routes only `/api/v1/runtime/state` and `/api/v1/runtime/action` to the
+fixed downstream paths, plus readiness and release operations.
+
+The adapter uses bounded HTTP parsing and a separate mod bearer token. It does not launch a process,
+reserve a port, persist a registry, choose among instances, or perform graceful signal shutdown;
+those lifecycle behaviors remain owned by the generic gateway boundary and are unverified for this
+lane. The authorized exact-host trace confirms downstream readiness, forwarding, lease fencing, and
+the `show_runtime_probe` witness. The action is a host-visible integration probe, not game-rule
+authority.

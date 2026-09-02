@@ -7,6 +7,13 @@ runtime or downstream wire contract.
 
 ### Added
 
+- The bounded `sts2-gateway-runtime` attached single-instance loopback adapter with bearer
+  authentication, allocation/release, lease fencing, fixed runtime routes, and `runtime-v1`
+  artifact reference.
+
+- Confirmed the attached adapter in the authorized exact-host coordinator trace through the managed
+  game-mod runtime probe.
+
 - A verbatim offline `sts2-protocol/poc-v1` artifact copy from the normative protocol source, with
   checksum validation, complete manifest provenance/path checks, and a deterministic POC request
   oracle covering fake allocation/readiness, fixed-route forwarding, stale lease fencing, and
@@ -18,6 +25,6 @@ runtime or downstream wire contract.
 
 ### Not implemented
 
-- Concrete listeners, process adapters, authentication adapters, network transports, persistence,
-  protocol dependencies, game rules, host integration, and live runtime behavior remain outside
-  this initialization wave and runtime-unverified.
+- Generic process adapters, persistence, game rules, host integration, and live host runtime behavior
+  remain outside this attached adapter. The component binary is intentionally fixed to one attached
+  downstream instance; broader lifecycle and host behavior remain runtime-unverified.

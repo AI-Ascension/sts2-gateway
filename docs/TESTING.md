@@ -63,3 +63,16 @@ A build, open socket, health response, or acknowledgment cannot upgrade game rea
 compatibility, isolation, authentication enforcement, or effect settlement. Runtime records must
 include exact revision, contract versions/digests, instance/lease identities, clock/seed,
 disposable fixture status, sanitized logs, and cleanup result.
+
+## Runtime adapter checks
+
+The standalone runtime binary has bounded HTTP parser tests and builds with the pinned Rust
+toolchain. A controlled component lane can run the real gateway binary, real MCP binary, and real
+harness binary against a disposable synthetic downstream. That lane confirms TCP framing,
+authentication, fixed routing, lease fencing, accepted effect-witness mapping, stale-generation
+preservation, and release cleanup only for the synthetic downstream.
+
+The authorized exact-host lane now confirms the managed mod listener, downstream forwarding,
+lease fencing, a Godot main-thread callback, the bounded STS2 host effect, and reversible disposable
+profile cleanup. Process supervision/restart, concurrency isolation, and gameplay mutation remain
+`unverified`.

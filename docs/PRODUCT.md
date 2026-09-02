@@ -19,10 +19,10 @@ The accepted gateway scope is:
 - per-instance isolation, bounded queues/payloads, backpressure, and sanitized diagnostics; and
 - independent gateway API compatibility and release metadata.
 
-These are scope decisions for the public product boundary. The initialized package implements only
-an in-memory control-plane core and deterministic seam fixtures; no route, field, error, timeout, or
-wire shape is an accepted downstream contract until a requirement, owner, compatibility version,
-and deterministic oracle are accepted.
+These are scope decisions for the public product boundary. The generic package implements an
+in-memory control-plane core and deterministic seam fixtures. The accepted sprint slice adds a
+separately documented, fixed attached runtime adapter with its own bounded route/identity oracle;
+it is not a general lifecycle or public-release contract.
 
 ## Consumers and non-goals
 
@@ -38,7 +38,21 @@ The repository has an initialized control-plane package. Its local evidence incl
 format, lint, build, and deterministic fake-instance tests for allocation, readiness, process
 inspection/crash, expiry, wrong instance, stale epoch, cleanup, shutdown, bounded forwarding, and
 transport failure. The minimal POC also verifies the copied protocol artifact and the fixed route
-fence proof. Concrete authentication, external process startup, health/readiness transport, route
-compatibility with a live mod, concurrency isolation, timeout/disconnect reconciliation, duplicate
-operation identity, and bounded queue behavior remain unverified. Controlled host/runtime
-validation is a separate authorized gate; see [TESTING.md](TESTING.md) and [COMPATIBILITY.md](COMPATIBILITY.md).
+fence proof. An authorized exact-host trace now confirms external authentication, readiness, route
+compatibility with the live mod, and the bounded probe effect. Concurrency isolation,
+timeout/disconnect reconciliation, duplicate operation identity, and general lifecycle remain
+unverified. See [TESTING.md](TESTING.md) and [COMPATIBILITY.md](COMPATIBILITY.md).
+
+## Attached runtime slice
+
+The first concrete gateway lane is `sts2-gateway-runtime`, a loopback-only, single-instance adapter.
+It requires separate gateway and mod bearer tokens, allocates one configured identity, checks lease
+and epoch headers before forwarding, and admits only the bounded `/health/ready`, state, action, and
+release routes. It is consumed by the runtime MCP adapter and harness coordinator through real TCP
+connections.
+
+This lane attaches to an already running downstream listener; it does not launch, own, or recover a
+game process. The fixed action remains the safe host-visible `show_runtime_probe`, not a gameplay
+mutation. Source/build, controlled component-network, and exact-host forwarding evidence are
+confirmed independently; process supervision, general lifecycle, and broader host/platform
+compatibility remain `unverified`.

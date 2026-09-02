@@ -1,0 +1,17 @@
+{
+  "artifact": "sts2-protocol/runtime-v1",
+  "protocol_version": "runtime-v1",
+  "schema": "schema.json",
+  "schema_digest": "a76086d7a68668fd4cff53999369d2b450b0d6623827393882f458f2aa1f93eb",
+  "provenance": {
+    "source": "schemas/runtime-v1.schema.json",
+    "generator": "hand-authored",
+    "license": "MIT"
+  },
+  "consumers": [
+    "sts2-game-mod",
+    "sts2-gateway",
+    "sts2-harness",
+    "sts2-mcp-server"
+  ]
+}
