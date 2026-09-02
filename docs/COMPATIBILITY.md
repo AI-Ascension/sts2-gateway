@@ -7,8 +7,9 @@ test. Exact artifact identity and fixture bytes are confirmed locally; this does
 compatibility with a live game-mod, host, network, or runtime.
 
 The copy is synchronized verbatim from the normative protocol artifact at source revision
-`3c93b0bed34661ec2e69072d900bb014539e99ec` (protocol PR #2). Its manifest retains the protocol
-owner's canonical schema path; the gateway's local copy path is verified separately.
+`cad3c85d3cba3363ad387f9c26a3c3cac2782267` (protocol PR #2). Its manifest binds the package
+schema path to the canonical source digest, and the gateway's copied source/package paths are
+verified separately.
 
 This target has repository governance plus one target-owned control-plane package and deterministic
 fake tests. No gateway listener, concrete process supervisor, game-mod artifact, host assembly, MCP

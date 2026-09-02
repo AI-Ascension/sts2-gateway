@@ -22,7 +22,6 @@
     },
     "base": {
       "type": "object",
-      "additionalProperties": false,
       "required": [
         "protocol_version",
         "schema_digest",
@@ -37,7 +36,7 @@
         "provenance": { "$ref": "#/$defs/provenance" },
         "correlation_id": { "type": "string", "pattern": "^[A-Za-z0-9_.:/-]{1,128}$" },
         "instance_id": { "type": "string", "pattern": "^[A-Za-z0-9_.:/-]{1,128}$" },
-        "generation": { "type": "integer", "minimum": 0 }
+        "generation": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
       }
     },
     "observation": {
@@ -72,7 +71,8 @@
             "error_code": { "type": "null" }
           }
         }
-      ]
+      ],
+      "unevaluatedProperties": false
     },
     "state_response": {
       "allOf": [
@@ -88,7 +88,8 @@
             "error_code": { "type": "null" }
           }
         }
-      ]
+      ],
+      "unevaluatedProperties": false
     },
     "action_request": {
       "allOf": [
@@ -104,7 +105,8 @@
             "error_code": { "type": "null" }
           }
         }
-      ]
+      ],
+      "unevaluatedProperties": false
     },
     "action_response": {
       "allOf": [
@@ -125,7 +127,8 @@
             }
           }
         }
-      ]
+      ],
+      "unevaluatedProperties": false
     }
   }
 }
