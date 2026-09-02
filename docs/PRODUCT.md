@@ -49,9 +49,11 @@ isolation remain unverified. See [TESTING.md](TESTING.md) and [COMPATIBILITY.md]
 
 The first concrete gateway lane is `sts2-gateway-runtime`, a loopback-only, single-instance adapter.
 It requires separate gateway and mod bearer tokens, allocates one configured identity, checks lease
-and epoch headers before forwarding, and admits only the bounded `/health/ready`, state, action,
-release, and Runtime-v2 operation routes. It is consumed by the runtime MCP adapter and harness
-coordinator through real TCP connections.
+and epoch headers before forwarding, and admits only the bounded `/health/ready`, v1 state/action,
+release, and fixed Runtime-v2 state/action/operation routes. Its v2 state route returns a typed
+request plus explicit `state_unavailable` when no host-state adapter is configured; it does not
+expose arbitrary GET proxying. It is consumed by the runtime MCP adapter and harness coordinator
+through real TCP connections.
 
 This lane attaches to an already running downstream listener; it does not launch, own, or recover a
 game process. The runtime-v1 fixed action remains the safe host-visible `show_runtime_probe`. Runtime-v2

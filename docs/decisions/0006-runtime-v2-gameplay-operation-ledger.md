@@ -32,12 +32,13 @@ read-only retained-receipt method; it never calls the mutation method. A `settle
 only with a fresh post-action observation and a matching `turn_end_settled` witness. Cancellation
 exists only before dispatch and cannot undo admitted work.
 
-The attached runtime binary owns the fixed routes
-`POST /v2/instances/{instance_id}/action` and
+The attached runtime binary owns the fixed routes `GET /v2/instances/{instance_id}/state`,
+`POST /v2/instances/{instance_id}/action`, and
 `GET /v2/instances/{instance_id}/operations/{operation_id}`. It validates the gateway bearer
-token, exact lease headers, correlation header, body bounds, and full message envelope. Its current
-v2 downstream seam is deliberately unconfigured and fails closed before write; no host path or
-gameplay API is inferred from Runtime-v1.
+token and exact lease/correlation fence. The state route constructs a typed state request and emits
+an explicit structured unavailable response while no host-state adapter is configured; arbitrary v2
+GET paths are rejected. The current v2 mutation seam is deliberately unconfigured and fails closed
+before write; no host path or gameplay API is inferred from Runtime-v1.
 
 ## Compatibility and retention
 

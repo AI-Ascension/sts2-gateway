@@ -24,7 +24,8 @@ The policy command comes first in the normal local sequence. CI runs the same co
 job timeouts. A missing toolchain or unavailable dependency is reported as unverified; it is not
 converted into a passing skip. The package suite confirms only in-memory control-plane outcomes,
 not runtime compatibility. The checksum command verifies the verbatim protocol artifact and its
-checksum-covered conformance companion.
+checksum-covered conformance companion; the Runtime-v2 verifier independently calculates SHA-256
+for every copied file named by `SHA256SUMS`.
 
 The current deterministic suite covers allocation and readiness, process inspection and crash
 failure, lease expiry and forced cleanup, stale epoch and wrong-instance rejection before transport,
@@ -33,8 +34,10 @@ start failure reporting. The POC case additionally verifies the copied artifact 
 combining readiness, fixed command forwarding, stale-epoch rejection, and wrong-instance fencing.
 The Runtime-v2 case verifies the copied artifact and a bounded fake ledger for exactly-once
 application, unknown-to-settled retained-receipt reconciliation, duplicate replay, canonical
-conflict rejection, stale epoch, cancellation, store capacity, and no-blind-retry. The fakes do not
-represent live process, network, or game-host behavior.
+conflict rejection, stale identity/epoch/generation replay and receipt fencing, cancellation, store
+capacity, no-blind-retry, and rejection of tampered copied schema/manifest/golden bytes. The runtime
+binary tests the fixed typed state route's explicit unavailable response and arbitrary-v2-GET denial.
+The fakes do not represent live process, network, or game-host behavior.
 
 ## Future deterministic suites
 

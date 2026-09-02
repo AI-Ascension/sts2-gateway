@@ -67,7 +67,7 @@ test; use `source-derived`, `inferred`, `proposed`, or `unverified` precisely.
 | Adapter | Downstream | Current evidence | Result |
 | --- | --- | --- | --- |
 | `sts2-gateway-runtime` | Attached loopback runtime-v1 listener | Rust gates, synthetic TCP lane, and authorized exact-host trace | Attached forwarding and lease path confirmed for STS2 v0.107.1 Windows x86-64; general lifecycle and gameplay unverified |
-| Runtime-v2 ledger | Owner-local deterministic forwarding fake | Rust gates, artifact checksum, and deterministic fake tests | Source/ledger behavior confirmed; live downstream action settlement, restart retention, and host compatibility unverified |
+| Runtime-v2 ledger | Owner-local deterministic forwarding fake | Rust gates, byte-level artifact verification, and deterministic fake tests | Source/ledger behavior confirmed; fixed state route is explicitly unavailable without a host adapter; live downstream action settlement, restart retention, and host compatibility unverified |
 
 The adapters' fixed configurations are sprint boundaries, not general lifecycle support claims. The
 Runtime-v2 ledger retains entries only in memory until capacity is reached; it does not evict entries

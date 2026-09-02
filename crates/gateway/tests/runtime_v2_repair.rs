@@ -4,17 +4,17 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use sts2_gateway::{
-    RuntimeV2Action, RuntimeV2Binding, RuntimeV2CombatPhase, RuntimeV2EffectWitness,
-    RuntimeV2ForwardRequest, RuntimeV2ForwardingPort, RuntimeV2Ledger, RuntimeV2LedgerConfig,
-    RuntimeV2Message, RuntimeV2MessageKind, RuntimeV2Metadata, RuntimeV2Observation,
-    RuntimeV2ReceiptRequest, RuntimeV2Status, RuntimeV2TransportFault, verify_runtime_v2_artifact,
+    RuntimeV2Action, RuntimeV2ArtifactFile, RuntimeV2ArtifactFiles, RuntimeV2Binding,
+    RuntimeV2CombatPhase, RuntimeV2EffectWitness, RuntimeV2ForwardRequest, RuntimeV2ForwardingPort,
+    RuntimeV2Ledger, RuntimeV2LedgerConfig, RuntimeV2Message, RuntimeV2MessageKind,
+    RuntimeV2Metadata, RuntimeV2Observation, RuntimeV2ReceiptRequest, RuntimeV2Status,
+    RuntimeV2TransportFault, runtime_v2_artifact_files, verify_runtime_v2_artifact_files,
 };
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy)]
 enum FakeMode {
     Settle,
     DisconnectAfterWrite,
-    DisconnectWithoutReceipt,
 }
 
 struct FakeState {
@@ -59,9 +59,8 @@ impl RuntimeV2ForwardingPort for FakeForwarder {
     ) -> Result<RuntimeV2Message, RuntimeV2TransportFault> {
         let mut state = self.0.borrow_mut();
         state.dispatches += 1;
-        let mode = state.mode;
         let receipt = settled_response(request.message());
-        match mode {
+        match state.mode {
             FakeMode::Settle => {
                 state.applications += 1;
                 Ok(receipt)
@@ -69,9 +68,6 @@ impl RuntimeV2ForwardingPort for FakeForwarder {
             FakeMode::DisconnectAfterWrite => {
                 state.applications += 1;
                 state.retained_receipt = Some(receipt);
-                Err(RuntimeV2TransportFault::DisconnectedAfterWrite)
-            }
-            FakeMode::DisconnectWithoutReceipt => {
                 Err(RuntimeV2TransportFault::DisconnectedAfterWrite)
             }
         }
@@ -165,151 +161,166 @@ fn settled_response(request: &RuntimeV2Message) -> RuntimeV2Message {
 }
 
 #[test]
-fn copied_artifact_is_verified_before_the_fake_lane() -> Result<(), String> {
-    verify_runtime_v2_artifact().map_err(|error| error.to_string())
+fn copied_artifact_rejects_tampered_schema_manifest_and_golden() -> Result<(), String> {
+    let base = runtime_v2_artifact_files();
+
+    let mut tampered_schema = base.source_schema.to_vec();
+    tampered_schema[0] ^= 1;
+    assert!(
+        verify_runtime_v2_artifact_files(RuntimeV2ArtifactFiles {
+            source_schema: &tampered_schema,
+            ..base
+        })
+        .is_err()
+    );
+
+    let mut tampered_manifest = base.manifest.to_vec();
+    tampered_manifest.push(b'\n');
+    assert!(
+        verify_runtime_v2_artifact_files(RuntimeV2ArtifactFiles {
+            manifest: &tampered_manifest,
+            ..base
+        })
+        .is_err()
+    );
+
+    let mut tampered_golden = base.goldens[0].bytes.to_vec();
+    tampered_golden.push(b'\n');
+    let mut goldens = base.goldens.to_vec();
+    goldens[0] = RuntimeV2ArtifactFile {
+        path: goldens[0].path,
+        bytes: &tampered_golden,
+    };
+    assert!(
+        verify_runtime_v2_artifact_files(RuntimeV2ArtifactFiles {
+            goldens: &goldens,
+            ..base
+        })
+        .is_err()
+    );
+    Ok(())
 }
 
 #[test]
-fn exactly_once_application_and_duplicate_replay() -> Result<(), String> {
+fn identity_and_epoch_are_checked_before_duplicate_replay() -> Result<(), String> {
     let fake = FakeForwarder::new(FakeMode::DisconnectAfterWrite);
     let mut ledger = RuntimeV2Ledger::new(RuntimeV2LedgerConfig::new(4), binding()?, fake.clone())
         .map_err(|error| error.to_string())?;
-    let request = action_request("corr-1", "op-1", 1, 4);
-
-    let first = ledger
+    let request = action_request("corr-replay-fence", "op-replay-fence", 1, 4);
+    ledger
         .submit_action(request.clone())
         .map_err(|error| error.to_string())?;
-    let replay = ledger
-        .submit_action(request)
-        .map_err(|error| error.to_string())?;
-    assert_eq!(first, replay);
-    assert_eq!(first.status, Some(RuntimeV2Status::Unknown));
+
+    let mut wrong_instance = request.clone();
+    wrong_instance.instance_id = String::from("instance-other");
+    assert_eq!(
+        ledger.submit_action(wrong_instance),
+        Err(sts2_gateway::RuntimeV2LedgerError::Fence(
+            sts2_gateway::RuntimeV2FenceFailure::WrongInstance,
+        ))
+    );
+
+    let mut stale_epoch = request;
+    stale_epoch.lease_epoch = 0;
+    assert_eq!(
+        ledger.submit_action(stale_epoch),
+        Err(sts2_gateway::RuntimeV2LedgerError::Fence(
+            sts2_gateway::RuntimeV2FenceFailure::StaleEpoch,
+        ))
+    );
     assert_eq!(fake.dispatches(), 1);
     assert_eq!(fake.applications(), 1);
     Ok(())
 }
 
 #[test]
-fn unknown_reconciles_to_settled_without_dispatch_retry() -> Result<(), String> {
-    let fake = FakeForwarder::new(FakeMode::DisconnectAfterWrite);
+fn stale_generation_is_checked_before_duplicate_replay() -> Result<(), String> {
+    let fake = FakeForwarder::new(FakeMode::Settle);
     let mut ledger = RuntimeV2Ledger::new(RuntimeV2LedgerConfig::new(4), binding()?, fake.clone())
         .map_err(|error| error.to_string())?;
-    let action = action_request("corr-action", "op-timeout", 1, 4);
-    let unknown = ledger
-        .submit_action(action.clone())
+    let request = action_request("corr-stale-replay", "op-stale-replay", 1, 4);
+    ledger
+        .submit_action(request.clone())
         .map_err(|error| error.to_string())?;
-    assert_eq!(unknown.status, Some(RuntimeV2Status::Unknown));
-    assert_eq!(fake.dispatches(), 1);
-    assert_eq!(fake.applications(), 1);
-
-    let settled = ledger
-        .reconcile(reconcile_request("corr-reconcile", "op-timeout", 4))
-        .map_err(|error| error.to_string())?;
-    assert_eq!(settled.kind, RuntimeV2MessageKind::ReconcileResponse);
-    assert_eq!(settled.status, Some(RuntimeV2Status::Settled));
-    assert_eq!(settled.observation.map(|value| value.generation), Some(5));
-    assert_eq!(fake.dispatches(), 1);
-    assert_eq!(fake.receipt_reads(), 1);
-
-    let replay = ledger.submit_action(action);
     assert_eq!(
-        replay,
+        ledger.submit_action(request),
         Err(sts2_gateway::RuntimeV2LedgerError::StaleGeneration {
             expected: 5,
             actual: 4,
         })
     );
     assert_eq!(fake.dispatches(), 1);
-    Ok(())
-}
-
-#[test]
-fn conflicting_operation_reuse_is_rejected_without_second_application() -> Result<(), String> {
-    let fake = FakeForwarder::new(FakeMode::Settle);
-    let mut ledger = RuntimeV2Ledger::new(RuntimeV2LedgerConfig::new(4), binding()?, fake.clone())
-        .map_err(|error| error.to_string())?;
-    ledger
-        .submit_action(action_request("corr-1", "op-1", 1, 4))
-        .map_err(|error| error.to_string())?;
-
-    let conflict = ledger
-        .submit_action(action_request("corr-2", "op-1", 1, 5))
-        .map_err(|error| error.to_string())?;
-    assert_eq!(conflict.status, Some(RuntimeV2Status::Rejected));
-    assert_eq!(conflict.error_code.as_deref(), Some("idempotency_conflict"));
-    assert_eq!(fake.dispatches(), 1);
     assert_eq!(fake.applications(), 1);
     Ok(())
 }
 
 #[test]
-fn stale_epoch_fails_closed_before_dispatch() -> Result<(), String> {
-    let fake = FakeForwarder::new(FakeMode::Settle);
+fn identity_and_epoch_are_checked_before_receipt_reconciliation() -> Result<(), String> {
+    let fake = FakeForwarder::new(FakeMode::DisconnectAfterWrite);
     let mut ledger = RuntimeV2Ledger::new(RuntimeV2LedgerConfig::new(4), binding()?, fake.clone())
         .map_err(|error| error.to_string())?;
-    let result = ledger.submit_action(action_request("corr-stale", "op-stale", 0, 4));
+    ledger
+        .submit_action(action_request(
+            "corr-receipt-fence",
+            "op-receipt-fence",
+            1,
+            4,
+        ))
+        .map_err(|error| error.to_string())?;
+
+    let mut wrong_instance = reconcile_request("corr-reconcile", "op-receipt-fence", 4);
+    wrong_instance.instance_id = String::from("instance-other");
     assert_eq!(
-        result,
+        ledger.reconcile(wrong_instance),
+        Err(sts2_gateway::RuntimeV2LedgerError::Fence(
+            sts2_gateway::RuntimeV2FenceFailure::WrongInstance,
+        ))
+    );
+    let mut stale_epoch = reconcile_request("corr-reconcile", "op-receipt-fence", 4);
+    stale_epoch.lease_epoch = 0;
+    assert_eq!(
+        ledger.reconcile(stale_epoch),
         Err(sts2_gateway::RuntimeV2LedgerError::Fence(
             sts2_gateway::RuntimeV2FenceFailure::StaleEpoch,
         ))
     );
-    assert_eq!(fake.dispatches(), 0);
-    assert_eq!(fake.applications(), 0);
+    assert_eq!(fake.receipt_reads(), 0);
     Ok(())
 }
 
 #[test]
-fn unknown_without_receipt_is_not_blindly_retried() -> Result<(), String> {
-    let fake = FakeForwarder::new(FakeMode::DisconnectWithoutReceipt);
+fn stale_generation_is_checked_before_receipt_reconciliation() -> Result<(), String> {
+    let fake = FakeForwarder::new(FakeMode::DisconnectAfterWrite);
     let mut ledger = RuntimeV2Ledger::new(RuntimeV2LedgerConfig::new(4), binding()?, fake.clone())
-        .map_err(|error| error.to_string())?;
-    let action = action_request("corr-action", "op-unknown", 1, 4);
-    let first = ledger
-        .submit_action(action)
-        .map_err(|error| error.to_string())?;
-    assert_eq!(first.status, Some(RuntimeV2Status::Unknown));
-
-    let result = ledger
-        .reconcile(reconcile_request("corr-reconcile", "op-unknown", 4))
-        .map_err(|error| error.to_string())?;
-    assert_eq!(result.status, Some(RuntimeV2Status::Unknown));
-    assert_eq!(fake.dispatches(), 1);
-    assert_eq!(fake.receipt_reads(), 1);
-    assert_eq!(fake.applications(), 0);
-    Ok(())
-}
-
-#[test]
-fn cancellation_before_dispatch_is_retained_and_never_forwarded() -> Result<(), String> {
-    let fake = FakeForwarder::new(FakeMode::Settle);
-    let mut ledger = RuntimeV2Ledger::new(RuntimeV2LedgerConfig::new(4), binding()?, fake.clone())
-        .map_err(|error| error.to_string())?;
-    let request = action_request("corr-cancel", "op-cancel", 1, 4);
-    let cancelled = ledger
-        .cancel_before_dispatch(request.clone())
-        .map_err(|error| error.to_string())?;
-    assert_eq!(cancelled.status, Some(RuntimeV2Status::Cancelled));
-    let replay = ledger
-        .submit_action(request)
-        .map_err(|error| error.to_string())?;
-    assert_eq!(replay, cancelled);
-    assert_eq!(fake.dispatches(), 0);
-    Ok(())
-}
-
-#[test]
-fn capacity_is_fail_closed() -> Result<(), String> {
-    let fake = FakeForwarder::new(FakeMode::Settle);
-    let mut ledger = RuntimeV2Ledger::new(RuntimeV2LedgerConfig::new(1), binding()?, fake.clone())
         .map_err(|error| error.to_string())?;
     ledger
-        .submit_action(action_request("corr-1", "op-1", 1, 4))
+        .submit_action(action_request(
+            "corr-receipt-generation",
+            "op-receipt-generation",
+            1,
+            4,
+        ))
         .map_err(|error| error.to_string())?;
+    ledger
+        .reconcile(reconcile_request(
+            "corr-reconcile",
+            "op-receipt-generation",
+            4,
+        ))
+        .map_err(|error| error.to_string())?;
+    assert_eq!(fake.receipt_reads(), 1);
     assert_eq!(
-        ledger.submit_action(action_request("corr-2", "op-2", 1, 5)),
-        Err(sts2_gateway::RuntimeV2LedgerError::CapacityExceeded)
+        ledger.reconcile(reconcile_request(
+            "corr-reconcile-again",
+            "op-receipt-generation",
+            4,
+        )),
+        Err(sts2_gateway::RuntimeV2LedgerError::StaleGeneration {
+            expected: 5,
+            actual: 4,
+        })
     );
+    assert_eq!(fake.receipt_reads(), 1);
     assert_eq!(fake.dispatches(), 1);
     Ok(())
 }

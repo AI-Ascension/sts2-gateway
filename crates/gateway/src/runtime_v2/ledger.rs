@@ -71,10 +71,16 @@ where
         let digest = request
             .request_digest()
             .map_err(RuntimeV2LedgerError::RequestDigest)?;
+        self.validate_context(&request)?;
         if let Some(existing) = self.operations.get(&key) {
+            if request.generation != self.binding.observation.generation {
+                return Err(RuntimeV2LedgerError::StaleGeneration {
+                    expected: self.binding.observation.generation,
+                    actual: request.generation,
+                });
+            }
             return self.replay_or_conflict(existing, &request, digest, &canonical_request);
         }
-        self.validate_context(&request)?;
         if self.operations.len() >= self.config.operation_capacity {
             return Err(RuntimeV2LedgerError::CapacityExceeded);
         }
@@ -142,10 +148,16 @@ where
         let digest = request
             .request_digest()
             .map_err(RuntimeV2LedgerError::RequestDigest)?;
+        self.validate_context(&request)?;
         if let Some(existing) = self.operations.get(&key) {
+            if request.generation != self.binding.observation.generation {
+                return Err(RuntimeV2LedgerError::StaleGeneration {
+                    expected: self.binding.observation.generation,
+                    actual: request.generation,
+                });
+            }
             return self.replay_or_conflict(existing, &request, digest, &canonical_request);
         }
-        self.validate_context(&request)?;
         if self.operations.len() >= self.config.operation_capacity {
             return Err(RuntimeV2LedgerError::CapacityExceeded);
         }

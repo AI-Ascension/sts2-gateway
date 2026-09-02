@@ -126,10 +126,14 @@ lane. The authorized exact-host trace confirms downstream readiness, forwarding,
 the `show_runtime_probe` witness. The action is a host-visible integration probe, not game-rule
 authority.
 
-The same adapter owns the conceptual Runtime-v2 routes `POST
-/v2/instances/{instance_id}/action` and `GET
-/v2/instances/{instance_id}/operations/{operation_id}`. They require the full copied Runtime-v2
-envelope, exact lease/correlation headers, and the bounded ledger. The attached binary deliberately
-has no authorized v2 host adapter: its v2 forwarding seam fails closed before write, while the
-in-memory fake tests cover settlement, uncertainty, replay, conflict, fencing, and capacity. No
-live gameplay mutation or host settlement is evidenced by this route implementation.
+The same adapter owns the fixed Runtime-v2 routes `GET /v2/instances/{instance_id}/state`, `POST
+/v2/instances/{instance_id}/action`, and `GET
+/v2/instances/{instance_id}/operations/{operation_id}`. The operation routes require the full copied
+Runtime-v2 envelope, exact lease/correlation headers, and bounded ledger. The state route constructs
+and validates a typed state request; because the attached binary has no configured host-state adapter,
+it returns an explicit structured `state_unavailable` response rather than claiming its local
+fallback observation is host state. Other v2 GET paths are rejected and never treated as proxy
+routes. The attached binary deliberately has no authorized v2 host adapter: its v2 forwarding seam
+fails closed before write, while the in-memory fake tests cover settlement, uncertainty, replay,
+conflict, fencing, capacity, and artifact tamper rejection. No live gameplay mutation or host
+settlement is evidenced by this route implementation.

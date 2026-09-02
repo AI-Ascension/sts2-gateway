@@ -120,6 +120,9 @@ impl RuntimeService {
             {
                 self.runtime_v2_action(request)
             }
+            ("GET", path) if path == self.runtime_v2_state_path() && request.body.is_empty() => {
+                self.runtime_v2_state(request)
+            }
             ("GET", path) if request.body.is_empty() => {
                 let Some(operation_id) = self.runtime_v2_operation_id(path) else {
                     return (404, json_error("route_not_found"));
@@ -246,6 +249,28 @@ impl RuntimeService {
             Ok(response) => (runtime_v2_status(&response), runtime_v2_bytes(&response)),
             Err(error) => runtime_v2_error(error),
         }
+    }
+
+    fn runtime_v2_state(&mut self, request: &HttpRequest) -> (u16, Vec<u8>) {
+        if let Err(error) = self.check_lease(request) {
+            return error;
+        }
+        let Some(correlation_id) = request.headers.get("x-sts2-correlation-id") else {
+            return (400, json_error("correlation_required"));
+        };
+        let state_request = RuntimeV2Message::state_request(
+            self.runtime_v2.binding().metadata().clone(),
+            correlation_id,
+            &self.config.instance_id,
+            &self.config.session_id,
+            &self.config.lease_id,
+            self.config.lease_epoch,
+            self.runtime_v2.observation().generation,
+        );
+        if state_request.validate().is_err() {
+            return (500, json_error("runtime_v2_state_request_invalid"));
+        }
+        (503, runtime_v2_state_unavailable(&state_request))
     }
 
     fn runtime_v2_reconcile(
@@ -389,6 +414,10 @@ impl RuntimeService {
 
     fn runtime_v2_action_path(&self) -> String {
         format!("/v2/instances/{}/action", self.config.instance_id)
+    }
+
+    fn runtime_v2_state_path(&self) -> String {
+        format!("/v2/instances/{}/state", self.config.instance_id)
     }
 
     fn runtime_v2_operation_id<'a>(&self, path: &'a str) -> Option<&'a str> {
@@ -542,6 +571,15 @@ fn runtime_v2_status(message: &RuntimeV2Message) -> u16 {
     }
 }
 
+fn runtime_v2_state_unavailable(request: &RuntimeV2Message) -> Vec<u8> {
+    json_bytes(&json!({
+        "status": "unavailable",
+        "error_code": "sts2.runtime/state_unavailable",
+        "reason": "unconfigured_runtime_v2_forwarder",
+        "request": request,
+    }))
+}
+
 fn runtime_v2_error(error: RuntimeV2LedgerError) -> (u16, Vec<u8>) {
     let (status, code) = match error {
         RuntimeV2LedgerError::InvalidRequest(_) | RuntimeV2LedgerError::RequestDigest(_) => {
@@ -563,5 +601,106 @@ fn read_error_status(error: ReadError) -> u16 {
         ReadError::Timeout => 504,
         ReadError::Malformed | ReadError::Oversized => 502,
         ReadError::Unavailable => 503,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+
+    use serde_json::Value;
+    use sts2_gateway::{
+        RuntimeV2Binding, RuntimeV2CombatPhase, RuntimeV2Ledger, RuntimeV2LedgerConfig,
+        RuntimeV2Observation,
+    };
+
+    use super::{HttpRequest, RuntimeConfig, RuntimeService, UnconfiguredRuntimeV2Forwarder};
+
+    fn test_service() -> Result<RuntimeService, String> {
+        let config = RuntimeConfig {
+            listen_address: String::from("127.0.0.1:15525"),
+            mod_address: String::from("127.0.0.1:15526"),
+            gateway_token: String::from("gateway-token"),
+            mod_token: String::from("mod-token"),
+            instance_id: String::from("instance-1"),
+            caller_id: String::from("harness"),
+            session_id: String::from("session-1"),
+            lease_id: String::from("lease-1"),
+            lease_epoch: 1,
+        };
+        let binding = RuntimeV2Binding::new(
+            &config.instance_id,
+            &config.session_id,
+            &config.lease_id,
+            config.lease_epoch,
+            RuntimeV2Observation::new(RuntimeV2CombatPhase::OutsideCombat, 0, false, 0),
+        )
+        .map_err(|error| error.to_string())?;
+        let runtime_v2 = RuntimeV2Ledger::new(
+            RuntimeV2LedgerConfig::new(8),
+            binding,
+            UnconfiguredRuntimeV2Forwarder,
+        )
+        .map_err(|error| error.to_string())?;
+        Ok(RuntimeService {
+            config,
+            lease_active: true,
+            runtime_v2,
+        })
+    }
+
+    fn authenticated_request(path: &str) -> HttpRequest {
+        let mut headers = BTreeMap::new();
+        headers.insert(
+            String::from("authorization"),
+            String::from("Bearer gateway-token"),
+        );
+        headers.insert(
+            String::from("x-sts2-instance-id"),
+            String::from("instance-1"),
+        );
+        headers.insert(String::from("x-sts2-caller-id"), String::from("harness"));
+        headers.insert(String::from("x-sts2-session-id"), String::from("session-1"));
+        headers.insert(String::from("x-sts2-lease-id"), String::from("lease-1"));
+        headers.insert(String::from("x-sts2-lease-epoch"), String::from("1"));
+        headers.insert(
+            String::from("x-sts2-correlation-id"),
+            String::from("corr-state"),
+        );
+        HttpRequest {
+            method: String::from("GET"),
+            path: path.to_owned(),
+            headers,
+            body: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn state_route_returns_typed_request_and_explicit_unavailable_fallback() -> Result<(), String> {
+        let mut service = test_service()?;
+        let request = authenticated_request("/v2/instances/instance-1/state");
+        let (status, body) = service.handle_request(&request);
+        assert_eq!(status, 503);
+        let value = serde_json::from_slice::<Value>(&body).map_err(|error| error.to_string())?;
+        assert_eq!(value["status"], "unavailable");
+        assert_eq!(value["error_code"], "sts2.runtime/state_unavailable");
+        assert_eq!(value["reason"], "unconfigured_runtime_v2_forwarder");
+        assert_eq!(value["request"]["kind"], "state_request");
+        assert_eq!(value["request"]["instance_id"], "instance-1");
+        assert_eq!(value["request"]["correlation_id"], "corr-state");
+        Ok(())
+    }
+
+    #[test]
+    fn v2_gets_are_not_arbitrary_proxy_routes() -> Result<(), String> {
+        let mut service = test_service()?;
+        for path in [
+            "/v2/instances/instance-1/state/extra",
+            "/v2/instances/instance-1/not-a-proxy",
+        ] {
+            let (status, _) = service.handle_request(&authenticated_request(path));
+            assert_eq!(status, 404, "unexpected route match for {path}");
+        }
+        Ok(())
     }
 }

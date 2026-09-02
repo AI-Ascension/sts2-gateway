@@ -14,6 +14,10 @@ runtime or downstream wire contract.
 - A copied Runtime-v2 release-like artifact from protocol handoff commit `8d4b2f5`, including the
   exact schema digest `f7963b19c8ed5bbdc02c08e83c7a2e16c4771ed5eb798b29a8208d7a917a86c2` and checksum
   verification. The deterministic fake seam is confirmed; live gameplay settlement is unverified.
+- Repaired the fixed Runtime-v2 state route to emit a typed request with explicit unavailable status
+  when no host adapter is configured, fenced duplicate/receipt reads by current identity and
+  generation, and made the in-process artifact verifier calculate every listed SHA-256 with tamper
+  coverage.
 
 - The bounded `sts2-gateway-runtime` attached single-instance loopback adapter with bearer
   authentication, allocation/release, lease fencing, fixed runtime routes, and `runtime-v1`

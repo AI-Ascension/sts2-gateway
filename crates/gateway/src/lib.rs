@@ -39,7 +39,8 @@ pub use runtime_v2_artifact::{
     RUNTIME_V2_ACTION_ID, RUNTIME_V2_ARTIFACT, RUNTIME_V2_EFFECT_KIND, RUNTIME_V2_GENERATOR,
     RUNTIME_V2_MAX_GENERATION, RUNTIME_V2_MAX_TURN_INDEX, RUNTIME_V2_PLAYER_TURN_PHASE,
     RUNTIME_V2_PROTOCOL_VERSION, RUNTIME_V2_SCHEMA_DIGEST, RUNTIME_V2_SCHEMA_SOURCE,
-    RuntimeV2ArtifactError, verify_runtime_v2_artifact,
+    RuntimeV2ArtifactError, RuntimeV2ArtifactFile, RuntimeV2ArtifactFiles,
+    runtime_v2_artifact_files, verify_runtime_v2_artifact, verify_runtime_v2_artifact_files,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
