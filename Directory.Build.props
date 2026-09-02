@@ -1,0 +1,8 @@
+<Project>
+  <!-- Rust-only gateway target; retained for foundation parity, not a managed product project. -->
+  <PropertyGroup>
+    <Deterministic>true</Deterministic>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnableDefaultItems>false</EnableDefaultItems>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,88 @@
+policy_version = 1
+
+[project]
+required_files = [
+  ".gitignore",
+  ".editorconfig",
+  ".gitattributes",
+  "AGENTS.md",
+  "CODE_OF_CONDUCT.md",
+  "CONTRIBUTING.md",
+  "RELEASING.md",
+  "CHANGELOG.md",
+  "LICENSE",
+  "README.md",
+  "SECURITY.md",
+  "THIRD_PARTY_NOTICES.md",
+  "Cargo.lock",
+  "Cargo.toml",
+  "clippy.toml",
+  "Directory.Build.props",
+  "rust-toolchain.toml",
+  "rustfmt.toml",
+  "docs/ARCHITECTURE.md",
+  "docs/CODING_STANDARDS.md",
+  "docs/TESTING.md",
+  "docs/COMPATIBILITY.md",
+  "docs/LICENSING.md",
+  "docs/WORKFLOWS.md",
+  "docs/POLICY_AS_CODE.md",
+  "docs/PRODUCT.md",
+  "docs/REPOSITORY_LAYOUT.md",
+  "docs/decisions/0001-gateway-ownership-and-dependencies.md",
+  "docs/decisions/0002-sixth-target-protocol-boundary.md",
+  "docs/decisions/0003-foundation-preparation-and-evidence.md",
+  "crates/gateway/Cargo.toml",
+  "crates/gateway/src/control.rs",
+  "crates/gateway/src/fencing.rs",
+  "crates/gateway/src/forwarding.rs",
+  "crates/gateway/src/identity.rs",
+  "crates/gateway/src/lifecycle.rs",
+  "crates/gateway/src/lib.rs",
+  "crates/gateway/src/maintenance.rs",
+  "crates/gateway/src/ports.rs",
+  "crates/gateway/tests/control_plane.rs",
+  "crates/gateway/tests/support/mod.rs",
+  "tools/repo-policy/Cargo.toml",
+  "tools/repo-policy/src/config.rs",
+  "tools/repo-policy/src/diagnostic.rs",
+  "tools/repo-policy/src/files.rs",
+  "tools/repo-policy/src/lib.rs",
+  "tools/repo-policy/src/license.rs",
+  "tools/repo-policy/src/main.rs",
+  "tools/repo-policy/src/markdown.rs",
+  "tools/repo-policy/src/rust.rs",
+  "tools/repo-policy/src/workflow.rs",
+  ".github/workflows/ci.yml",
+  ".github/workflows/policy.yml",
+  ".github/dependabot.yml",
+  ".github/pull_request_template.md",
+]
+ignored_directories = [
+  ".git",
+  ".idea",
+  ".vscode",
+  "bin",
+  "node_modules",
+  "obj",
+  "target",
+  "vendor",
+]
+ignored_path_prefixes = []
+
+[limits]
+rust_production_preferred = 300
+rust_production_max = 400
+rust_test_preferred = 400
+rust_test_max = 600
+csharp_production_preferred = 250
+csharp_production_max = 350
+csharp_test_preferred = 350
+csharp_test_max = 500
+workflow_preferred = 160
+workflow_max = 200
+markdown_preferred = 500
+markdown_max = 700
+
+# Foundation files are handwritten and have no size exemptions.
+[exemptions]
