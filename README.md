@@ -53,6 +53,7 @@ cargo run --locked --package repo-policy -- --strict
 cargo fmt --all --check
 cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 cargo test --workspace --all-targets --all-features --locked
+(cd protocol-artifact/poc-v1 && sha256sum -c SHA256SUMS)
 ```
 
 The first command is the local policy entrypoint and checks required paths, licenses, links,

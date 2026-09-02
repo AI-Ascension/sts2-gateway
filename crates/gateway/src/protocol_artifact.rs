@@ -19,6 +19,7 @@ pub const POC_MAX_UNITS: u16 = 8;
 pub const POC_MAX_SETTLED_EFFECTS: u16 = 4;
 
 const MANIFEST: &str = include_str!("../../../protocol-artifact/poc-v1/manifest.json");
+const SOURCE_SCHEMA: &str = include_str!("../../../schemas/poc-v1.schema.json");
 const SCHEMA: &str = include_str!("../../../protocol-artifact/poc-v1/schema.json");
 const STATE_RESPONSE: &str =
     include_str!("../../../protocol-artifact/poc-v1/golden/state-response.json");
@@ -26,22 +27,51 @@ const ACTION_RESPONSE: &str =
     include_str!("../../../protocol-artifact/poc-v1/golden/action-accepted.json");
 const INVALID_ACTION: &str =
     include_str!("../../../protocol-artifact/poc-v1/fixtures/invalid-action.json");
+const CONFORMANCE_CASE: &str = include_str!("../../../conformance/cases/poc-v1.json");
+
+const POC_LICENSE: &str = "MIT";
+const POC_CONSUMERS: [&str; 5] = [
+    "sts2-game-core",
+    "sts2-game-mod",
+    "sts2-gateway",
+    "sts2-mcp-server",
+    "sts2-harness",
+];
 
 /// Verifies the local copied artifact before the gateway POC route is exercised.
 pub fn verify_poc_artifact() -> Result<(), ArtifactError> {
     let manifest = parse(MANIFEST)?;
     if manifest["artifact"] != POC_ARTIFACT
         || manifest["protocol_version"] != POC_PROTOCOL_VERSION
+        || manifest["schema"] != POC_SCHEMA_SOURCE
         || manifest["schema_digest"] != POC_SCHEMA_DIGEST
+        || manifest["provenance"]["source"] != POC_SCHEMA_SOURCE
+        || manifest["provenance"]["generator"] != POC_GENERATOR
+        || manifest["provenance"]["license"] != POC_LICENSE
+        || !manifest["consumers"].as_array().is_some_and(|consumers| {
+            consumers
+                .iter()
+                .map(Value::as_str)
+                .eq(POC_CONSUMERS.into_iter().map(Some))
+        })
     {
         return Err(ArtifactError::ManifestMismatch);
     }
-    if parse(SCHEMA)?["$id"] != "sts2-poc-v1" {
+    if parse(SOURCE_SCHEMA)?["$id"] != "sts2-poc-v1" || parse(SCHEMA)?["$id"] != "sts2-poc-v1" {
         return Err(ArtifactError::SchemaMismatch);
     }
-    parse(STATE_RESPONSE)?;
-    parse(ACTION_RESPONSE)?;
-    parse(INVALID_ACTION)?;
+    for fixture in [STATE_RESPONSE, ACTION_RESPONSE, INVALID_ACTION] {
+        if !fixture_metadata_matches(&parse(fixture)?) {
+            return Err(ArtifactError::FixtureMismatch);
+        }
+    }
+    let conformance = parse(CONFORMANCE_CASE)?;
+    if conformance["contract"] != "sts2.protocol/poc-v1"
+        || conformance["profile"] != POC_PROTOCOL_VERSION
+        || conformance["schema"] != POC_SCHEMA_SOURCE
+    {
+        return Err(ArtifactError::FixtureMismatch);
+    }
     Ok(())
 }
 
@@ -51,6 +81,7 @@ pub enum ArtifactError {
     InvalidJson,
     ManifestMismatch,
     SchemaMismatch,
+    FixtureMismatch,
 }
 
 impl std::fmt::Display for ArtifactError {
@@ -63,4 +94,12 @@ impl std::error::Error for ArtifactError {}
 
 fn parse(text: &str) -> Result<Value, ArtifactError> {
     serde_json::from_str(text).map_err(|_| ArtifactError::InvalidJson)
+}
+
+fn fixture_metadata_matches(fixture: &Value) -> bool {
+    fixture["protocol_version"] == POC_PROTOCOL_VERSION
+        && fixture["schema_digest"] == POC_SCHEMA_DIGEST
+        && fixture["provenance"]["artifact"] == POC_ARTIFACT
+        && fixture["provenance"]["source"] == POC_SCHEMA_SOURCE
+        && fixture["provenance"]["generator"] == POC_GENERATOR
 }

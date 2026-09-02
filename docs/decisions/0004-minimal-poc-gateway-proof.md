@@ -12,7 +12,9 @@ implementation and the protocol implementation crate.
 ## Decision
 
 Copy the `sts2-protocol/poc-v1` release-like artifact into `protocol-artifact/poc-v1` and verify
-its manifest, schema identity, and golden/invalid fixtures locally. Use the existing injected
+its complete manifest provenance/path and fixture metadata locally. The copy is synchronized
+verbatim from protocol source revision `3c93b0bed34661ec2e69072d900bb014539e99ec` (protocol PR #2),
+including its checksum-covered conformance companion. Use the existing injected
 control-plane seams to allocate fake instances, reconcile one to ready, forward a fixed command
 route, and reject a stale epoch or a proof from another instance before transport.
 

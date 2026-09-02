@@ -16,12 +16,14 @@ cargo run --locked --package repo-policy -- --strict
 cargo fmt --all --check
 cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 cargo test --workspace --all-targets --all-features --locked
+(cd protocol-artifact/poc-v1 && sha256sum -c SHA256SUMS)
 ```
 
 The policy command comes first in the normal local sequence. CI runs the same commands with bounded
 job timeouts. A missing toolchain or unavailable dependency is reported as unverified; it is not
 converted into a passing skip. The package suite confirms only in-memory control-plane outcomes,
-not runtime compatibility.
+not runtime compatibility. The checksum command verifies the verbatim protocol artifact and its
+checksum-covered conformance companion.
 
 The current deterministic suite covers allocation and readiness, process inspection and crash
 failure, lease expiry and forced cleanup, stale epoch and wrong-instance rejection before transport,
