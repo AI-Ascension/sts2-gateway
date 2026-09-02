@@ -1,0 +1,107 @@
+{
+  "case_id": "CT-RUNTIME-V2-001",
+  "contract": "sts2.protocol/runtime-v2",
+  "profile": "runtime-v2",
+  "schema": "schemas/runtime-v2.schema.json",
+  "artifacts": [
+    "artifacts/runtime-v2/manifest.json",
+    "artifacts/runtime-v2/schema.json"
+  ],
+  "checksums": "artifacts/runtime-v2/SHA256SUMS",
+  "consumers": [
+    "sts2-game-mod",
+    "sts2-gateway",
+    "sts2-harness",
+    "sts2-mcp-server"
+  ],
+  "contract_assertions": {
+    "action_id": "end_turn",
+    "legal_phase": "combat/player_turn",
+    "settlement_witness": "turn_end_settled",
+    "outcomes": [
+      "accepted",
+      "settled",
+      "rejected",
+      "unknown",
+      "cancelled"
+    ],
+    "accepted_is_admission_only": true,
+    "settled_requires_fresh_observation_and_witness": true,
+    "unknown_requires_reconciliation": true,
+    "cancelled_requires_no_mutation": true,
+    "operation_id_is_stable": true,
+    "duplicate_replays_without_second_mutation": true,
+    "conflicting_operation_reuse_error": "idempotency_conflict",
+    "transition": {
+      "before": {
+        "combat_phase": "combat/player_turn",
+        "turn_index": 2,
+        "host_ready": true,
+        "generation": 4
+      },
+      "after": {
+        "combat_phase": "combat/player_turn",
+        "turn_index": 3,
+        "host_ready": true,
+        "generation": 5
+      }
+    }
+  },
+  "fixtures": [
+    {
+      "id": "legal",
+      "request": "artifacts/runtime-v2/golden/legal-action-request.json",
+      "admission": "artifacts/runtime-v2/golden/legal-action-accepted.json",
+      "settlement": "artifacts/runtime-v2/golden/legal-action-settled.json",
+      "expected_status": "settled"
+    },
+    {
+      "id": "stale_generation",
+      "request": "artifacts/runtime-v2/golden/stale-generation-request.json",
+      "response": "artifacts/runtime-v2/golden/stale-generation-response.json",
+      "expected_status": "rejected"
+    },
+    {
+      "id": "outside_combat",
+      "request": "artifacts/runtime-v2/golden/outside-combat-request.json",
+      "response": "artifacts/runtime-v2/golden/outside-combat-response.json",
+      "expected_status": "rejected"
+    },
+    {
+      "id": "enemy_turn",
+      "request": "artifacts/runtime-v2/golden/enemy-turn-request.json",
+      "response": "artifacts/runtime-v2/golden/enemy-turn-response.json",
+      "expected_status": "rejected"
+    },
+    {
+      "id": "duplicate",
+      "response": "artifacts/runtime-v2/golden/duplicate-replay.json",
+      "same_as": "artifacts/runtime-v2/golden/legal-action-settled.json",
+      "expected_status": "settled"
+    },
+    {
+      "id": "idempotency_conflict",
+      "request": "artifacts/runtime-v2/golden/idempotency-conflict-request.json",
+      "response": "artifacts/runtime-v2/golden/idempotency-conflict-response.json",
+      "expected_status": "rejected"
+    },
+    {
+      "id": "cancel_before_dispatch",
+      "response": "artifacts/runtime-v2/golden/cancelled-before-dispatch.json",
+      "expected_status": "cancelled"
+    },
+    {
+      "id": "timeout_to_unknown",
+      "request": "artifacts/runtime-v2/golden/timeout-action-request.json",
+      "response": "artifacts/runtime-v2/golden/timeout-unknown-response.json",
+      "expected_status": "unknown"
+    },
+    {
+      "id": "successful_reconcile",
+      "request": "artifacts/runtime-v2/golden/reconcile-request.json",
+      "response": "artifacts/runtime-v2/golden/reconcile-settled-response.json",
+      "expected_status": "settled",
+      "operation_id": "op-timeout"
+    }
+  ]
+}

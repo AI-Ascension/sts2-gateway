@@ -35,10 +35,12 @@ the [architecture](docs/ARCHITECTURE.md).
 
 The gateway does not own game rules, host objects, managed loader code, MCP semantics or tool
 catalogs, model/provider execution, harness episodes or artifacts, direct game files, saves,
-credentials, arbitrary proxying, or implicit remote discovery. It consumes only an inert copied
-`sts2-protocol/poc-v1` artifact for this proof. A forwarded request must have a validated instance,
+credentials, arbitrary proxying, or implicit remote discovery. It consumes only inert copied
+`sts2-protocol/poc-v1` and Runtime-v2 artifacts. A forwarded request must have a validated instance,
 session, lease, lease epoch, route, method, and bounded body; listener reachability is not
-authentication.
+authentication. Runtime-v2 adds only the fixed `end_turn` operation and its retained receipt ledger,
+plus a typed state route that reports explicit unavailability without a host-state adapter; live
+gameplay settlement is unverified.
 
 The POC test allocates and readies fake instances, forwards a fixed command route, and proves that
 stale epochs and a proof from another instance are rejected before transport. It is a gateway
@@ -69,6 +71,7 @@ cargo fmt --all --check
 cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 cargo test --workspace --all-targets --all-features --locked
 (cd protocol-artifact/poc-v1 && sha256sum -c SHA256SUMS)
+(cd protocol-artifact/runtime-v2 && sha256sum -c SHA256SUMS)
 ```
 
 The first command is the local policy entrypoint and checks required paths, licenses, links,

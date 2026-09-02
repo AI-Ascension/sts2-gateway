@@ -1,0 +1,331 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sts2-runtime-v2",
+  "title": "STS2 bounded gameplay-operation contract",
+  "description": "A fenced end-turn operation with explicit admission, settlement, rejection, uncertainty, cancellation, and reconciliation.",
+  "oneOf": [
+    { "$ref": "#/$defs/state_request" },
+    { "$ref": "#/$defs/state_response" },
+    { "$ref": "#/$defs/action_request" },
+    { "$ref": "#/$defs/action_response" },
+    { "$ref": "#/$defs/reconcile_request" },
+    { "$ref": "#/$defs/reconcile_response" }
+  ],
+  "$defs": {
+    "identity": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.:/-]{1,128}$"
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact", "source", "generator"],
+      "properties": {
+        "artifact": { "const": "sts2-protocol/runtime-v2" },
+        "source": { "const": "schemas/runtime-v2.schema.json" },
+        "generator": { "const": "hand-authored" }
+      }
+    },
+    "base": {
+      "type": "object",
+      "required": [
+        "protocol_version",
+        "schema_digest",
+        "provenance",
+        "correlation_id",
+        "instance_id",
+        "session_id",
+        "lease_id",
+        "lease_epoch",
+        "generation"
+      ],
+      "properties": {
+        "protocol_version": { "const": "runtime-v2" },
+        "schema_digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "provenance": { "$ref": "#/$defs/provenance" },
+        "correlation_id": { "$ref": "#/$defs/identity" },
+        "instance_id": { "$ref": "#/$defs/identity" },
+        "session_id": { "$ref": "#/$defs/identity" },
+        "lease_id": { "$ref": "#/$defs/identity" },
+        "lease_epoch": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "generation": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      }
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["combat_phase", "turn_index", "host_ready", "generation"],
+      "properties": {
+        "combat_phase": {
+          "enum": ["outside_combat", "combat/player_turn", "combat/enemy_turn"]
+        },
+        "turn_index": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1024
+        },
+        "host_ready": { "type": "boolean" },
+        "generation": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      }
+    },
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action_id"],
+      "properties": {
+        "action_id": { "const": "end_turn" }
+      }
+    },
+    "effect_witness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "generation"],
+      "properties": {
+        "kind": { "const": "turn_end_settled" },
+        "generation": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      }
+    },
+    "result_fields": {
+      "type": "object",
+      "required": [
+        "kind",
+        "operation_id",
+        "observation",
+        "action",
+        "status",
+        "error_code",
+        "effect_witness"
+      ],
+      "properties": {
+        "operation_id": { "$ref": "#/$defs/identity" },
+        "observation": {
+          "anyOf": [
+            { "$ref": "#/$defs/observation" },
+            { "type": "null" }
+          ]
+        },
+        "action": { "$ref": "#/$defs/action" },
+        "status": {
+          "enum": ["accepted", "settled", "rejected", "unknown", "cancelled"]
+        },
+        "error_code": {
+          "anyOf": [
+            { "$ref": "#/$defs/identity" },
+            { "type": "null" }
+          ]
+        },
+        "effect_witness": {
+          "anyOf": [
+            { "$ref": "#/$defs/effect_witness" },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+    "result_rules": {
+      "allOf": [
+        {
+          "if": { "properties": { "status": { "const": "accepted" } } },
+          "then": {
+            "properties": {
+              "observation": { "$ref": "#/$defs/observation" },
+              "error_code": { "type": "null" },
+              "effect_witness": { "type": "null" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "status": { "const": "settled" } } },
+          "then": {
+            "properties": {
+              "observation": { "$ref": "#/$defs/observation" },
+              "error_code": { "type": "null" },
+              "effect_witness": { "$ref": "#/$defs/effect_witness" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "status": { "const": "rejected" } } },
+          "then": {
+            "properties": {
+              "observation": { "$ref": "#/$defs/observation" },
+              "error_code": { "$ref": "#/$defs/identity" },
+              "effect_witness": { "type": "null" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "status": { "const": "unknown" } } },
+          "then": {
+            "properties": {
+              "observation": { "type": "null" },
+              "error_code": { "$ref": "#/$defs/identity" },
+              "effect_witness": { "type": "null" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "status": { "const": "cancelled" } } },
+          "then": {
+            "properties": {
+              "observation": { "$ref": "#/$defs/observation" },
+              "error_code": { "$ref": "#/$defs/identity" },
+              "effect_witness": { "type": "null" }
+            }
+          }
+        }
+      ]
+    },
+    "state_request": {
+      "allOf": [
+        { "$ref": "#/$defs/base" },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "operation_id",
+            "observation",
+            "action",
+            "status",
+            "error_code",
+            "effect_witness"
+          ],
+          "properties": {
+            "kind": { "const": "state_request" },
+            "operation_id": { "type": "null" },
+            "observation": { "type": "null" },
+            "action": { "type": "null" },
+            "status": { "type": "null" },
+            "error_code": { "type": "null" },
+            "effect_witness": { "type": "null" }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "state_response": {
+      "allOf": [
+        { "$ref": "#/$defs/base" },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "operation_id",
+            "observation",
+            "action",
+            "status",
+            "error_code",
+            "effect_witness"
+          ],
+          "properties": {
+            "kind": { "const": "state_response" },
+            "operation_id": { "type": "null" },
+            "observation": { "$ref": "#/$defs/observation" },
+            "action": { "type": "null" },
+            "status": { "type": "null" },
+            "error_code": { "type": "null" },
+            "effect_witness": { "type": "null" }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "action_request": {
+      "allOf": [
+        { "$ref": "#/$defs/base" },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "operation_id",
+            "observation",
+            "action",
+            "status",
+            "error_code",
+            "effect_witness"
+          ],
+          "properties": {
+            "kind": { "const": "action_request" },
+            "operation_id": { "$ref": "#/$defs/identity" },
+            "observation": { "type": "null" },
+            "action": { "$ref": "#/$defs/action" },
+            "status": { "type": "null" },
+            "error_code": { "type": "null" },
+            "effect_witness": { "type": "null" }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "action_response": {
+      "allOf": [
+        { "$ref": "#/$defs/base" },
+        { "$ref": "#/$defs/result_fields" },
+        {
+          "type": "object",
+          "properties": { "kind": { "const": "action_response" } }
+        },
+        { "$ref": "#/$defs/result_rules" }
+      ],
+      "unevaluatedProperties": false
+    },
+    "reconcile_request": {
+      "allOf": [
+        { "$ref": "#/$defs/base" },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "operation_id",
+            "observation",
+            "action",
+            "status",
+            "error_code",
+            "effect_witness"
+          ],
+          "properties": {
+            "kind": { "const": "reconcile_request" },
+            "operation_id": { "$ref": "#/$defs/identity" },
+            "observation": { "type": "null" },
+            "action": { "type": "null" },
+            "status": { "type": "null" },
+            "error_code": { "type": "null" },
+            "effect_witness": { "type": "null" }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "reconcile_response": {
+      "allOf": [
+        { "$ref": "#/$defs/base" },
+        { "$ref": "#/$defs/result_fields" },
+        {
+          "type": "object",
+          "properties": { "kind": { "const": "reconcile_response" } }
+        },
+        { "$ref": "#/$defs/result_rules" }
+      ],
+      "unevaluatedProperties": false
+    }
+  }
+}

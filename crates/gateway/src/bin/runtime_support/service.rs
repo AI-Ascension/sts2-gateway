@@ -5,6 +5,11 @@ use std::net::{TcpListener, TcpStream, ToSocketAddrs};
 use std::time::Duration;
 
 use serde_json::{Value, json};
+use sts2_gateway::{
+    RuntimeV2Binding, RuntimeV2CombatPhase, RuntimeV2ForwardRequest, RuntimeV2ForwardingPort,
+    RuntimeV2Ledger, RuntimeV2LedgerConfig, RuntimeV2LedgerError, RuntimeV2Message,
+    RuntimeV2Observation, RuntimeV2ReceiptRequest, RuntimeV2Status, RuntimeV2TransportFault,
+};
 
 use super::http::{
     HttpRequest, HttpResponse, MAX_BODY_BYTES, ReadError, read_request, read_response,
@@ -17,6 +22,7 @@ const DEFAULT_MOD_ADDRESS: &str = "127.0.0.1:15526";
 pub(crate) struct RuntimeService {
     config: RuntimeConfig,
     lease_active: bool,
+    runtime_v2: RuntimeV2Ledger<UnconfiguredRuntimeV2Forwarder>,
 }
 
 struct RuntimeConfig {
@@ -34,9 +40,24 @@ struct RuntimeConfig {
 impl RuntimeService {
     pub(crate) fn from_environment() -> Result<Self, String> {
         let config = RuntimeConfig::from_environment()?;
+        let binding = RuntimeV2Binding::new(
+            &config.instance_id,
+            &config.session_id,
+            &config.lease_id,
+            config.lease_epoch,
+            RuntimeV2Observation::new(RuntimeV2CombatPhase::OutsideCombat, 0, false, 0),
+        )
+        .map_err(|error| format!("Runtime-v2 binding is invalid: {error}"))?;
+        let runtime_v2 = RuntimeV2Ledger::new(
+            RuntimeV2LedgerConfig::new(8),
+            binding,
+            UnconfiguredRuntimeV2Forwarder,
+        )
+        .map_err(|error| format!("Runtime-v2 ledger is invalid: {error}"))?;
         Ok(Self {
             config,
             lease_active: false,
+            runtime_v2,
         })
     }
 
@@ -93,6 +114,20 @@ impl RuntimeService {
                 } else {
                     self.relay_data(request, "POST", "/api/v1/runtime/action", &request.body)
                 }
+            }
+            ("POST", path)
+                if path == self.runtime_v2_action_path() && request.content_type_is_json() =>
+            {
+                self.runtime_v2_action(request)
+            }
+            ("GET", path) if path == self.runtime_v2_state_path() && request.body.is_empty() => {
+                self.runtime_v2_state(request)
+            }
+            ("GET", path) if request.body.is_empty() => {
+                let Some(operation_id) = self.runtime_v2_operation_id(path) else {
+                    return (404, json_error("route_not_found"));
+                };
+                self.runtime_v2_reconcile(request, operation_id)
             }
             ("POST", path) if path == self.release_path() && request.body.is_empty() => {
                 self.release(request)
@@ -189,6 +224,82 @@ impl RuntimeService {
             }
             Ok(_) => (502, json_error("downstream_response_oversized")),
             Err(status) => (status, json_error("downstream_unavailable")),
+        }
+    }
+
+    fn runtime_v2_action(&mut self, request: &HttpRequest) -> (u16, Vec<u8>) {
+        if let Err(error) = self.check_lease(request) {
+            return error;
+        }
+        if request.body.len() > MAX_BODY_BYTES {
+            return (413, json_error("runtime_v2_body_oversized"));
+        }
+        let Ok(message) = serde_json::from_slice::<RuntimeV2Message>(&request.body) else {
+            return (400, json_error("runtime_v2_request_invalid"));
+        };
+        if request
+            .headers
+            .get("x-sts2-correlation-id")
+            .map(String::as_str)
+            != Some(message.correlation_id.as_str())
+        {
+            return (409, json_error("runtime_v2_correlation_mismatch"));
+        }
+        match self.runtime_v2.submit_action(message) {
+            Ok(response) => (runtime_v2_status(&response), runtime_v2_bytes(&response)),
+            Err(error) => runtime_v2_error(error),
+        }
+    }
+
+    fn runtime_v2_state(&mut self, request: &HttpRequest) -> (u16, Vec<u8>) {
+        if let Err(error) = self.check_lease(request) {
+            return error;
+        }
+        let Some(correlation_id) = request.headers.get("x-sts2-correlation-id") else {
+            return (400, json_error("correlation_required"));
+        };
+        let state_request = RuntimeV2Message::state_request(
+            self.runtime_v2.binding().metadata().clone(),
+            correlation_id,
+            &self.config.instance_id,
+            &self.config.session_id,
+            &self.config.lease_id,
+            self.config.lease_epoch,
+            self.runtime_v2.observation().generation,
+        );
+        if state_request.validate().is_err() {
+            return (500, json_error("runtime_v2_state_request_invalid"));
+        }
+        (503, runtime_v2_state_unavailable(&state_request))
+    }
+
+    fn runtime_v2_reconcile(
+        &mut self,
+        request: &HttpRequest,
+        operation_id: &str,
+    ) -> (u16, Vec<u8>) {
+        if let Err(error) = self.check_lease(request) {
+            return error;
+        }
+        if !safe_identity(operation_id) {
+            return (400, json_error("runtime_v2_operation_invalid"));
+        }
+        let Some(correlation_id) = request.headers.get("x-sts2-correlation-id") else {
+            return (400, json_error("correlation_required"));
+        };
+        let message = RuntimeV2Message::reconcile_request(
+            self.runtime_v2.binding().metadata().clone(),
+            correlation_id,
+            &self.config.instance_id,
+            &self.config.session_id,
+            &self.config.lease_id,
+            self.config.lease_epoch,
+            self.runtime_v2.observation().generation,
+            operation_id,
+        );
+        match self.runtime_v2.reconcile(message) {
+            Ok(response) => (runtime_v2_status(&response), runtime_v2_bytes(&response)),
+            Err(error) => runtime_v2_error(error),
         }
     }
 
@@ -300,6 +411,40 @@ impl RuntimeService {
     fn release_path(&self) -> String {
         format!("/v1/instances/{}/release", self.config.instance_id)
     }
+
+    fn runtime_v2_action_path(&self) -> String {
+        format!("/v2/instances/{}/action", self.config.instance_id)
+    }
+
+    fn runtime_v2_state_path(&self) -> String {
+        format!("/v2/instances/{}/state", self.config.instance_id)
+    }
+
+    fn runtime_v2_operation_id<'a>(&self, path: &'a str) -> Option<&'a str> {
+        let prefix = format!("/v2/instances/{}/operations/", self.config.instance_id);
+        path.strip_prefix(&prefix)
+            .filter(|operation_id| !operation_id.is_empty() && !operation_id.contains('/'))
+    }
+}
+
+/// The attached v1 binary has no authorized Runtime-v2 host adapter yet.
+/// Keeping this seam explicit makes the v2 routes safe: no guessed host path is contacted.
+struct UnconfiguredRuntimeV2Forwarder;
+
+impl RuntimeV2ForwardingPort for UnconfiguredRuntimeV2Forwarder {
+    fn forward_runtime_v2(
+        &mut self,
+        _request: RuntimeV2ForwardRequest,
+    ) -> Result<RuntimeV2Message, RuntimeV2TransportFault> {
+        Err(RuntimeV2TransportFault::UnavailableBeforeWrite)
+    }
+
+    fn read_runtime_v2_receipt(
+        &mut self,
+        _request: RuntimeV2ReceiptRequest,
+    ) -> Result<Option<RuntimeV2Message>, RuntimeV2TransportFault> {
+        Ok(None)
+    }
 }
 
 impl RuntimeConfig {
@@ -404,10 +549,158 @@ fn json_error(code: &str) -> Vec<u8> {
     json_bytes(&json!({ "error_code": code }))
 }
 
+fn runtime_v2_bytes(message: &RuntimeV2Message) -> Vec<u8> {
+    match serde_json::to_vec(message) {
+        Ok(bytes) => bytes,
+        Err(_) => json_error("runtime_v2_serialization_failed"),
+    }
+}
+
+fn runtime_v2_status(message: &RuntimeV2Message) -> u16 {
+    match message.status {
+        Some(RuntimeV2Status::Rejected)
+            if message.error_code.as_deref() == Some("idempotency_conflict") =>
+        {
+            409
+        }
+        Some(RuntimeV2Status::Rejected | RuntimeV2Status::Cancelled | RuntimeV2Status::Unknown) => {
+            200
+        }
+        Some(RuntimeV2Status::Accepted | RuntimeV2Status::Settled) => 200,
+        None => 200,
+    }
+}
+
+fn runtime_v2_state_unavailable(request: &RuntimeV2Message) -> Vec<u8> {
+    json_bytes(&json!({
+        "status": "unavailable",
+        "error_code": "sts2.runtime/state_unavailable",
+        "reason": "unconfigured_runtime_v2_forwarder",
+        "request": request,
+    }))
+}
+
+fn runtime_v2_error(error: RuntimeV2LedgerError) -> (u16, Vec<u8>) {
+    let (status, code) = match error {
+        RuntimeV2LedgerError::InvalidRequest(_) | RuntimeV2LedgerError::RequestDigest(_) => {
+            (400, "runtime_v2_request_invalid")
+        }
+        RuntimeV2LedgerError::MissingOperationId => (400, "runtime_v2_operation_required"),
+        RuntimeV2LedgerError::CapacityExceeded => (429, "runtime_v2_operation_capacity"),
+        RuntimeV2LedgerError::OperationNotFound => (404, "runtime_v2_operation_not_found"),
+        RuntimeV2LedgerError::OperationInProgress => (409, "runtime_v2_operation_in_progress"),
+        RuntimeV2LedgerError::Fence(_) => (409, "runtime_v2_lease_fence_rejected"),
+        RuntimeV2LedgerError::StaleGeneration { .. } => (409, "runtime_v2_stale_generation"),
+        RuntimeV2LedgerError::ZeroCapacity => (500, "runtime_v2_operation_capacity_invalid"),
+    };
+    (status, json_error(code))
+}
+
 fn read_error_status(error: ReadError) -> u16 {
     match error {
         ReadError::Timeout => 504,
         ReadError::Malformed | ReadError::Oversized => 502,
         ReadError::Unavailable => 503,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+
+    use serde_json::Value;
+    use sts2_gateway::{
+        RuntimeV2Binding, RuntimeV2CombatPhase, RuntimeV2Ledger, RuntimeV2LedgerConfig,
+        RuntimeV2Observation,
+    };
+
+    use super::{HttpRequest, RuntimeConfig, RuntimeService, UnconfiguredRuntimeV2Forwarder};
+
+    fn test_service() -> Result<RuntimeService, String> {
+        let config = RuntimeConfig {
+            listen_address: String::from("127.0.0.1:15525"),
+            mod_address: String::from("127.0.0.1:15526"),
+            gateway_token: String::from("gateway-token"),
+            mod_token: String::from("mod-token"),
+            instance_id: String::from("instance-1"),
+            caller_id: String::from("harness"),
+            session_id: String::from("session-1"),
+            lease_id: String::from("lease-1"),
+            lease_epoch: 1,
+        };
+        let binding = RuntimeV2Binding::new(
+            &config.instance_id,
+            &config.session_id,
+            &config.lease_id,
+            config.lease_epoch,
+            RuntimeV2Observation::new(RuntimeV2CombatPhase::OutsideCombat, 0, false, 0),
+        )
+        .map_err(|error| error.to_string())?;
+        let runtime_v2 = RuntimeV2Ledger::new(
+            RuntimeV2LedgerConfig::new(8),
+            binding,
+            UnconfiguredRuntimeV2Forwarder,
+        )
+        .map_err(|error| error.to_string())?;
+        Ok(RuntimeService {
+            config,
+            lease_active: true,
+            runtime_v2,
+        })
+    }
+
+    fn authenticated_request(path: &str) -> HttpRequest {
+        let mut headers = BTreeMap::new();
+        headers.insert(
+            String::from("authorization"),
+            String::from("Bearer gateway-token"),
+        );
+        headers.insert(
+            String::from("x-sts2-instance-id"),
+            String::from("instance-1"),
+        );
+        headers.insert(String::from("x-sts2-caller-id"), String::from("harness"));
+        headers.insert(String::from("x-sts2-session-id"), String::from("session-1"));
+        headers.insert(String::from("x-sts2-lease-id"), String::from("lease-1"));
+        headers.insert(String::from("x-sts2-lease-epoch"), String::from("1"));
+        headers.insert(
+            String::from("x-sts2-correlation-id"),
+            String::from("corr-state"),
+        );
+        HttpRequest {
+            method: String::from("GET"),
+            path: path.to_owned(),
+            headers,
+            body: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn state_route_returns_typed_request_and_explicit_unavailable_fallback() -> Result<(), String> {
+        let mut service = test_service()?;
+        let request = authenticated_request("/v2/instances/instance-1/state");
+        let (status, body) = service.handle_request(&request);
+        assert_eq!(status, 503);
+        let value = serde_json::from_slice::<Value>(&body).map_err(|error| error.to_string())?;
+        assert_eq!(value["status"], "unavailable");
+        assert_eq!(value["error_code"], "sts2.runtime/state_unavailable");
+        assert_eq!(value["reason"], "unconfigured_runtime_v2_forwarder");
+        assert_eq!(value["request"]["kind"], "state_request");
+        assert_eq!(value["request"]["instance_id"], "instance-1");
+        assert_eq!(value["request"]["correlation_id"], "corr-state");
+        Ok(())
+    }
+
+    #[test]
+    fn v2_gets_are_not_arbitrary_proxy_routes() -> Result<(), String> {
+        let mut service = test_service()?;
+        for path in [
+            "/v2/instances/instance-1/state/extra",
+            "/v2/instances/instance-1/not-a-proxy",
+        ] {
+            let (status, _) = service.handle_request(&authenticated_request(path));
+            assert_eq!(status, 404, "unexpected route match for {path}");
+        }
+        Ok(())
     }
 }

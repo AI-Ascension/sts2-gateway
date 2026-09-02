@@ -8,6 +8,8 @@ mod lifecycle;
 mod maintenance;
 mod ports;
 mod protocol_artifact;
+mod runtime_v2;
+mod runtime_v2_artifact;
 
 use std::fmt;
 
@@ -24,6 +26,21 @@ pub use ports::{
 pub use protocol_artifact::{
     ArtifactError, POC_ARTIFACT, POC_GENERATOR, POC_MAX_SETTLED_EFFECTS, POC_MAX_UNITS,
     POC_PROTOCOL_VERSION, POC_SCHEMA_DIGEST, POC_SCHEMA_SOURCE, verify_poc_artifact,
+};
+pub use runtime_v2::{
+    RuntimeV2Action, RuntimeV2Binding, RuntimeV2CodecError, RuntimeV2CombatPhase,
+    RuntimeV2EffectWitness, RuntimeV2FenceFailure, RuntimeV2ForwardRequest,
+    RuntimeV2ForwardingPort, RuntimeV2Ledger, RuntimeV2LedgerConfig, RuntimeV2LedgerError,
+    RuntimeV2Message, RuntimeV2MessageKind, RuntimeV2Metadata, RuntimeV2Observation,
+    RuntimeV2OperationKey, RuntimeV2Provenance, RuntimeV2ReceiptRequest, RuntimeV2RequestDigest,
+    RuntimeV2Status, RuntimeV2TransportFault, RuntimeV2ValidationError,
+};
+pub use runtime_v2_artifact::{
+    RUNTIME_V2_ACTION_ID, RUNTIME_V2_ARTIFACT, RUNTIME_V2_EFFECT_KIND, RUNTIME_V2_GENERATOR,
+    RUNTIME_V2_MAX_GENERATION, RUNTIME_V2_MAX_TURN_INDEX, RUNTIME_V2_PLAYER_TURN_PHASE,
+    RUNTIME_V2_PROTOCOL_VERSION, RUNTIME_V2_SCHEMA_DIGEST, RUNTIME_V2_SCHEMA_SOURCE,
+    RuntimeV2ArtifactError, RuntimeV2ArtifactFile, RuntimeV2ArtifactFiles,
+    runtime_v2_artifact_files, verify_runtime_v2_artifact, verify_runtime_v2_artifact_files,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

@@ -17,20 +17,27 @@ cargo fmt --all --check
 cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 cargo test --workspace --all-targets --all-features --locked
 (cd protocol-artifact/poc-v1 && sha256sum -c SHA256SUMS)
+(cd protocol-artifact/runtime-v2 && sha256sum -c SHA256SUMS)
 ```
 
 The policy command comes first in the normal local sequence. CI runs the same commands with bounded
 job timeouts. A missing toolchain or unavailable dependency is reported as unverified; it is not
 converted into a passing skip. The package suite confirms only in-memory control-plane outcomes,
 not runtime compatibility. The checksum command verifies the verbatim protocol artifact and its
-checksum-covered conformance companion.
+checksum-covered conformance companion; the Runtime-v2 verifier independently calculates SHA-256
+for every copied file named by `SHA256SUMS`.
 
 The current deterministic suite covers allocation and readiness, process inspection and crash
 failure, lease expiry and forced cleanup, stale epoch and wrong-instance rejection before transport,
 graceful release, shutdown admission closure, bounded fixed-route forwarding, and transport/stop/
 start failure reporting. The POC case additionally verifies the copied artifact identity while
 combining readiness, fixed command forwarding, stale-epoch rejection, and wrong-instance fencing.
-The fakes do not represent live process or network behavior.
+The Runtime-v2 case verifies the copied artifact and a bounded fake ledger for exactly-once
+application, unknown-to-settled retained-receipt reconciliation, duplicate replay, canonical
+conflict rejection, stale identity/epoch/generation replay and receipt fencing, cancellation, store
+capacity, no-blind-retry, and rejection of tampered copied schema/manifest/golden bytes. The runtime
+binary tests the fixed typed state route's explicit unavailable response and arbitrary-v2-GET denial.
+The fakes do not represent live process, network, or game-host behavior.
 
 ## Future deterministic suites
 
@@ -50,6 +57,8 @@ transports, bounded storage, and isolated temporary ports. Extend coverage with:
 
 The gateway must report accepted downstream work separately from completed game effects. A timeout
 or disconnect requires a status/reconciliation oracle; it must not trigger a blind mutation retry.
+Runtime-v2's retained ledger is in-memory and non-persistent: restart/eviction durability is
+unverified and deliberately outside this wave.
 
 ## Evidence levels
 
@@ -67,10 +76,10 @@ disposable fixture status, sanitized logs, and cleanup result.
 ## Runtime adapter checks
 
 The standalone runtime binary has bounded HTTP parser tests and builds with the pinned Rust
-toolchain. A controlled component lane can run the real gateway binary, real MCP binary, and real
-harness binary against a disposable synthetic downstream. That lane confirms TCP framing,
-authentication, fixed routing, lease fencing, accepted effect-witness mapping, stale-generation
-preservation, and release cleanup only for the synthetic downstream.
+toolchain. Its v1 lane can run against a disposable synthetic downstream. Runtime-v2 route parsing,
+envelope validation, ledger calls, and error mapping are source/build checked; the v2 forwarding
+seam intentionally has no live host adapter. A controlled v2 component lane and host mutation trace
+are unverified and require a separately authorized downstream contract.
 
 The authorized exact-host lane now confirms the managed mod listener, downstream forwarding,
 lease fencing, a Godot main-thread callback, the bounded STS2 host effect, and reversible disposable
