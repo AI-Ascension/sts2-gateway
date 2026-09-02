@@ -7,6 +7,7 @@ package. Concrete adapters and product integration remain deferred.
 sts2-gateway/
 ├── .github/                 # bounded, least-privilege automation and review template
 ├── crates/gateway/          # target-owned lifecycle, identity, ports, and control-plane core
+├── protocol-artifact/poc-v1 # offline release-like artifact copy used by the POC proof
 ├── schemas/gateway/         # reserved for accepted gateway-owned shapes, not shared game rules
 ├── conformance/             # reserved for implementation-neutral gateway cases
 ├── docs/                    # architecture, policy, compatibility, testing, and decisions
@@ -23,7 +24,8 @@ make a command pass. Every future module needs one responsibility, a named consu
 purpose, and an explicit boundary. The gateway package deliberately contains no concrete process,
 transport, host, provider, storage, or protocol implementation.
 
-The target does not import the sibling game-mod, MCP, or harness implementation. A future compile
+The target does not import the sibling game-mod, MCP, or harness implementation. The POC consumes a
+checked-in artifact copy and has no protocol implementation path dependency. A future compile
 dependency on `sts2-protocol` is allowed only for an accepted language-neutral and transport-neutral
 contract; runtime communication remains the separate
 `harness -> MCP server -> gateway -> isolated game-mod -> host` path.

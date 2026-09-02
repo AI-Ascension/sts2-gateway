@@ -7,6 +7,9 @@ runtime or downstream wire contract.
 
 ### Added
 
+- A checked-in offline `sts2-protocol/poc-v1` artifact copy and deterministic POC test covering
+  fake allocation/readiness, fixed-route forwarding, stale lease fencing, and wrong-instance
+  rejection before transport.
 - Repository governance, target-local policy checks, CI workflows, and gateway boundary documents.
 - Decisions for gateway ownership/dependencies and the current sixth-target protocol boundary.
 - A target-owned `sts2-gateway` Rust package with in-memory lifecycle control, explicit process,

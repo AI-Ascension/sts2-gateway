@@ -56,7 +56,8 @@ Compile time:  gateway -> owner-local gateway contracts
 The initialized package keeps lifecycle records and lease/fence policy local and testable without
 I/O. Its `Clock`, `ProcessPort`, `ReadinessPort`, `TransportPort`, and `LeaseDecisionPort` are
 explicit seams. Concrete process, scheduler, network, and persistence access remains outside this
-package. No protocol path dependency is present; see [ADR 0001](decisions/0001-gateway-ownership-and-dependencies.md)
+package. The POC verifies a checked-in copy of the protocol artifact as inert data; no protocol
+implementation path dependency is present. See [ADR 0001](decisions/0001-gateway-ownership-and-dependencies.md)
 and [ADR 0002](decisions/0002-sixth-target-protocol-boundary.md).
 
 ## Identity, lifecycle, and fencing

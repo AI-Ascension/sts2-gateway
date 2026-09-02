@@ -26,7 +26,9 @@ not runtime compatibility.
 The current deterministic suite covers allocation and readiness, process inspection and crash
 failure, lease expiry and forced cleanup, stale epoch and wrong-instance rejection before transport,
 graceful release, shutdown admission closure, bounded fixed-route forwarding, and transport/stop/
-start failure reporting. The fakes do not represent live process or network behavior.
+start failure reporting. The POC case additionally verifies the copied artifact identity while
+combining readiness, fixed command forwarding, stale-epoch rejection, and wrong-instance fencing.
+The fakes do not represent live process or network behavior.
 
 ## Future deterministic suites
 
