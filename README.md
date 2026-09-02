@@ -26,8 +26,8 @@ reachability is not authentication.
 ## Evidence and provenance
 
 This target is intentionally initialization-only. The project policy and target decisions are
-normative for this repository. `sts2-harness-rust` is used only as a structural and documentation
-exemplar. Planning and retained evidence are inputs labelled `proposed`, `inferred`, or
+normative for this repository. Existing planning material is used only as a structural and
+documentation exemplar. Planning and retained evidence are inputs labelled `proposed`, `inferred`, or
 `unverified` unless a controlled test establishes otherwise. No reference implementation source,
 proprietary game file, save, provider credential, or generated product output is copied here.
 

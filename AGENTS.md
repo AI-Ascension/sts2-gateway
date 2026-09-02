@@ -9,10 +9,9 @@ these rules. The detailed target policy is in [architecture](docs/ARCHITECTURE.m
 [licensing](docs/LICENSING.md), [workflows](docs/WORKFLOWS.md),
 [policy as code](docs/POLICY_AS_CODE.md), and [release procedure](RELEASING.md).
 
-The gateway is an original project boundary. The planning snapshot supplies standards; the
-`sts2-harness-rust` tree supplies structure and documentation examples only. Do not copy, vendor,
-transliterate, or cite another implementation as a product design. Retained evidence and proposed
-planning material must keep their evidence labels.
+The gateway is an original project boundary. Planning material supplies standards, structure, and
+documentation examples only. Do not copy, vendor, transliterate, or cite another implementation as a
+product design. Retained evidence and proposed planning material must keep their evidence labels.
 
 ## Ownership invariants
 

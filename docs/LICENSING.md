@@ -3,7 +3,7 @@
 Original gateway repository work is released under the [MIT License](../LICENSE). The license
 covers project-authored source, documentation, tests, and governance tooling only.
 
-Do not copy, vendor, transliterate, or retain implementation source from `sts2-harness-rust`, the
+Do not copy, vendor, transliterate, or retain implementation source from any external or reference implementation, the
 legacy `sts2-harness` checkout, retained evidence, or another gateway. Those inputs can explain
 structure or evidence status but do not grant source or compatibility rights. The target contains
 no proprietary game assembly, save, credential, or generated product artifact.
