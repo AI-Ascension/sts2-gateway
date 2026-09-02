@@ -27,7 +27,8 @@ because the normative artifact checksum inventory covers it; it does not move pr
 implementation into this repository. Do not add an empty placeholder crate to
 make a command pass. Every future module needs one responsibility, a named consumer, a build/test
 purpose, and an explicit boundary. The gateway package deliberately contains no concrete process,
-transport, host, provider, storage, or protocol implementation.
+transport, host, provider, storage, or protocol implementation. The attached runtime adapter is an
+explicitly separate binary under `crates/gateway/src/bin/`.
 
 The target does not import the sibling game-mod, MCP, or harness implementation. The POC consumes a
 checked-in artifact copy and has no protocol implementation path dependency. A future compile

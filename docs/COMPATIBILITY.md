@@ -11,12 +11,12 @@ The copy is synchronized verbatim from the normative protocol artifact at source
 schema path to the canonical source digest, and the gateway's copied source/package paths are
 verified separately.
 
-This target has repository governance plus one target-owned control-plane package and deterministic
-fake tests. No gateway listener, concrete process supervisor, game-mod artifact, host assembly, MCP
-server, harness client, or deployment was used. Therefore external process startup, health/readiness
-transport, forwarding compatibility, authentication enforcement, real concurrency isolation, host
-loading, and end-to-end compatibility are `unverified`. The in-memory lease/fence, lifecycle, and
-bounded forwarding outcomes are confirmed only by their deterministic tests.
+This target has repository governance, one target-owned control-plane package, a separate attached
+runtime binary, and deterministic fake tests. The controlled component lane uses synthetic data,
+while the authorized exact-host lane uses the packaged game-mod listener. Attached forwarding,
+authentication, lease fencing, and the bounded probe path are confirmed for that exact host; external
+process supervision, real concurrency isolation, host gameplay, and general compatibility remain
+`unverified`.
 
 Static policy results may establish configuration and source compatibility with the pinned Rust
 toolchain. They do not establish compatibility with a game or a historical implementation.
@@ -55,3 +55,13 @@ Future records must include exact target revision, toolchain, OS/architecture, g
 when applicable, contract digests, instance and lease identities, clock/seed, disposable fixture
 status, sanitized commands/logs, and evidence level. Use `confirmed` only for an authorized controlled
 test; use `source-derived`, `inferred`, `proposed`, or `unverified` precisely.
+
+## Runtime adapter row
+
+| Adapter | Downstream | Current evidence | Result |
+| --- | --- | --- | --- |
+| `sts2-gateway-runtime` | Attached loopback runtime-v1 listener | Rust gates, synthetic TCP lane, and authorized exact-host trace | Attached forwarding and lease path confirmed for STS2 v0.107.1 Windows x86-64; general lifecycle and gameplay unverified |
+
+The adapter's fixed configuration is a sprint boundary, not a general lifecycle support claim. A
+future compatibility promotion must add exact process ownership, readiness, shutdown, restart,
+multi-instance, and disposable-host evidence.

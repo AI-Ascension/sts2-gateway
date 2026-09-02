@@ -1,13 +1,13 @@
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/AI-Ascension/.github/main/profile/assets/banner-dark.svg">
-  <img alt="AI-Ascension — Inspect how AI requests to a game get fenced, one Rust contract at a time. Runtime: unverified. Deterministic tests: confirmed." src="https://raw.githubusercontent.com/AI-Ascension/.github/main/profile/assets/banner-light.svg" width="100%">
+  <img alt="AI-Ascension — Inspect how AI requests to a game get fenced, one Rust contract at a time. Bounded runtime host trace confirmed. Deterministic tests: confirmed." src="https://raw.githubusercontent.com/AI-Ascension/.github/main/profile/assets/banner-light.svg" width="100%">
 </picture>
 
 # sts2-gateway
 
 > **AI-Ascension · tier 2: control plane · home of the public proof** — In-memory control plane for game-host instances: lifecycle, one lease per instance with epoch fencing, and fixed routes.
 >
-> **Status:** deterministic in-memory tests `confirmed` at the pinned commit · runtime, host, and game compatibility `unverified` · nothing is live.
+> **Status:** deterministic tests and one bounded attached-host runtime trace `confirmed` for STS2 v0.107.1 on Windows x86-64 · general lifecycle and broader compatibility `unverified`.
 > **Proof:** [45-second browser replay](https://ai-ascension.github.io/proof.html) · [Evidence ledger](https://ai-ascension.github.io/evidence.html) · [This repository on the map](https://ai-ascension.github.io/repositories.html#sts2-gateway)
 > **Proof source:** [crates/gateway/tests/control_plane.rs](crates/gateway/tests/control_plane.rs) — the replay mirrors these tests.
 > **Owner:** The gateway boundary owner is responsible for the lifecycle and routing control plane: instance records, leases and lease epochs, fencing, fixed forwarding policy, and cleanup.
@@ -15,9 +15,10 @@
 >
 > AI-Ascension is an independent project. It is not affiliated with or endorsed by Mega Crit or Valve and grants no rights to game files, assets, or marks.
 
-Status: Wave 2 POC proof. The target-owned gateway package provides a deterministic control-plane
-core, injected boundary ports, and a `poc-v1` artifact/routing proof; no listener, concrete process
-supervisor, game connection, or live runtime claim exists in this target.
+Status: Wave 2 POC plus bounded runtime-adapter proof. The target-owned gateway package provides a
+deterministic control-plane core and injected boundary ports; the separate runtime binary adds one
+attached loopback lane. An authorized trace now confirms that lane through the exact recorded host;
+generic process supervision, multi-instance lifecycle, and broader compatibility remain outside it.
 
 ## Owner and boundary
 
@@ -53,10 +54,9 @@ proprietary game file, save, provider credential, or generated product output is
 protocol artifact is copied as explicit release-like data only.
 
 The current state is `source-derived` from this tree and its policy files, with `confirmed`
-deterministic fake-instance unit/integration outcomes limited to the package's in-memory seams.
-Concrete process startup, health/readiness transport, route compatibility, authentication at an
-external boundary, isolation under real concurrency, host compatibility, and release behavior
-remain `unverified` until an authorized disposable test exists. See the [compatibility
+deterministic fake-instance outcomes, a controlled component lane, and one authorized exact-host
+runtime trace. Generic process startup/supervision, isolation under real concurrency, restart
+reconciliation, and release behavior remain `unverified`. See the [compatibility
 record](docs/COMPATIBILITY.md) and [testing plan](docs/TESTING.md).
 
 ## Local validation
@@ -88,4 +88,17 @@ game process, MCP server, provider, or host.
 - [docs/decisions/0002-sixth-target-protocol-boundary.md](docs/decisions/0002-sixth-target-protocol-boundary.md)
   records the current sixth-target protocol decision.
 - The staged gateway investigation prompt is a discovery input, not an implementation or runtime
-  proof; it is maintained outside and is not copied into this repository.
+proof; it is maintained outside and is not copied into this repository.
+
+## Attached runtime slice
+
+The target now includes the standalone `sts2-gateway-runtime` binary. It is a bounded, authenticated
+single-instance adapter for the first runtime slice: it exposes allocation, readiness, state, action,
+and release routes on loopback, validates the configured identity/lease/epoch/correlation fence, and
+forwards only the fixed runtime paths to an already attached mod listener. The MCP process reaches
+this binary over its real TCP adapter; the gateway does not accept arbitrary paths or headers.
+
+This binary does not launch or supervise a game process in this sprint. Its fixed instance and
+attached downstream configuration are intentional for the vertical slice; the exact-host forwarding
+and lease path is confirmed in the dated authorized trace. General process lifecycle, multi-instance
+scheduling, restart reconciliation, and graceful shutdown remain `unverified`.

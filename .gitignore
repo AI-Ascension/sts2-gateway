@@ -1,6 +1,8 @@
 # Rust and managed build output
 target/
 **/bin/
+!crates/gateway/src/bin/
+!crates/gateway/src/bin/**
 **/obj/
 **/*.rs.bk
 
