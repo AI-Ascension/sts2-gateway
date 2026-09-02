@@ -1,8 +1,23 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/AI-Ascension/.github/main/profile/assets/banner-dark.svg">
+  <img alt="AI-Ascension — Inspect how AI requests to a game get fenced, one Rust contract at a time. Runtime: unverified. Deterministic tests: confirmed." src="https://raw.githubusercontent.com/AI-Ascension/.github/main/profile/assets/banner-light.svg" width="100%">
+</picture>
+
 # sts2-gateway
 
-Status: the target-owned gateway package provides a deterministic control-plane core, injected
-boundary ports, and a `poc-v1` artifact/routing proof; no listener, concrete process supervisor,
-game connection, or live runtime claim exists in this target.
+> **AI-Ascension · tier 2: control plane · home of the public proof** — In-memory control plane for game-host instances: lifecycle, one lease per instance with epoch fencing, and fixed routes.
+>
+> **Status:** deterministic in-memory tests `confirmed` at the pinned commit · runtime, host, and game compatibility `unverified` · nothing is live.
+> **Proof:** [45-second browser replay](https://ai-ascension.github.io/proof.html) · [Evidence ledger](https://ai-ascension.github.io/evidence.html) · [This repository on the map](https://ai-ascension.github.io/repositories.html#sts2-gateway)
+> **Proof source:** [crates/gateway/tests/control_plane.rs](crates/gateway/tests/control_plane.rs) — the replay mirrors these tests.
+> **Owner:** The gateway boundary owner is responsible for the lifecycle and routing control plane: instance records, leases and lease epochs, fencing, fixed forwarding policy, and cleanup.
+> **Contribute:** [Organization guide](https://github.com/AI-Ascension/.github/blob/main/CONTRIBUTING.md) · [First tasks](https://ai-ascension.github.io/contributing.html)
+>
+> AI-Ascension is an independent project. It is not affiliated with or endorsed by Mega Crit or Valve and grants no rights to game files, assets, or marks.
+
+Status: Wave 2 POC proof. The target-owned gateway package provides a deterministic control-plane
+core, injected boundary ports, and a `poc-v1` artifact/routing proof; no listener, concrete process
+supervisor, game connection, or live runtime claim exists in this target.
 
 ## Owner and boundary
 
@@ -73,4 +88,4 @@ game process, MCP server, provider, or host.
 - [docs/decisions/0002-sixth-target-protocol-boundary.md](docs/decisions/0002-sixth-target-protocol-boundary.md)
   records the current sixth-target protocol decision.
 - The staged gateway investigation prompt is a discovery input, not an implementation or runtime
-  proof; it is not copied into this repository.
+  proof; it is maintained outside and is not copied into this repository.
