@@ -8,8 +8,9 @@ readiness, health, fixed routing, isolation, bounded backpressure, and cleanup. 
 authority, host adapter, MCP server, model runner, or generic reverse proxy.
 
 This document describes the accepted boundary and the initialized package seams. The package is a
-small in-memory control-plane core; its attached runtime adapter has a confirmed exact-host trace,
-while general lifecycle behavior remains `unverified`.
+small in-memory control-plane core; its attached `runtime-v1` adapter has a confirmed exact-host
+trace, while the separate `runtime-v2` gameplay-operation path is deterministic fake/source evidence
+only and live host settlement remains `unverified`.
 
 ## Runtime topology
 
@@ -35,7 +36,9 @@ The control plane allocates and attaches instances, records process ownership, o
 readiness, renews or revokes leases, performs recovery, and closes admission during shutdown.
 The data plane forwards only an approved operation to the target selected by the control plane.
 Each request must bind caller identity, session identity, instance identity, request/correlation
-identity, lease identity, lease epoch, fixed method/path, allowed headers, and bounded body.
+identity, lease identity, lease epoch, fixed method/path, allowed headers, and bounded body. Runtime-v2
+adds a bounded operation ledger whose key is instance + session + lease + epoch + operation, and
+retains the canonical request identity with its result.
 
 The gateway terminates caller authorization and emits only declared downstream identity data. It
 does not pass through arbitrary credentials or headers, infer a target from a port, expose an
@@ -54,11 +57,13 @@ Compile time:  gateway -> owner-local gateway contracts
 ```
 
 The initialized package keeps lifecycle records and lease/fence policy local and testable without
-I/O. Its `Clock`, `ProcessPort`, `ReadinessPort`, `TransportPort`, and `LeaseDecisionPort` are
-explicit seams. Concrete process, scheduler, network, and persistence access remains outside this
-package. The POC verifies a checked-in copy of the protocol artifact as inert data; no protocol
-implementation path dependency is present. See [ADR 0001](decisions/0001-gateway-ownership-and-dependencies.md)
-and [ADR 0002](decisions/0002-sixth-target-protocol-boundary.md).
+I/O. Its `Clock`, `ProcessPort`, `ReadinessPort`, `TransportPort`, `LeaseDecisionPort`, and
+`RuntimeV2ForwardingPort` are explicit seams. Concrete process, scheduler, network, and persistence
+access remains outside this package. The POC and Runtime-v2 checks verify checked-in copies of their
+protocol artifacts as inert data; no protocol implementation path dependency is present. See
+[ADR 0001](decisions/0001-gateway-ownership-and-dependencies.md),
+[ADR 0002](decisions/0002-sixth-target-protocol-boundary.md), and
+[ADR 0006](decisions/0006-runtime-v2-gameplay-operation-ledger.md).
 
 ## Identity, lifecycle, and fencing
 
@@ -73,8 +78,10 @@ old epoch is rejected before forwarding, and a replacement instance receives fre
 than inheriting an ambiguous record.
 
 Accepted work survives caller timeout or disconnect as an explicit status, settled result, cancelled
-result, or unknown outcome. No blind mutation retry is allowed. Duplicate operation identities need
-an explicit idempotency rule before they can be accepted.
+result, or unknown outcome. Runtime-v2 returns `unknown` after a timeout or disconnect after write,
+retains the operation ID, and permits reconciliation only through a read-only retained-receipt seam.
+No blind mutation retry is allowed. Duplicate operation identities replay the retained result only
+when the canonical request is identical; conflicting reuse is rejected as `idempotency_conflict`.
 
 ## Trust and failure boundaries
 
@@ -93,7 +100,8 @@ The initialized package currently provides:
 - `ProcessPort` for launch, observation, graceful stop, and forced cleanup;
 - `ReadinessPort` for readiness/health observation;
 - `TransportPort` for fixed route classes and bounded opaque payload forwarding; and
-- `LeaseDecisionPort` for identity, expiry, and epoch-fence decisions.
+- `LeaseDecisionPort` for identity, expiry, and epoch-fence decisions; and
+- `RuntimeV2ForwardingPort` for the fixed `end_turn` dispatch and read-only receipt lookup.
 
 Lifecycle records, allocation, admission, shutdown, cleanup, and state transitions are owned by
 the gateway core itself. Future adapters may add scheduling, safe port reservation, persistence,
@@ -117,3 +125,11 @@ those lifecycle behaviors remain owned by the generic gateway boundary and are u
 lane. The authorized exact-host trace confirms downstream readiness, forwarding, lease fencing, and
 the `show_runtime_probe` witness. The action is a host-visible integration probe, not game-rule
 authority.
+
+The same adapter owns the conceptual Runtime-v2 routes `POST
+/v2/instances/{instance_id}/action` and `GET
+/v2/instances/{instance_id}/operations/{operation_id}`. They require the full copied Runtime-v2
+envelope, exact lease/correlation headers, and the bounded ledger. The attached binary deliberately
+has no authorized v2 host adapter: its v2 forwarding seam fails closed before write, while the
+in-memory fake tests cover settlement, uncertainty, replay, conflict, fencing, and capacity. No
+live gameplay mutation or host settlement is evidenced by this route implementation.

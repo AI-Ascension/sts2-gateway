@@ -7,6 +7,14 @@ runtime or downstream wire contract.
 
 ### Added
 
+- The frozen Runtime-v2 gateway operation ledger and fixed forwarding seam: full envelope and lease
+  validation, bounded operation keys, canonical duplicate/conflict checks, exactly-once dispatch,
+  retained-receipt reconciliation, explicit unknown/cancelled outcomes, capacity fencing, and the
+  conceptual `/v2/instances/{instance_id}/action` and `/operations/{operation_id}` routes.
+- A copied Runtime-v2 release-like artifact from protocol handoff commit `8d4b2f5`, including the
+  exact schema digest `f7963b19c8ed5bbdc02c08e83c7a2e16c4771ed5eb798b29a8208d7a917a86c2` and checksum
+  verification. The deterministic fake seam is confirmed; live gameplay settlement is unverified.
+
 - The bounded `sts2-gateway-runtime` attached single-instance loopback adapter with bearer
   authentication, allocation/release, lease fencing, fixed runtime routes, and `runtime-v1`
   artifact reference.

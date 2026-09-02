@@ -11,6 +11,12 @@ The copy is synchronized verbatim from the normative protocol artifact at source
 schema path to the canonical source digest, and the gateway's copied source/package paths are
 verified separately.
 
+The Runtime-v2 copy is synchronized from the protocol handoff at commit
+`8d4b2f574cf860a71f2a5e4ce3308ac069cb1527`. Its source and package schema bytes both have digest
+`f7963b19c8ed5bbdc02c08e83c7a2e16c4771ed5eb798b29a8208d7a917a86c2`, and the local
+`protocol-artifact/runtime-v2/SHA256SUMS` inventory passes. This proves artifact-copy integrity,
+not consumer or host compatibility.
+
 This target has repository governance, one target-owned control-plane package, a separate attached
 runtime binary, and deterministic fake tests. The controlled component lane uses synthetic data,
 while the authorized exact-host lane uses the packaged game-mod listener. Attached forwarding,
@@ -61,7 +67,12 @@ test; use `source-derived`, `inferred`, `proposed`, or `unverified` precisely.
 | Adapter | Downstream | Current evidence | Result |
 | --- | --- | --- | --- |
 | `sts2-gateway-runtime` | Attached loopback runtime-v1 listener | Rust gates, synthetic TCP lane, and authorized exact-host trace | Attached forwarding and lease path confirmed for STS2 v0.107.1 Windows x86-64; general lifecycle and gameplay unverified |
+| Runtime-v2 ledger | Owner-local deterministic forwarding fake | Rust gates, artifact checksum, and deterministic fake tests | Source/ledger behavior confirmed; live downstream action settlement, restart retention, and host compatibility unverified |
 
-The adapter's fixed configuration is a sprint boundary, not a general lifecycle support claim. A
-future compatibility promotion must add exact process ownership, readiness, shutdown, restart,
-multi-instance, and disposable-host evidence.
+The adapters' fixed configurations are sprint boundaries, not general lifecycle support claims. The
+Runtime-v2 ledger retains entries only in memory until capacity is reached; it does not evict entries
+or persist them. A restart loses retained receipts and must establish a new lease epoch before any
+new work. Clients must not retry an unknown action after restart; they need an externally retained
+receipt or a new operation identity under a newly established context. A future compatibility
+promotion must add exact process ownership, readiness, shutdown, restart, multi-instance, and
+disposable-host evidence.

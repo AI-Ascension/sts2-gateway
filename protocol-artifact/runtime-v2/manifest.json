@@ -1,0 +1,39 @@
+{
+  "artifact": "sts2-protocol/runtime-v2",
+  "protocol_version": "runtime-v2",
+  "schema": "schema.json",
+  "schema_digest": "f7963b19c8ed5bbdc02c08e83c7a2e16c4771ed5eb798b29a8208d7a917a86c2",
+  "provenance": {
+    "source": "schemas/runtime-v2.schema.json",
+    "generator": "hand-authored",
+    "license": "MIT"
+  },
+  "consumers": [
+    "sts2-game-mod",
+    "sts2-gateway",
+    "sts2-harness",
+    "sts2-mcp-server"
+  ],
+  "goldens": [
+    "golden/state-request.json",
+    "golden/state-response.json",
+    "golden/legal-action-request.json",
+    "golden/legal-action-accepted.json",
+    "golden/legal-action-settled.json",
+    "golden/stale-generation-request.json",
+    "golden/stale-generation-response.json",
+    "golden/outside-combat-request.json",
+    "golden/outside-combat-response.json",
+    "golden/enemy-turn-request.json",
+    "golden/enemy-turn-response.json",
+    "golden/idempotency-conflict-request.json",
+    "golden/idempotency-conflict-response.json",
+    "golden/cancelled-before-dispatch.json",
+    "golden/timeout-action-request.json",
+    "golden/timeout-unknown-response.json",
+    "golden/reconcile-request.json",
+    "golden/reconcile-settled-response.json",
+    "golden/duplicate-replay.json"
+  ],
+  "checksums": "SHA256SUMS"
+}
