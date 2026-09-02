@@ -8,8 +8,9 @@ sts2-gateway/
 ├── .github/                 # bounded, least-privilege automation and review template
 ├── crates/gateway/          # target-owned lifecycle, identity, ports, and control-plane core
 ├── protocol-artifact/poc-v1 # offline release-like artifact copy used by the POC proof
+├── schemas/poc-v1.schema.json # protocol-owned source-path mirror for artifact provenance
 ├── schemas/gateway/         # reserved for accepted gateway-owned shapes, not shared game rules
-├── conformance/             # reserved for implementation-neutral gateway cases
+├── conformance/             # copied protocol companion and future gateway cases
 ├── docs/                    # architecture, policy, compatibility, testing, and decisions
 ├── tests/                   # reserved for owned component/conformance tests
 ├── tools/repo-policy/       # executable Rust governance checker
@@ -18,8 +19,12 @@ sts2-gateway/
 └── policy.toml              # target-relative policy declaration
 ```
 
-The `schemas`, `conformance`, and root `tests` directories remain reserved and do not imply a
-listener, accepted wire contract, or product behavior. Do not add an empty placeholder crate to
+The `schemas/poc-v1.schema.json` file is a verbatim protocol-owned source-path mirror required by
+the copied artifact's manifest and README; it is not a gateway-owned schema. The `schemas/gateway`
+and root `tests` directories remain reserved and do not imply a listener, accepted wire contract, or
+product behavior. `conformance/cases/poc-v1.json` is a verbatim protocol-owned companion copied only
+because the normative artifact checksum inventory covers it; it does not move protocol ownership or
+implementation into this repository. Do not add an empty placeholder crate to
 make a command pass. Every future module needs one responsibility, a named consumer, a build/test
 purpose, and an explicit boundary. The gateway package deliberately contains no concrete process,
 transport, host, provider, storage, or protocol implementation.

@@ -24,6 +24,10 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Verify normative protocol artifact
+        working-directory: protocol-artifact/poc-v1
+        run: sha256sum --check SHA256SUMS
+
       - name: Install pinned Rust toolchain
         run: rustup toolchain install 1.97.1 --profile minimal --component clippy --component rustfmt --no-self-update
 

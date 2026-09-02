@@ -1,5 +1,7 @@
-# Consumed `poc-v1` artifact
+# `poc-v1` release-like artifact
 
-This is the offline release-like artifact copy consumed by the gateway POC proof. The gateway
-verifies its identity and fixtures locally; it does not import protocol implementation modules or
-link to a sibling repository.
+This directory is the checked-in, offline artifact consumed by the five POC owners. The schema
+source is [`schemas/poc-v1.schema.json`](../../schemas/poc-v1.schema.json), and `schema.json` is a
+byte-identical package copy. The manifest's `schema_digest` identifies those exact schema bytes;
+`SHA256SUMS` covers the source, package, manifest, fixtures, and conformance case. The artifact is
+not a public release and does not establish game, host, network, or runtime compatibility.
