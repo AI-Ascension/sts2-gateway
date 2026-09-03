@@ -7,7 +7,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, SyncSender, TrySendError, sync_channel};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use serde_json::{Value, json};
 use sts2_gateway::{
@@ -435,7 +435,12 @@ impl RuntimeService {
             None => self.runtime_v2.submit_action(message),
         };
         match result {
-            Ok(response) => (runtime_v2_status(&response), runtime_v2_bytes(&response)),
+            Ok(response) => {
+                if response.status == Some(RuntimeV2Status::Unknown) {
+                    self.metrics.runtime_v2_unknown();
+                }
+                (runtime_v2_status(&response), runtime_v2_bytes(&response))
+            }
             Err(error) => runtime_v2_error(error),
         }
     }
@@ -540,6 +545,9 @@ impl RuntimeService {
         );
         match self.runtime_v2.reconcile(message) {
             Ok(response) => {
+                if response.status == Some(RuntimeV2Status::Unknown) {
+                    self.metrics.runtime_v2_unknown();
+                }
                 if let Some(path) = self.journal_path.as_deref()
                     && journal::store(path, &self.runtime_v2.persisted_state()).is_err()
                 {
@@ -699,9 +707,10 @@ fn run_worker(
     listener_address: SocketAddr,
 ) -> Result<(), String> {
     while let Ok(queued) = receiver.recv() {
+        let service_started = Instant::now();
         service.metrics.work_started();
         let result = service.handle_queued_request(queued.stream, queued.request);
-        service.metrics.work_completed();
+        service.metrics.work_completed(service_started.elapsed());
         if let Err(error) = result {
             eprintln!("gateway queued request failed: {error}");
         }
@@ -766,7 +775,11 @@ fn accept_requests(
             Err(TrySendError::Full(queued)) => {
                 metrics.queue_rejected();
                 let mut stream = queued.stream;
-                let _ = write_response(&mut stream, 429, &json_error("runtime_v2_queue_capacity"));
+                let _ = write_response(
+                    &mut stream,
+                    429,
+                    &json_overload("runtime_v2_queue_capacity"),
+                );
             }
             Err(TrySendError::Disconnected(queued)) => {
                 let mut stream = queued.stream;
@@ -1039,7 +1052,9 @@ fn runtime_v2_error(error: RuntimeV2LedgerError) -> (u16, Vec<u8>) {
             (400, "runtime_v2_request_invalid")
         }
         RuntimeV2LedgerError::MissingOperationId => (400, "runtime_v2_operation_required"),
-        RuntimeV2LedgerError::CapacityExceeded => (429, "runtime_v2_operation_capacity"),
+        RuntimeV2LedgerError::CapacityExceeded => {
+            return (429, json_overload("runtime_v2_operation_capacity"));
+        }
         RuntimeV2LedgerError::OperationNotFound => (404, "runtime_v2_operation_not_found"),
         RuntimeV2LedgerError::OperationInProgress => (409, "runtime_v2_operation_in_progress"),
         RuntimeV2LedgerError::Fence(_) => (409, "runtime_v2_lease_fence_rejected"),
@@ -1050,6 +1065,14 @@ fn runtime_v2_error(error: RuntimeV2LedgerError) -> (u16, Vec<u8>) {
         RuntimeV2LedgerError::PersistenceFailed => (503, "runtime_v2_persistence_failed"),
     };
     (status, json_error(code))
+}
+
+fn json_overload(code: &str) -> Vec<u8> {
+    json_bytes(&json!({
+        "error_code": code,
+        "retryable": true,
+        "retry_after_ms": 1000
+    }))
 }
 
 fn read_error_status(error: ReadError) -> u16 {
@@ -1302,6 +1325,18 @@ mod tests {
         assert!(super::parse_queue_capacity("0").is_err());
         assert!(super::parse_queue_capacity("65").is_err());
         assert!(super::parse_queue_capacity("not-a-number").is_err());
+    }
+
+    #[test]
+    fn operation_overload_is_typed_and_retryable() -> Result<(), String> {
+        let (status, body) =
+            super::runtime_v2_error(sts2_gateway::RuntimeV2LedgerError::CapacityExceeded);
+        assert_eq!(status, 429);
+        let value = serde_json::from_slice::<Value>(&body).map_err(|error| error.to_string())?;
+        assert_eq!(value["error_code"], "runtime_v2_operation_capacity");
+        assert_eq!(value["retryable"], true);
+        assert_eq!(value["retry_after_ms"], 1000);
+        Ok(())
     }
 
     #[test]

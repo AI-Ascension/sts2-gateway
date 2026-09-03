@@ -17,7 +17,8 @@ The attached runtime uses one owner-created worker and a bounded FIFO channel. T
 and bounds one request, validates the allowlisted headers and gateway bearer, then attempts a
 non-blocking enqueue. The queue capacity is configured by
 `STS2_RUNTIME_V2_QUEUE_CAPACITY`, bounded from 1 through 64, and queue overflow returns HTTP `429`
-with `runtime_v2_queue_capacity`. Overflow never contacts the downstream mod. FIFO ordering gives
+with `runtime_v2_queue_capacity`, `retryable: true`, `retry_after_ms: 1000`, and the HTTP
+`Retry-After: 1` hint. Overflow never contacts the downstream mod. FIFO ordering gives
 arrival-order fairness within one configured instance; this is not a global scheduler.
 
 The worker remains the sole owner of the mutable ledger and performs all downstream I/O. It has a
@@ -46,6 +47,7 @@ host compatibility.
 
 Deterministic and process oracles must show that authenticated requests are FIFO within the bound,
 an in-flight slow request plus a full queue yields a typed 429 without a second downstream mutation,
-metrics expose the rejection, shutdown returns 202, queued requests receive an explicit cancellation
-response, the listener exits, and the worker joins. The live host trace remains a separate evidence
-gate.
+the overload response provides retry guidance, metrics expose rejection, unknown-result, cancellation,
+and bounded service-time counters, shutdown returns 202, queued requests receive an explicit
+cancellation response, the listener exits, and the worker joins. The live host trace remains a separate
+evidence gate.

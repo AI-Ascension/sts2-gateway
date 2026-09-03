@@ -150,7 +150,7 @@ impl RuntimeV3GameplayProxy {
             };
         }
         if self.operations.len() >= self.capacity {
-            return (429, json_error("runtime_v3_gameplay_operation_capacity"));
+            return (429, json_overload("runtime_v3_gameplay_operation_capacity"));
         }
         if parsed.generation < self.generation {
             return (409, json_error("runtime_v3_stale_generation"));
@@ -304,4 +304,13 @@ fn transport_error(error: RuntimeV3GameplayTransportError) -> (u16, Vec<u8>) {
 fn json_error(code: &str) -> Vec<u8> {
     serde_json::to_vec(&json!({ "error_code": code }))
         .unwrap_or_else(|_| b"{\"error_code\":\"serialization_failed\"}".to_vec())
+}
+
+fn json_overload(code: &str) -> Vec<u8> {
+    serde_json::to_vec(&json!({
+        "error_code": code,
+        "retryable": true,
+        "retry_after_ms": 1000
+    }))
+    .unwrap_or_else(|_| b"{\"error_code\":\"serialization_failed\"}".to_vec())
 }
