@@ -87,6 +87,24 @@ impl RuntimeV2ReceiptRequest {
     }
 }
 
+/// One gateway-retained operation serialized for restart recovery.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct RuntimeV2PersistedOperation {
+    pub request: RuntimeV2Message,
+    pub result: Option<RuntimeV2Message>,
+}
+
+/// The gateway-owned Runtime-v2 state needed to reconstruct a ledger after restart.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct RuntimeV2PersistedState {
+    pub instance_id: String,
+    pub session_id: String,
+    pub lease_id: String,
+    pub lease_epoch: u64,
+    pub observation: RuntimeV2Observation,
+    pub operations: Vec<RuntimeV2PersistedOperation>,
+}
+
 /// Transport outcomes distinguish pre-write failure from uncertainty after a write.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum RuntimeV2TransportFault {
@@ -127,6 +145,9 @@ pub enum RuntimeV2LedgerError {
     Fence(RuntimeV2FenceFailure),
     StaleGeneration { expected: u64, actual: u64 },
     ZeroCapacity,
+    PersistedStateMismatch,
+    PersistedStateInvalid,
+    PersistenceFailed,
 }
 
 impl fmt::Display for RuntimeV2LedgerError {
@@ -149,6 +170,15 @@ impl fmt::Display for RuntimeV2LedgerError {
             ),
             Self::ZeroCapacity => {
                 formatter.write_str("Runtime-v2 operation capacity must be positive")
+            }
+            Self::PersistedStateMismatch => {
+                formatter.write_str("persisted Runtime-v2 state belongs to another lease")
+            }
+            Self::PersistedStateInvalid => {
+                formatter.write_str("persisted Runtime-v2 state is invalid")
+            }
+            Self::PersistenceFailed => {
+                formatter.write_str("Runtime-v2 durable state could not be written")
             }
         }
     }

@@ -41,9 +41,12 @@ format, lint, build, and deterministic fake-instance tests for allocation, readi
 inspection/crash, expiry, wrong instance, stale epoch, cleanup, shutdown, bounded forwarding, and
 transport failure. The POC and Runtime-v2 tests verify copied protocol artifacts; the v2 fake lane
 also covers exactly-once application, retained-receipt reconciliation, duplicate replay, conflict,
-stale fencing, cancellation, and capacity. An authorized exact-host trace confirms only the older
-runtime-v1 probe. Runtime-v2 live gameplay settlement, restart persistence, and real concurrency
-isolation remain unverified. See [TESTING.md](TESTING.md) and [COMPATIBILITY.md](COMPATIBILITY.md).
+stale fencing, cancellation, persistence checkpoint failure, bounded capacity, and restart recovery;
+the attached journal also fails closed on same-path process contention.
+An authorized exact-host trace confirms only the older runtime-v1 probe. Runtime-v2 live gameplay
+settlement, downstream crash recovery, lease-epoch rotation, production persistence, and supervisor-
+level concurrency isolation remain unverified. See [TESTING.md](TESTING.md) and
+[COMPATIBILITY.md](COMPATIBILITY.md).
 
 ## Attached runtime slice
 
@@ -55,9 +58,23 @@ request plus explicit `state_unavailable` when no host-state adapter is configur
 expose arbitrary GET proxying. It is consumed by the runtime MCP adapter and harness coordinator
 through real TCP connections.
 
+The attached adapter uses a single bounded FIFO worker queue configured by
+`STS2_RUNTIME_V2_QUEUE_CAPACITY` (1 through 64). Authenticated overflow returns a typed HTTP 429
+without downstream dispatch. The fixed metrics route reports sanitized queue and lifecycle
+counters, and the lease-fenced shutdown route closes admission and explicitly cancels queued work.
+These are component lifecycle controls, not a multi-instance supervisor or production signal/restart
+implementation.
+
+Gateway authentication additionally supports explicit `read`, `mutate`, and `control` scopes,
+current-token expiry, and one expiring previous-token overlap for rotation. Missing, invalid, or
+expired credentials fail with 401 and insufficient scopes fail with 403 before queue admission. The
+attached process still relies on an external credential issuer/secret owner and does not claim
+production revocation or downstream-token rotation.
+
 This lane attaches to an already running downstream listener; it does not launch, own, or recover a
 game process. The runtime-v1 fixed action remains the safe host-visible `show_runtime_probe`. Runtime-v2
-uses `end_turn` only in the deterministic fake seam; its attached binary has no guessed downstream
-host path and therefore makes no live gameplay mutation claim. Source/build, controlled component-
-network, and exact-host v1 forwarding evidence are confirmed independently; process supervision,
-general lifecycle, v2 settlement, and broader host/platform compatibility remain `unverified`.
+uses `end_turn` through its fixed authenticated forwarding seam and optional bounded journal, but the
+attached binary has no verified host-capable mod adapter and therefore makes no live gameplay mutation
+claim. Source/build, controlled component-network, and exact-host v1 forwarding evidence are confirmed
+independently; process supervision, general lifecycle, v2 settlement, and broader host/platform
+compatibility remain `unverified`.

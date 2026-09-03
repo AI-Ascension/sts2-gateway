@@ -30,13 +30,23 @@ for every copied file named by `SHA256SUMS`.
 The current deterministic suite covers allocation and readiness, process inspection and crash
 failure, lease expiry and forced cleanup, stale epoch and wrong-instance rejection before transport,
 graceful release, shutdown admission closure, bounded fixed-route forwarding, and transport/stop/
-start failure reporting. The POC case additionally verifies the copied artifact identity while
+start failure reporting. It also exercises four independently identified allocated instances,
+capacity exhaustion, survivor readiness after one instance is released, and wrong-instance fencing
+without transport dispatch. The POC case additionally verifies the copied artifact identity while
 combining readiness, fixed command forwarding, stale-epoch rejection, and wrong-instance fencing.
 The Runtime-v2 case verifies the copied artifact and a bounded fake ledger for exactly-once
 application, unknown-to-settled retained-receipt reconciliation, duplicate replay, canonical
 conflict rejection, stale identity/epoch/generation replay and receipt fencing, cancellation, store
-capacity, no-blind-retry, and rejection of tampered copied schema/manifest/golden bytes. The runtime
-binary tests the fixed typed state route's explicit unavailable response and arbitrary-v2-GET denial.
+capacity, no-blind-retry, persistence checkpoint failure, restart recovery, and rejection of tampered
+copied schema/manifest/golden bytes. The runtime binary tests the fixed typed state route's explicit
+unavailable response, exact bearer authentication, bounded operation and queue-capacity
+configuration, FIFO admission overload, authenticated metrics, shutdown admission closure, and
+arbitrary-v2-GET denial. The journal adapter also tests exclusive process-lifetime ownership of a
+configured journal path and can sync its parent directory after atomic replacement where supported.
+The auth component additionally covers expired credentials, route scopes, and previous-token
+rotation overlap; these tests use an injected test time and do not prove an external issuer or live
+secret-management system. The attached runtime also tests that a mismatched configured MCP-session
+header fails at the lease fence before downstream forwarding.
 The fakes do not represent live process, network, or game-host behavior.
 
 Control-plane regression oracles include six consecutive failed starts followed by four successful
@@ -63,8 +73,11 @@ transports, bounded storage, and isolated temporary ports. Extend coverage with:
 
 The gateway must report accepted downstream work separately from completed game effects. A timeout
 or disconnect requires a status/reconciliation oracle; it must not trigger a blind mutation retry.
-Runtime-v2's retained ledger is in-memory and non-persistent: restart/eviction durability is
-unverified and deliberately outside this wave.
+The attached Runtime-v2 binary can use its bounded optional journal for component restart tests.
+Those tests do not establish production storage durability, mod/game crash recovery, lease-epoch
+rotation, accepted-work recovery across an independently restarted downstream, or multi-instance
+supervision. Its FIFO queue and shutdown route are process-component evidence only until exercised
+with the authorized host supervisor.
 
 ## Evidence levels
 

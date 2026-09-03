@@ -75,12 +75,19 @@ test; use `source-derived`, `inferred`, `proposed`, or `unverified` precisely.
 | Adapter | Downstream | Current evidence | Result |
 | --- | --- | --- | --- |
 | `sts2-gateway-runtime` | Attached loopback runtime-v1 listener | Rust gates, synthetic TCP lane, and authorized exact-host trace | Attached forwarding and lease path confirmed for STS2 v0.107.1 Windows x86-64; general lifecycle and gameplay unverified |
-| Runtime-v2 ledger | Owner-local deterministic forwarding fake | Rust gates, byte-level artifact verification, and deterministic fake tests | Source/ledger behavior confirmed; fixed state route is explicitly unavailable without a host adapter; live downstream action settlement, restart retention, and host compatibility unverified |
+| Runtime-v2 ledger and attached adapter | Owner-local ledger plus fixed synthetic TCP downstream | Rust gates, byte-level artifact verification, deterministic fault tests, and isolated component restart trace | Fixed state/action/operation forwarding, bounded optional journal recovery with exclusive path ownership, exact bearer check, and synthetic route behavior confirmed; live downstream action settlement, lease-epoch rotation, multi-instance isolation, and host compatibility unverified |
 
 The adapters' fixed configurations are sprint boundaries, not general lifecycle support claims. The
-Runtime-v2 ledger retains entries only in memory until capacity is reached; it does not evict entries
-or persist them. A restart loses retained receipts and must establish a new lease epoch before any
-new work. Clients must not retry an unknown action after restart; they need an externally retained
-receipt or a new operation identity under a newly established context. A future compatibility
-promotion must add exact process ownership, readiness, shutdown, restart, multi-instance, and
-disposable-host evidence.
+attached Runtime-v2 process accepts an optional bounded version-1 journal and a retained-operation
+capacity of 1 through 64. The service owns an exclusive stable lock sibling for the configured
+journal path and fails closed when another process already holds it; each instance must use a distinct
+path. A journal identity or lease-epoch mismatch fails closed; an in-flight or
+accepted operation restored after restart becomes explicit `unknown` and is reconciled read-only.
+Clients must not blindly resend an unknown action. A future compatibility promotion must add exact
+process ownership, readiness, lease-epoch rotation, multi-instance, downstream crash, and
+disposable-host evidence. The attached process also accepts a bounded FIFO queue-capacity setting
+from 1 through 64, exposes sanitized metrics, and supports a lease-fenced shutdown route. These
+additions are component lifecycle controls; they do not establish process ownership, signal
+handling, global scheduling, or host compatibility. `STS2_MCP_SESSION_ID` defaults to the gateway
+session and may be set independently; every lease-protected request must then carry the matching
+`x-mcp-session-id` value.

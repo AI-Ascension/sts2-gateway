@@ -206,11 +206,14 @@ pub(crate) fn write_response(
 ) -> std::io::Result<()> {
     let reason = match status {
         200 => "OK",
+        202 => "Accepted",
         400 => "Bad Request",
         401 => "Unauthorized",
+        403 => "Forbidden",
         404 => "Not Found",
         409 => "Conflict",
         413 => "Payload Too Large",
+        429 => "Too Many Requests",
         502 => "Bad Gateway",
         503 => "Service Unavailable",
         504 => "Gateway Timeout",

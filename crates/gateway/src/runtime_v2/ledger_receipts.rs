@@ -150,20 +150,34 @@ where
 
     fn accept_receipt(
         &mut self,
-        request: &RuntimeV2Message,
-        receipt: RuntimeV2Message,
+        action_request: &RuntimeV2Message,
+        reconcile_request: &RuntimeV2Message,
+        mut receipt: RuntimeV2Message,
     ) -> Option<RuntimeV2Message> {
-        if !self.response_matches_request(request, &receipt)
+        if receipt.protocol_version != action_request.protocol_version
+            || receipt.schema_digest != action_request.schema_digest
+            || receipt.provenance != action_request.provenance
+            || receipt.correlation_id != reconcile_request.correlation_id
+            || receipt.instance_id != action_request.instance_id
+            || receipt.session_id != action_request.session_id
+            || receipt.lease_id != action_request.lease_id
+            || receipt.lease_epoch != action_request.lease_epoch
+            || receipt.operation_id != action_request.operation_id
+            || receipt.action != action_request.action
             || receipt.validate().is_err()
             || receipt.kind != RuntimeV2MessageKind::ActionResponse
         {
             return None;
         }
+        // The stored result must remain replayable for the original action request. The
+        // reconciliation response gets its caller-specific correlation below in
+        // `as_reconcile_response`.
+        receipt.correlation_id = action_request.correlation_id.clone();
         match receipt.status {
             Some(RuntimeV2Status::Settled)
                 if receipt
                     .observation
-                    .is_some_and(|observation| observation.generation > request.generation)
+                    .is_some_and(|observation| observation.generation > action_request.generation)
                     && receipt
                         .effect_witness
                         .as_ref()
