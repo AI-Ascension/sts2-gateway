@@ -58,10 +58,12 @@ where
         canonical_request: &[u8],
     ) -> Result<RuntimeV2Message, RuntimeV2LedgerError> {
         if existing.request_digest == digest && existing.canonical_request == canonical_request {
-            existing
+            let mut replay = existing
                 .result
                 .clone()
-                .ok_or(RuntimeV2LedgerError::OperationInProgress)
+                .ok_or(RuntimeV2LedgerError::OperationInProgress)?;
+            replay.correlation_id = request.correlation_id.clone();
+            Ok(replay)
         } else {
             self.result_response(
                 request,

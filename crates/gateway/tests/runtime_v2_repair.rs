@@ -75,11 +75,15 @@ impl RuntimeV2ForwardingPort for FakeForwarder {
 
     fn read_runtime_v2_receipt(
         &mut self,
-        _request: RuntimeV2ReceiptRequest,
+        request: RuntimeV2ReceiptRequest,
     ) -> Result<Option<RuntimeV2Message>, RuntimeV2TransportFault> {
         let mut state = self.0.borrow_mut();
         state.receipt_reads += 1;
-        Ok(state.retained_receipt.clone())
+        let mut receipt = state.retained_receipt.clone();
+        if let Some(receipt) = receipt.as_mut() {
+            receipt.correlation_id = request.message().correlation_id.clone();
+        }
+        Ok(receipt)
     }
 }
 
@@ -234,7 +238,7 @@ fn identity_and_epoch_are_checked_before_duplicate_replay() -> Result<(), String
 }
 
 #[test]
-fn stale_generation_is_checked_before_duplicate_replay() -> Result<(), String> {
+fn exact_duplicate_replays_after_generation_advances() -> Result<(), String> {
     let fake = FakeForwarder::new(FakeMode::Settle);
     let mut ledger = RuntimeV2Ledger::new(RuntimeV2LedgerConfig::new(4), binding()?, fake.clone())
         .map_err(|error| error.to_string())?;
@@ -242,13 +246,11 @@ fn stale_generation_is_checked_before_duplicate_replay() -> Result<(), String> {
     ledger
         .submit_action(request.clone())
         .map_err(|error| error.to_string())?;
-    assert_eq!(
-        ledger.submit_action(request),
-        Err(sts2_gateway::RuntimeV2LedgerError::StaleGeneration {
-            expected: 5,
-            actual: 4,
-        })
-    );
+    let replay = ledger
+        .submit_action(request)
+        .map_err(|error| error.to_string())?;
+    assert_eq!(replay.status, Some(RuntimeV2Status::Settled));
+    assert_eq!(replay.generation, 5);
     assert_eq!(fake.dispatches(), 1);
     assert_eq!(fake.applications(), 1);
     Ok(())
@@ -322,5 +324,36 @@ fn stale_generation_is_checked_before_receipt_reconciliation() -> Result<(), Str
     );
     assert_eq!(fake.receipt_reads(), 1);
     assert_eq!(fake.dispatches(), 1);
+    Ok(())
+}
+
+#[test]
+fn persisted_state_cannot_cross_a_restarted_lease_epoch() -> Result<(), String> {
+    let source = RuntimeV2Ledger::new(
+        RuntimeV2LedgerConfig::new(4),
+        binding()?,
+        FakeForwarder::new(FakeMode::Settle),
+    )
+    .map_err(|error| error.to_string())?;
+    let persisted = source.persisted_state();
+    let replacement_binding = RuntimeV2Binding::new(
+        "instance-1",
+        "session-1",
+        "lease-1",
+        2,
+        RuntimeV2Observation::new(RuntimeV2CombatPhase::PlayerTurn, 2, true, 4),
+    )
+    .map_err(|error| error.to_string())?;
+    let mut replacement = RuntimeV2Ledger::new(
+        RuntimeV2LedgerConfig::new(4),
+        replacement_binding,
+        FakeForwarder::new(FakeMode::Settle),
+    )
+    .map_err(|error| error.to_string())?;
+
+    assert_eq!(
+        replacement.restore_state(persisted),
+        Err(sts2_gateway::RuntimeV2LedgerError::PersistedStateMismatch)
+    );
     Ok(())
 }
