@@ -204,6 +204,12 @@ pub(crate) fn write_response(
     status: u16,
     body: &[u8],
 ) -> std::io::Result<()> {
+    let header = response_header(status, body.len());
+    stream.write_all(header.as_bytes())?;
+    stream.write_all(body)
+}
+
+fn response_header(status: u16, body_len: usize) -> String {
     let reason = match status {
         200 => "OK",
         202 => "Accepted",
@@ -219,12 +225,14 @@ pub(crate) fn write_response(
         504 => "Gateway Timeout",
         _ => "Error",
     };
-    let header = format!(
-        "HTTP/1.1 {status} {reason}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
-        body.len()
-    );
-    stream.write_all(header.as_bytes())?;
-    stream.write_all(body)
+    let retry_after = if status == 429 {
+        "Retry-After: 1\r\n"
+    } else {
+        ""
+    };
+    format!(
+        "HTTP/1.1 {status} {reason}\r\nContent-Type: application/json\r\nContent-Length: {body_len}\r\n{retry_after}Connection: close\r\n\r\n"
+    )
 }
 
 fn classify_io(error: std::io::Error) -> ReadError {
@@ -244,11 +252,19 @@ fn find_header_end(bytes: &[u8]) -> Option<usize> {
 
 #[cfg(test)]
 mod tests {
-    use super::find_header_end;
+    use super::{find_header_end, response_header};
 
     #[test]
     fn detects_only_crlf_header_termination() {
         assert_eq!(find_header_end(b"GET / HTTP/1.1\r\n\r\nbody"), Some(14));
         assert_eq!(find_header_end(b"GET / HTTP/1.1\n\n"), None);
+    }
+
+    #[test]
+    fn overload_responses_include_bounded_retry_guidance() {
+        let header = response_header(429, 17);
+        assert!(header.contains("Retry-After: 1\r\n"));
+        assert!(header.contains("Content-Length: 17\r\n"));
+        assert!(!response_header(503, 17).contains("Retry-After:"));
     }
 }

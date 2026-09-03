@@ -40,7 +40,8 @@ conflict rejection, stale identity/epoch/generation replay and receipt fencing, 
 capacity, no-blind-retry, persistence checkpoint failure, restart recovery, and rejection of tampered
 copied schema/manifest/golden bytes. The runtime binary tests the fixed typed state route's explicit
 unavailable response, exact bearer authentication, bounded operation and queue-capacity
-configuration, FIFO admission overload, authenticated metrics, shutdown admission closure, and
+configuration, FIFO admission overload with retry guidance, authenticated metrics including
+unknown-result and service-time counters, shutdown admission closure, and
 arbitrary-v2-GET denial. The journal adapter also tests exclusive process-lifetime ownership of a
 configured journal path and can sync its parent directory after atomic replacement where supported.
 The auth component additionally covers expired credentials, route scopes, and previous-token
