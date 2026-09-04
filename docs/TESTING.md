@@ -4,8 +4,9 @@
 
 The target contains the gateway control-plane package and repository tooling. Policy, formatting,
 lint, build, and package tests run without a product workspace. The package tests use deterministic
-fake clock, process, readiness, transport, and lease-decision seams. No gateway listener, child
-process, game host, provider, save, or deployment is used by these checks.
+fake clock, process, readiness, transport, and lease-decision seams. Runtime adapter tests also use
+ephemeral loopback TCP listeners and synthetic peer threads. No game process, game host, provider,
+save, or deployment is used by these checks.
 
 ## Baseline commands
 
@@ -48,12 +49,15 @@ The auth component additionally covers expired credentials, route scopes, and pr
 rotation overlap; these tests use an injected test time and do not prove an external issuer or live
 secret-management system. The attached runtime also tests that a mismatched configured MCP-session
 header fails at the lease fence before downstream forwarding.
-The fakes do not represent live process, network, or game-host behavior.
+The control-plane fakes do not represent real processes or game hosts. Ephemeral TCP tests exercise
+actual socket framing, timeouts, and forwarding only against synthetic peers.
 
 Late retained settlement is checked after a newer authoritative observation: the historical receipt
 remains replayable, but cannot rewind admission generation. Both accepted and unknown operations
 are covered. State refresh rejects a regressed generation, and restore rejects a settled receipt
 without a successor or a persisted binding older than a retained result.
+Both attached action profiles also reject operation IDs that cannot be reconciled by the fixed
+single-segment receipt route; an ephemeral listener verifies these invalid IDs cause zero forwards.
 
 Control-plane regression oracles include six consecutive failed starts followed by four successful
 allocations at full configured capacity, without reusing failed instance/lease identities or stopping

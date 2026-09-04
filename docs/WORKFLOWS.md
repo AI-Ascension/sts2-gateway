@@ -19,7 +19,8 @@ actions to immutable commits, and have explicit timeouts. Pull requests use `pul
 
 The policy workflow tests and runs the target-local `repo-policy` package. The quality workflow
 runs the pinned formatting, lint, and test commands. Neither workflow launches a game, provider,
-gateway listener, deployment, or remote process.
+deployment, or remote process. Rust adapter tests use ephemeral loopback listeners with synthetic
+peers; they do not start an operator-configured service.
 
 ## Runtime and release workflow
 

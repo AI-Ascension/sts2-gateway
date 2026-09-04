@@ -79,6 +79,10 @@ test; use `source-derived`, `inferred`, `proposed`, or `unverified` precisely.
 Endpoint configuration now enforces numeric loopback socket addresses (`127.0.0.1:port` or
 `[::1]:port`). Previously accepted DNS names, wildcard binds, and remote addresses must be migrated
 to an explicit numeric loopback endpoint; this enforces the documented local-only trust boundary.
+Attached action and receipt routes restrict operation IDs to 1–128 ASCII letters/digits or `-_.:`,
+without `..`. Slash-containing operation IDs allowed by the neutral contract cannot occupy one
+fixed route segment, so action admission rejects them before dispatch. This matches MCP PR #7's
+route profile without changing frozen Runtime-v2 schema bytes or generic ledger identity rules.
 The earlier Runtime-v3 gameplay contract on this branch is distinct from protocol PR #8 and gateway
 PR #7 despite sharing a version label. The two proposals cannot be merged as compatible wire formats.
 

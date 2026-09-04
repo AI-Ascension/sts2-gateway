@@ -7,6 +7,13 @@ runtime or downstream wire contract.
 
 ### Fixed
 
+- Reject attached action operation IDs that cannot be represented by the fixed receipt route,
+  before dispatch; keep neutral ledger identity and frozen artifact bytes unchanged.
+
+- Remove the policy scanner's blanket `bin` exclusion, split attached runtime source/tests by
+  responsibility, and verify the runtime entrypoint and routing/HTTP source remain scanned under
+  unchanged size limits without exemptions.
+
 - Enforce numeric loopback endpoints, absolute bounded HTTP I/O, unambiguous HTTP framing, and
   connection-owned shutdown cancellation; reserve queue metrics before publishing work.
 - Keep earlier Runtime-v3 accepted/unknown operations reconcilable, rebind per-attempt correlation,
