@@ -4,8 +4,9 @@
 
 The target contains the gateway control-plane package and repository tooling. Policy, formatting,
 lint, build, and package tests run without a product workspace. The package tests use deterministic
-fake clock, process, readiness, transport, and lease-decision seams. No gateway listener, child
-process, game host, provider, save, or deployment is used by these checks.
+fake clock, process, readiness, transport, and lease-decision seams. HTTP regressions also use
+isolated synthetic loopback sockets with owned joined threads. No game listener, child process,
+game host, provider, save, or deployment is used by these checks.
 
 ## Baseline commands
 
@@ -18,6 +19,7 @@ cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 cargo test --workspace --all-targets --all-features --locked
 (cd protocol-artifact/poc-v1 && sha256sum -c SHA256SUMS)
 (cd protocol-artifact/runtime-v2 && sha256sum -c SHA256SUMS)
+(cd protocol-artifact/runtime-v3-gameplay && sha256sum -c SHA256SUMS)
 ```
 
 The policy command comes first in the normal local sequence. CI runs the same commands with bounded

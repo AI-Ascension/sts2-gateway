@@ -11,6 +11,20 @@ runtime or downstream wire contract.
   and lease identities remain unique. Clarified the process port's partial-start cleanup ownership.
 - Expiry reconciliation reports forced-stop failures instead of claiming successful expiration,
   preserving the process handle and revoked lease for explicit cleanup retry.
+- Correct co-op snapshot authorization without a local peer and permit synchronization to recover
+  after every connected peer reaches a common newer generation, without lowering the baseline.
+- Retain exact Runtime-v2 operation replays across generation changes, reconcile accepted work,
+  and preserve newer observations when historical completion receipts arrive late.
+
+- Bound incoming HTTP reads and outgoing writes by absolute five-second deadlines; slow-drip
+  clients cannot extend the deadline. The downstream connect/write/read exchange shares one
+  five-second budget. Reject oversized terminated headers and ambiguous transfer framing.
+- Require literal loopback addresses and nonzero ports for both listeners and downstreams;
+  released attached lease contexts cannot be allocated again during the same process lifetime.
+- Validate Runtime-v3 requests and responses against the copied canonical gameplay schema,
+  matching route kinds, authenticated envelope identities, correlations, operations, metadata,
+  and neutral semantic relationships. Duplicate JSON fields and undeclared fields are rejected.
+  These corrections do not implement durable restart epochs, lease TTL/renewal, or a real host.
 
 ### Added
 

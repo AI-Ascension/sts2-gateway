@@ -158,3 +158,14 @@ available only while synchronized. The process supervisor similarly owns only in
 handles; its bounded restart seam stops the old owned handle before starting one replacement and
 fails closed if replacement start fails. Concrete executable, profile, credential, and cleanup
 adapters remain deployment inputs and require runtime evidence.
+
+The semantic gameplay adapter now enforces the canonical copied schema, its exact digest,
+authenticated header/body identity agreement, expected route kinds, operation/correlation binding,
+and neutral field relationships. This does not authorize a game effect or fabricate a receipt.
+The fixed five-second HTTP deadlines include partial traffic, and address configuration rejects
+non-loopback addresses and DNS names. See [ADR 0009](decisions/0009-runtime-v3-framing-and-fencing.md).
+
+Co-op mutation snapshots require a local peer as well as at least two connected peers. The
+session generation advances only when every registered peer is connected and reports the same
+generation at or above the current baseline. Partial agreement, missing peers, and rollback keep
+mutation suspended. This is synchronization bookkeeping, not host or multiplayer evidence.

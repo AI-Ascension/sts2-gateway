@@ -44,4 +44,26 @@ impl RuntimeV3GameplayRoute {
             Self::DispatchAction | Self::WaitForTransition | Self::Recover
         )
     }
+
+    pub(crate) const fn request_kind(self) -> &'static str {
+        match self {
+            Self::State => "state_request",
+            Self::LegalActions => "legal_actions_request",
+            Self::DispatchAction => "dispatch_action_request",
+            Self::WaitForTransition => "wait_request",
+            Self::Reobserve => "reobserve_request",
+            Self::Recover => "recover_request",
+        }
+    }
+
+    pub(crate) const fn response_kind(self) -> &'static str {
+        match self {
+            Self::State => "state_response",
+            Self::LegalActions => "legal_actions_response",
+            Self::DispatchAction => "dispatch_action_response",
+            Self::WaitForTransition => "wait_response",
+            Self::Reobserve => "reobserve_response",
+            Self::Recover => "recover_response",
+        }
+    }
 }

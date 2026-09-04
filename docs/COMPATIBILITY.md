@@ -93,3 +93,21 @@ disposable-host evidence.
 | Co-op synchronization and process supervisor | Bounded deterministic fakes and identity/failure tests | Source-derived; live restart, cleanup, isolation, and multiplayer unverified |
 
 These surfaces are additive to Runtime-v2 and do not inherit its runtime evidence.
+
+The gameplay envelope is pinned to protocol PR #8 commit
+`82507361890c1bdce6cffeaf7e616d93e53a7d99`, schema digest
+`b37c80f583aeaf4f81ede2083bcfb4129196baf5eb092470e8738173c4b7226c`.
+The complete copied artifact and its source/conformance companions are checked by CI. Runtime
+validation additionally enforces duplicate-field rejection, schema shape, byte bounds, correlated
+identities/operations, and observation/witness relationships. This is the semantic gameplay
+profile, not the incompatible earlier bounded-card profile used by gateway PR #6. The same
+profile name does not establish compatibility; the exact digest is required and mixed digests
+are rejected. See [ADR 0009](decisions/0009-runtime-v3-framing-and-fencing.md).
+
+The attached executable has a boolean active lease, **not** a timed/renewable lease. It has no
+durable boot-epoch rotation. Starting another process with the same configured identity/token/
+epoch and allocating it can admit proofs from the earlier process; this remains an unresolved
+deployment blocker. Release cannot reactivate the context within one process, but its revocation
+is not durable. The injected process supervisor and generic clock-based core do not change these
+executable semantics. A compatible design must separate historical read-only receipts from a
+fresh active boot context across gateway, mod, MCP, and harness before restart can be safe.

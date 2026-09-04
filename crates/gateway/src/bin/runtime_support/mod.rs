@@ -3,6 +3,8 @@
 mod http;
 mod runtime_v3_gameplay;
 mod runtime_v3_gameplay_forwarder;
+mod runtime_v3_relations;
 mod service;
+mod strict_json;
 
 pub(crate) use service::RuntimeService;

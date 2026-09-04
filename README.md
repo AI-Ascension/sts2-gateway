@@ -36,7 +36,7 @@ the [architecture](docs/ARCHITECTURE.md).
 The gateway does not own game rules, host objects, managed loader code, MCP semantics or tool
 catalogs, model/provider execution, harness episodes or artifacts, direct game files, saves,
 credentials, arbitrary proxying, or implicit remote discovery. It consumes only inert copied
-`sts2-protocol/poc-v1` and Runtime-v2 artifacts. A forwarded request must have a validated instance,
+`sts2-protocol/poc-v1`, Runtime-v2, and semantic Runtime-v3 gameplay artifacts. A forwarded request must have a validated instance,
 session, lease, lease epoch, route, method, and bounded body; listener reachability is not
 authentication. Runtime-v2 adds only the fixed `end_turn` operation and its retained receipt ledger,
 plus a typed state route that reports explicit unavailability without a host-state adapter; live
@@ -72,12 +72,13 @@ cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 cargo test --workspace --all-targets --all-features --locked
 (cd protocol-artifact/poc-v1 && sha256sum -c SHA256SUMS)
 (cd protocol-artifact/runtime-v2 && sha256sum -c SHA256SUMS)
+(cd protocol-artifact/runtime-v3-gameplay && sha256sum -c SHA256SUMS)
 ```
 
 The first command is the local policy entrypoint and checks required paths, licenses, links,
 workflow restrictions, Rust configuration, language restrictions, and file budgets. The package
-tests exercise only injected deterministic fakes; these commands do not launch a gateway listener,
-game process, MCP server, provider, or host.
+tests exercise injected deterministic fakes and isolated synthetic loopback HTTP sockets; these
+commands do not launch a game process, MCP server, provider, or real host.
 
 ## Repository map
 
@@ -105,3 +106,9 @@ This binary does not launch or supervise a game process in this sprint. Its fixe
 attached downstream configuration are intentional for the vertical slice; the exact-host forwarding
 and lease path is confirmed in the dated authorized trace. General process lifecycle, multi-instance
 scheduling, restart reconciliation, and graceful shutdown remain `unverified`.
+
+The semantic Runtime-v3 proposal validates the exact canonical artifact and correlated envelopes
+on six fixed routes. Its injected process supervisor and co-op ledger are separate source-level
+components, not executable wiring to a real game or multiplayer host. The attached binary still
+has no lease TTL/renewal or durable boot-epoch rotation; see the explicit restart limitation in
+[COMPATIBILITY.md](docs/COMPATIBILITY.md). It cannot establish a reliable autonomous run by itself.

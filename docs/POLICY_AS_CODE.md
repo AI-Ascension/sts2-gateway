@@ -14,6 +14,11 @@ action must be pinned to an immutable commit or digest. The target has no policy
 
 ## Local entrypoint
 
+Rust executable sources under `crates/gateway/src/bin/` are included in policy checks. The old
+basename-wide `bin` exclusion and oversized service exemption have been removed; the attached
+service is split into configuration, control, downstream, v2, v3, and test modules under the same
+existing budgets. No new exception replaces that coverage.
+
 Run from `sts2-gateway`:
 
 ```text

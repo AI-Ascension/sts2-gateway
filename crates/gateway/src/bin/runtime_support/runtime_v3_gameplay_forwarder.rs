@@ -1,8 +1,16 @@
 // SPDX-License-Identifier: MIT
 
 use serde_json::Value;
+use std::collections::BTreeMap;
+use std::sync::OnceLock;
 
 use super::runtime_v3_gameplay::RuntimeV3GameplayRoute;
+
+const SCHEMA: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../protocol-artifact/runtime-v3-gameplay/schema.json"
+));
+const DIGEST: &str = "b37c80f583aeaf4f81ede2083bcfb4129196baf5eb092470e8738173c4b7226c";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct RuntimeV3GameplayForwarder {
@@ -29,35 +37,92 @@ impl RuntimeV3GameplayForwarder {
 
     pub(crate) fn validate_request(
         self,
-        _route: RuntimeV3GameplayRoute,
+        route: RuntimeV3GameplayRoute,
         body: &[u8],
-    ) -> Result<(), RuntimeV3GameplayForwardError> {
+        headers: &BTreeMap<String, String>,
+    ) -> Result<Value, RuntimeV3GameplayForwardError> {
         if body.len() > self.max_request_bytes {
             return Err(RuntimeV3GameplayForwardError::RequestBodyOversized);
         }
         if body.is_empty() {
             return Err(RuntimeV3GameplayForwardError::RequestBodyRequired);
         }
-        let value = serde_json::from_slice::<Value>(body)
-            .map_err(|_| RuntimeV3GameplayForwardError::RequestBodyMalformed)?;
-        if !value.is_object() {
+        let value =
+            validate_envelope(body).ok_or(RuntimeV3GameplayForwardError::RequestBodyMalformed)?;
+        if value["kind"].as_str() != Some(route.request_kind()) || !headers_match(&value, headers) {
             return Err(RuntimeV3GameplayForwardError::RequestBodyMalformed);
         }
-        Ok(())
+        Ok(value)
     }
 
     pub(crate) fn validate_response(
         self,
+        route: RuntimeV3GameplayRoute,
+        request: &Value,
         body: &[u8],
     ) -> Result<(), RuntimeV3GameplayForwardError> {
         if body.len() > self.max_response_bytes {
             return Err(RuntimeV3GameplayForwardError::ResponseOversized);
         }
-        let value = serde_json::from_slice::<Value>(body)
-            .map_err(|_| RuntimeV3GameplayForwardError::ResponseMalformed)?;
-        if !value.is_object() {
+        let value =
+            validate_envelope(body).ok_or(RuntimeV3GameplayForwardError::ResponseMalformed)?;
+        for field in [
+            "correlation_id",
+            "instance_id",
+            "session_id",
+            "lease_id",
+            "lease_epoch",
+        ] {
+            if value[field] != request[field] {
+                return Err(RuntimeV3GameplayForwardError::ResponseMalformed);
+            }
+        }
+        if value["kind"].as_str() != Some(route.response_kind()) {
+            return Err(RuntimeV3GameplayForwardError::ResponseMalformed);
+        }
+        if matches!(
+            route,
+            RuntimeV3GameplayRoute::DispatchAction | RuntimeV3GameplayRoute::WaitForTransition
+        ) && value["operation_id"] != request["operation_id"]
+        {
             return Err(RuntimeV3GameplayForwardError::ResponseMalformed);
         }
         Ok(())
     }
 }
+
+fn headers_match(value: &Value, headers: &BTreeMap<String, String>) -> bool {
+    for (field, header) in [
+        ("instance_id", "x-sts2-instance-id"),
+        ("session_id", "x-sts2-session-id"),
+        ("lease_id", "x-sts2-lease-id"),
+        ("correlation_id", "x-sts2-correlation-id"),
+    ] {
+        if value[field].as_str() != headers.get(header).map(String::as_str) {
+            return false;
+        }
+    }
+    value["lease_epoch"].as_u64()
+        == headers
+            .get("x-sts2-lease-epoch")
+            .and_then(|epoch| epoch.parse::<u64>().ok())
+}
+
+fn validate_envelope(body: &[u8]) -> Option<Value> {
+    static VALIDATOR: OnceLock<Option<jsonschema::Validator>> = OnceLock::new();
+    let validator = VALIDATOR
+        .get_or_init(|| {
+            let schema: Value = serde_json::from_str(SCHEMA).ok()?;
+            jsonschema::validator_for(&schema).ok()
+        })
+        .as_ref()?;
+    let value: Value = super::strict_json::parse(body).ok()?;
+    (value["schema_digest"].as_str() == Some(DIGEST)
+        && validator.is_valid(&value)
+        && super::runtime_v3_relations::valid(&value))
+    .then_some(value)
+}
+
+#[cfg(test)]
+#[path = "runtime_v3_forwarder_tests.rs"]
+mod tests;

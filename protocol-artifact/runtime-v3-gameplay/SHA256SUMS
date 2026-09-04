@@ -1,0 +1,8 @@
+53cd895010b94afffed05d56794a7a384f448d72ecec14e0177039d5a2325102  ../../conformance/cases/runtime-v3-gameplay.json
+b37c80f583aeaf4f81ede2083bcfb4129196baf5eb092470e8738173c4b7226c  ../../schemas/runtime-v3-gameplay.schema.json
+9e9e7f7b59c4c6129a3cda01d5cf37769f4e91bbb694abba396aa6d4cd1f7d35  manifest.json
+b37c80f583aeaf4f81ede2083bcfb4129196baf5eb092470e8738173c4b7226c  schema.json
+193dcc51c3c5152a965514b11b1bb51d5ee5e19ea807be8d2fadf65d56721bd8  golden/state-request.json
+ac4c41c33d8b63fbb0f43a22beec760928314fa9495fea88773bb6890a0e20c2  golden/state-response.json
+79e4365baa5b9045f553ae328c4693975e0542ef8b2eaaf96e99df635d51f4ba  golden/dispatch-action-request.json
+0bfc92a1897d4c220ca8c66c598dbb46ad066f9ff87563ab01c97160982e8e22  golden/dispatch-action-settled.json
