@@ -39,6 +39,12 @@ capacity, no-blind-retry, and rejection of tampered copied schema/manifest/golde
 binary tests the fixed typed state route's explicit unavailable response and arbitrary-v2-GET denial.
 The fakes do not represent live process, network, or game-host behavior.
 
+Control-plane regression oracles include six consecutive failed starts followed by four successful
+allocations at full configured capacity, without reusing failed instance/lease identities or stopping
+a nonexistent handle. Expiry through `reconcile` must report forced-stop failure, retain the owned
+handle, revoke forwarding, and permit explicit cleanup retry; successful expiry must report a matching
+`Expired` snapshot with no retained handle. These exercise injected fake processes only.
+
 ## Future deterministic suites
 
 For behavior beyond the initialized core, require an accepted requirement and contract ledger before

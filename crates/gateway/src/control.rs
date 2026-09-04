@@ -6,7 +6,7 @@ use crate::ports::{
     Clock, LaunchSpec, LeaseDecisionPort, ProcessFault, ProcessPort, ProcessState, Readiness,
     ReadinessPort, StopMode,
 };
-use crate::{Allocation, CleanupResult, Gateway, GatewayError};
+use crate::{Allocation, CleanupResult, CleanupStatus, Gateway, GatewayError};
 
 impl<C, P, R, T, F> Gateway<C, P, R, T, F>
 where
@@ -47,9 +47,9 @@ where
         let process = match self.process.start(LaunchSpec::new(instance_id)) {
             Ok(process) => process,
             Err(fault) => {
-                if let Some(record) = self.instances.get_mut(&instance_id) {
-                    record.mark_failed();
-                }
+                // A failed start transfers no process handle; its port owns partial-launch cleanup.
+                // The caller never received this allocation, so do not retain an unreachable slot.
+                let _ = self.instances.remove(&instance_id);
                 return Err(GatewayError::ProcessStart(fault));
             }
         };
@@ -76,8 +76,10 @@ where
             return Ok(record.state());
         }
         if self.lease_expired(instance_id) {
-            let _ = self.expire_instance(instance_id);
-            return Ok(LifecycleState::Expired);
+            return match self.expire_instance(instance_id) {
+                CleanupStatus::Cleaned => Ok(LifecycleState::Expired),
+                CleanupStatus::Failed(fault) => Err(GatewayError::ProcessStop(fault)),
+            };
         }
         let Some(process) = record.process() else {
             if let Some(record) = self.instances.get_mut(&instance_id) {

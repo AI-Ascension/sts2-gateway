@@ -46,6 +46,14 @@ API, and a successful gateway acknowledgment does not prove game state or effect
 
 ## Change classification
 
+The generic control-plane recovery correction is a patch to failed-start capacity and expiry error
+reporting, not a new route or wire field. Failed starts now leave no queryable allocation because no
+allocation identity was returned; consumed IDs are not reused. Expiry reconciliation returns the
+existing `ProcessStop` error on failed cleanup instead of incorrectly reporting `Expired`. Callers
+must retain the already-issued allocation identity and invoke authorized `cleanup` after the fault is
+resolved. `ProcessPort::start` transfers a handle only on success; partial-start cleanup on error is
+the port's responsibility. No concrete process adapter is validated by this correction.
+
 - **Patch:** correction that preserves accepted identity, route, lease, error, and timing behavior.
 - **Minor:** additive bounded field or operation with an older-client behavior defined.
 - **Major:** changed lifecycle state, route/method, auth scope, lease/fence rule, error semantics,
