@@ -147,7 +147,7 @@ settlement is evidenced by this route implementation.
 
 ## Runtime-v3 and co-op extension
 
-ADR 0007 keeps Runtime-v3 routing semantic but narrow: state, legal actions, dispatch, wait,
+ADR 0012 keeps Runtime-v3 routing semantic but narrow: state, legal actions, dispatch, wait,
 reobserve, and recovery are the only fixed route classes. The forwarder bounds JSON and delegates
 profile meaning to the game-mod host boundary. The gateway never creates a legal action or infers an
 effect from acceptance.
@@ -163,7 +163,7 @@ The semantic gameplay adapter now enforces the canonical copied schema, its exac
 authenticated header/body identity agreement, expected route kinds, operation/correlation binding,
 and neutral field relationships. This does not authorize a game effect or fabricate a receipt.
 The fixed five-second HTTP deadlines include partial traffic, and address configuration rejects
-non-loopback addresses and DNS names. See [ADR 0009](decisions/0009-runtime-v3-framing-and-fencing.md).
+non-loopback addresses and DNS names. See [ADR 0014](decisions/0014-runtime-v3-framing-and-fencing.md).
 
 Co-op mutation snapshots require a local peer as well as at least two connected peers. The
 session generation advances only when every registered peer is connected and reports the same

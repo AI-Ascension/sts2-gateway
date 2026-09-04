@@ -1,4 +1,4 @@
-# ADR 0009: Runtime-v3 framing and authenticated envelope fencing
+# ADR 0014: Runtime-v3 framing and authenticated envelope fencing
 
 - Status: Accepted for source/component validation; live integration remains unverified
 - Date: 2026-09-04
@@ -40,6 +40,13 @@ after dispatch leaves the operation outcome uncertain; clients retain its operat
 may only reconcile/read, never blindly send a new mutation. Errors expose stable codes, not bodies
 or credentials. A recovery response of an unexpected message kind is rejected rather than
 misrepresented as a valid catalog or observation.
+
+The legal-action route also admits one explicit host-owned HTTP refusal, not a canonical catalog:
+an object with exactly `correlation_id` (matching the request), `error_code`, and
+`recovery: "reobserve"`, at most1024bytes and no duplicate keys. HTTP409 permits only
+`stale_generation`; HTTP503 permits only `host_not_configured` or `host_observation_unavailable`.
+All other statuses, keys, codes, correlations or routes fail validation. These errors are relayed
+as failures so the caller can deliberately reobserve; no observation, catalog or admission is inferred.
 
 ## Deterministic oracle
 

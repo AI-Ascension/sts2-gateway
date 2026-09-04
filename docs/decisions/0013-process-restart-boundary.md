@@ -1,4 +1,4 @@
-# ADR 0008: bounded process restart boundary
+# ADR 0013: bounded process restart boundary
 
 - Status: Accepted as a source-level gateway seam
 - Date: 2026-09-04

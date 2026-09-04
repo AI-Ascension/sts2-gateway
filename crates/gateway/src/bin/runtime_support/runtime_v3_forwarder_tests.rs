@@ -214,3 +214,57 @@ fn all_six_routes_match_only_exact_methods_instances_and_suffixes() {
         );
     }
 }
+
+#[test]
+fn catalog_recovery_errors_are_explicit_narrow_and_correlated()
+-> Result<(), Box<dyn std::error::Error>> {
+    let forwarder = RuntimeV3GameplayForwarder::new(16 * 1024, 128 * 1024);
+    let request = fixture("state-request.json")?;
+    let route = RuntimeV3GameplayRoute::LegalActions;
+    for (status, code) in [
+        (409, "stale_generation"),
+        (503, "host_not_configured"),
+        (503, "host_observation_unavailable"),
+    ] {
+        let original = serde_json::json!({"correlation_id": request["correlation_id"],
+            "error_code": code, "recovery": "reobserve"});
+        let bytes = serde_json::to_vec(&original)?;
+        assert!(forwarder.is_legal_actions_recovery(route, &request, status, &bytes));
+        assert!(!forwarder.is_legal_actions_recovery(route, &request, 200, &bytes));
+        assert!(!forwarder.is_legal_actions_recovery(
+            RuntimeV3GameplayRoute::State,
+            &request,
+            status,
+            &bytes
+        ));
+        for field in ["correlation_id", "error_code", "recovery"] {
+            let mut value = original.clone();
+            value[field] = "untrusted".into();
+            assert!(!forwarder.is_legal_actions_recovery(
+                route,
+                &request,
+                status,
+                &serde_json::to_vec(&value)?
+            ));
+        }
+        let mut value = original.clone();
+        value["observation"] = serde_json::json!({});
+        assert!(!forwarder.is_legal_actions_recovery(
+            route,
+            &request,
+            status,
+            &serde_json::to_vec(&value)?
+        ));
+        let duplicate =
+            serde_json::to_string(&original)?.replacen('{', "{\"error_code\":\"secret\",", 1);
+        assert!(!forwarder.is_legal_actions_recovery(
+            route,
+            &request,
+            status,
+            duplicate.as_bytes()
+        ));
+    }
+    let oversized = vec![b' '; 1025];
+    assert!(!forwarder.is_legal_actions_recovery(route, &request, 409, &oversized));
+    Ok(())
+}

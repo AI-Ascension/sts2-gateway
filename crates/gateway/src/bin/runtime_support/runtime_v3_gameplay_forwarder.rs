@@ -89,6 +89,37 @@ impl RuntimeV3GameplayForwarder {
         }
         Ok(())
     }
+
+    /// A catalog refusal is not a catalog. The host-owned HTTP error contract is
+    /// deliberately narrower than the canonical success envelope and never grants admission.
+    pub(crate) fn is_legal_actions_recovery(
+        self,
+        route: RuntimeV3GameplayRoute,
+        request: &Value,
+        status: u16,
+        body: &[u8],
+    ) -> bool {
+        if route != RuntimeV3GameplayRoute::LegalActions || body.len() > 1024 {
+            return false;
+        }
+        let Ok(value) = super::strict_json::parse(body) else {
+            return false;
+        };
+        let Some(object) = value.as_object() else {
+            return false;
+        };
+        object.len() == 3
+            && value["correlation_id"] == request["correlation_id"]
+            && value["recovery"].as_str() == Some("reobserve")
+            && matches!(
+                (status, value["error_code"].as_str()),
+                (409, Some("stale_generation"))
+                    | (
+                        503,
+                        Some("host_not_configured" | "host_observation_unavailable")
+                    )
+            )
+    }
 }
 
 fn headers_match(value: &Value, headers: &BTreeMap<String, String>) -> bool {

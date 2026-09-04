@@ -1,4 +1,4 @@
-# ADR 0007: Runtime-v3 routing and co-op synchronization boundary
+# ADR 0012: Runtime-v3 routing and co-op synchronization boundary
 
 - Status: Accepted as a source-level gateway seam
 - Date: 2026-09-04

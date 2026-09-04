@@ -102,7 +102,7 @@ validation additionally enforces duplicate-field rejection, schema shape, byte b
 identities/operations, and observation/witness relationships. This is the semantic gameplay
 profile, not the incompatible earlier bounded-card profile used by gateway PR #6. The same
 profile name does not establish compatibility; the exact digest is required and mixed digests
-are rejected. See [ADR 0009](decisions/0009-runtime-v3-framing-and-fencing.md).
+are rejected. See [ADR 0014](decisions/0014-runtime-v3-framing-and-fencing.md).
 
 The attached executable has a boolean active lease, **not** a timed/renewable lease. It has no
 durable boot-epoch rotation. Starting another process with the same configured identity/token/

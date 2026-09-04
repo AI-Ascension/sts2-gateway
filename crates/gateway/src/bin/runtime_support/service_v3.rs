@@ -39,6 +39,16 @@ impl RuntimeService {
             &request.body,
             correlation,
         ) {
+            Ok(response)
+                if self.runtime_v3.is_legal_actions_recovery(
+                    route,
+                    &envelope,
+                    response.status,
+                    &response.body,
+                ) =>
+            {
+                (response.status, response.body)
+            }
             Ok(response) => {
                 match self
                     .runtime_v3
