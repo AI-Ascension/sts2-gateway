@@ -7,6 +7,9 @@ runtime or downstream wire contract.
 
 ### Fixed
 
+- Keep a released/shutdown attached lease revoked for the service lifetime; a later allocation
+  cannot resurrect the same credential/epoch and authorize queued stale work.
+
 - Reject attached action operation IDs that cannot be represented by the fixed receipt route,
   before dispatch; keep neutral ledger identity and frozen artifact bytes unchanged.
 

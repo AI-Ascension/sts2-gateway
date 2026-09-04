@@ -4,6 +4,9 @@ use super::*;
 
 impl RuntimeService {
     pub(super) fn allocate(&mut self, body: &[u8]) -> (u16, Vec<u8>) {
+        if self.lease_revoked || self.shutdown_requested {
+            return (409, json_error("lease_revoked"));
+        }
         let Ok(value) = serde_json::from_slice::<Value>(body) else {
             return (400, json_error("allocation_body_invalid"));
         };
@@ -40,6 +43,7 @@ impl RuntimeService {
             return error;
         }
         self.lease_active = false;
+        self.lease_revoked = true;
         (
             200,
             json_bytes(&json!({

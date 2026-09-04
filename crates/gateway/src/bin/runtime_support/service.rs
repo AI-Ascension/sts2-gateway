@@ -38,6 +38,7 @@ const REQUEST_WRITE_TIMEOUT: Duration = Duration::from_secs(2);
 pub(crate) struct RuntimeService {
     config: RuntimeConfig,
     lease_active: bool,
+    lease_revoked: bool,
     shutdown_requested: bool,
     runtime_v2: RuntimeV2Ledger<HttpRuntimeV2Forwarder>,
     runtime_v3: RuntimeV3GameplayProxy,
@@ -138,6 +139,7 @@ impl RuntimeService {
             _journal_lock: journal_lock,
             config,
             lease_active: false,
+            lease_revoked: false,
             shutdown_requested: false,
             runtime_v2,
             runtime_v3,

@@ -80,6 +80,7 @@ impl RuntimeService {
             return error;
         }
         self.lease_active = false;
+        self.lease_revoked = true;
         self.shutdown_requested = true;
         self.metrics.request_shutdown();
         (

@@ -83,6 +83,9 @@ Attached action and receipt routes restrict operation IDs to 1–128 ASCII lette
 without `..`. Slash-containing operation IDs allowed by the neutral contract cannot occupy one
 fixed route segment, so action admission rejects them before dispatch. This matches MCP PR #7's
 route profile without changing frozen Runtime-v2 schema bytes or generic ledger identity rules.
+Release/shutdown now permanently revoke the attached configured lease for that process lifetime.
+Clients cannot allocate the same context again to undo revocation; a coordinator must provide a
+fresh session/lease/epoch for replacement ownership. This does not implement durable restart fencing.
 The earlier Runtime-v3 gameplay contract on this branch is distinct from protocol PR #8 and gateway
 PR #7 despite sharing a version label. The two proposals cannot be merged as compatible wire formats.
 

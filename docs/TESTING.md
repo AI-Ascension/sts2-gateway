@@ -58,6 +58,7 @@ are covered. State refresh rejects a regressed generation, and restore rejects a
 without a successor or a persisted binding older than a retained result.
 Both attached action profiles also reject operation IDs that cannot be reconciled by the fixed
 single-segment receipt route; an ephemeral listener verifies these invalid IDs cause zero forwards.
+Release/shutdown followed by allocation is rejected and leaves old lease-protected requests fenced.
 
 Control-plane regression oracles include six consecutive failed starts followed by four successful
 allocations at full configured capacity, without reusing failed instance/lease identities or stopping

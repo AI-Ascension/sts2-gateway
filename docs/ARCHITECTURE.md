@@ -178,3 +178,6 @@ payload identity excluding attempt correlation, polls accepted/unknown outcomes 
 retry, and rebinds cached receipt correlation. The optional Runtime-v2 journal does not persist
 Runtime-v3 operations. Restart fencing and downstream receipt continuity remain integration gates;
 do not reuse a stale configured lease/session/epoch after a gateway or host restart.
+Within one service lifetime, release and shutdown permanently revoke its configured lease. Further
+allocation fails closed rather than reactivating the old epoch; new ownership requires a separately
+configured fresh context. Persisted cross-restart revocation remains an external coordinator gate.

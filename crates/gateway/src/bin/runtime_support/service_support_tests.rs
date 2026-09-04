@@ -53,6 +53,7 @@ pub(super) fn test_service() -> Result<RuntimeService, String> {
     Ok(RuntimeService {
         config,
         lease_active: true,
+        lease_revoked: false,
         shutdown_requested: false,
         runtime_v2,
         runtime_v3,

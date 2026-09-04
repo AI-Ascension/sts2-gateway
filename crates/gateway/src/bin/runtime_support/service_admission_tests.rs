@@ -1,8 +1,29 @@
 // SPDX-License-Identifier: MIT
 
+use super::test_support::*;
 use super::*;
 
-use super::test_support::*;
+#[test]
+fn released_or_shutdown_lease_cannot_be_reallocated() -> Result<(), String> {
+    for shutdown in [false, true] {
+        let mut service = test_service()?;
+        let mut request = authenticated_request(if shutdown {
+            "/v2/instances/instance-1/shutdown"
+        } else {
+            "/v1/instances/instance-1/release"
+        });
+        request.method = String::from("POST");
+        let (status, _) = service.handle_request(&request);
+        assert_eq!(status, if shutdown { 202 } else { 200 });
+        let allocation =
+            br#"{"instance_id":"instance-1","caller_id":"caller-1","session_id":"session-1"}"#;
+        assert_eq!(service.allocate(allocation).0, 409);
+        assert!(!service.lease_active);
+        let stale = authenticated_request("/v2/instances/instance-1/state");
+        assert_eq!(service.handle_request(&stale).0, 409);
+    }
+    Ok(())
+}
 
 #[test]
 fn operation_capacity_is_explicitly_bounded() {
