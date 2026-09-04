@@ -36,6 +36,7 @@ pub struct CoopSynchronizationSnapshot {
     peer_count: usize,
     missing_peers: Vec<CallerId>,
     disagreement: bool,
+    has_local_peer: bool,
 }
 
 impl CoopSynchronizationSnapshot {
@@ -65,7 +66,10 @@ impl CoopSynchronizationSnapshot {
     }
     #[must_use]
     pub const fn mutation_allowed(&self) -> bool {
-        !self.disagreement && self.missing_peers.is_empty() && self.peer_count >= 2
+        self.has_local_peer
+            && !self.disagreement
+            && self.missing_peers.is_empty()
+            && self.peer_count >= 2
     }
 }
 
@@ -122,6 +126,7 @@ impl CoopSession {
                 status: PeerStatus::Connected,
             },
         );
+        self.advance_converged_generation();
         Ok(())
     }
 
@@ -138,6 +143,7 @@ impl CoopSession {
             .get_mut(&peer_id)
             .ok_or(CoopSessionError::UnknownPeer)?;
         peer.generation = generation;
+        self.advance_converged_generation();
         Ok(())
     }
 
@@ -164,7 +170,30 @@ impl CoopSession {
             .ok_or(CoopSessionError::UnknownPeer)?;
         peer.generation = generation;
         peer.status = PeerStatus::Connected;
+        self.advance_converged_generation();
         Ok(())
+    }
+
+    fn advance_converged_generation(&mut self) {
+        if self.peers.len() < 2 {
+            return;
+        }
+        let Some(local) = self
+            .peers
+            .values()
+            .find(|peer| peer.role == CoopPeerRole::Local)
+        else {
+            return;
+        };
+        let generation = local.generation;
+        if generation >= self.generation
+            && self
+                .peers
+                .values()
+                .all(|peer| peer.status == PeerStatus::Connected && peer.generation == generation)
+        {
+            self.generation = generation;
+        }
     }
 
     pub fn authorize_mutation(&self, generation: u64) -> Result<(), CoopSessionError> {
@@ -204,6 +233,10 @@ impl CoopSession {
             peer_count: self.peers.len(),
             missing_peers,
             disagreement,
+            has_local_peer: self
+                .peers
+                .values()
+                .any(|peer| peer.role == CoopPeerRole::Local),
         }
     }
 }
