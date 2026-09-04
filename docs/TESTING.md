@@ -50,6 +50,11 @@ secret-management system. The attached runtime also tests that a mismatched conf
 header fails at the lease fence before downstream forwarding.
 The fakes do not represent live process, network, or game-host behavior.
 
+Late retained settlement is checked after a newer authoritative observation: the historical receipt
+remains replayable, but cannot rewind admission generation. Both accepted and unknown operations
+are covered. State refresh rejects a regressed generation, and restore rejects a settled receipt
+without a successor or a persisted binding older than a retained result.
+
 Control-plane regression oracles include six consecutive failed starts followed by four successful
 allocations at full configured capacity, without reusing failed instance/lease identities or stopping
 a nonexistent handle. Expiry through `reconcile` must report forced-stop failure, retain the owned

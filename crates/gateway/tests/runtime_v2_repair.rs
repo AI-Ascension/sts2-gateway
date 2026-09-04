@@ -15,6 +15,7 @@ use sts2_gateway::{
 enum FakeMode {
     Settle,
     DisconnectAfterWrite,
+    Accepted,
 }
 
 struct FakeState {
@@ -61,6 +62,20 @@ impl RuntimeV2ForwardingPort for FakeForwarder {
         state.dispatches += 1;
         let receipt = settled_response(request.message());
         match state.mode {
+            FakeMode::Accepted => {
+                state.retained_receipt = Some(receipt.clone());
+                let mut accepted = receipt;
+                accepted.status = Some(RuntimeV2Status::Accepted);
+                accepted.generation = request.message().generation;
+                accepted.observation = Some(RuntimeV2Observation::new(
+                    RuntimeV2CombatPhase::PlayerTurn,
+                    2,
+                    true,
+                    4,
+                ));
+                accepted.effect_witness = None;
+                Ok(accepted)
+            }
             FakeMode::Settle => {
                 state.applications += 1;
                 Ok(receipt)
@@ -355,5 +370,58 @@ fn persisted_state_cannot_cross_a_restarted_lease_epoch() -> Result<(), String> 
         replacement.restore_state(persisted),
         Err(sts2_gateway::RuntimeV2LedgerError::PersistedStateMismatch)
     );
+    Ok(())
+}
+
+fn refresh(ledger: &mut RuntimeV2Ledger<FakeForwarder>, generation: u64) -> Result<(), String> {
+    let request = RuntimeV2Message::state_request(
+        RuntimeV2Metadata::new(),
+        "corr-state",
+        "instance-1",
+        "session-1",
+        "lease-1",
+        1,
+        ledger.observation().generation,
+    );
+    let response = RuntimeV2Message::state_response(
+        RuntimeV2Metadata::new(),
+        "corr-state",
+        "instance-1",
+        "session-1",
+        "lease-1",
+        1,
+        RuntimeV2Observation::new(RuntimeV2CombatPhase::PlayerTurn, 4, true, generation),
+    );
+    ledger
+        .accept_state_response(&request, response)
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}
+
+#[test]
+fn late_settlement_retains_receipt_without_rewinding_observation() -> Result<(), String> {
+    for mode in [FakeMode::Accepted, FakeMode::DisconnectAfterWrite] {
+        let fake = FakeForwarder::new(mode);
+        let mut ledger =
+            RuntimeV2Ledger::new(RuntimeV2LedgerConfig::new(4), binding()?, fake.clone())
+                .map_err(|e| e.to_string())?;
+        let request = action_request("corr-action", "op-late", 1, 4);
+        ledger
+            .submit_action(request.clone())
+            .map_err(|e| e.to_string())?;
+        refresh(&mut ledger, 6)?;
+        let receipt = ledger
+            .reconcile(reconcile_request("corr-read", "op-late", 6))
+            .map_err(|e| e.to_string())?;
+        assert_eq!(receipt.status, Some(RuntimeV2Status::Settled));
+        assert_eq!(receipt.generation, 5);
+        assert_eq!(ledger.observation().generation, 6);
+        let replay = ledger.submit_action(request).map_err(|e| e.to_string())?;
+        assert_eq!(replay.status, Some(RuntimeV2Status::Settled));
+        assert_eq!(fake.dispatches(), 1);
+        assert_eq!(fake.receipt_reads(), 1);
+        assert!(refresh(&mut ledger, 5).is_err());
+        assert_eq!(ledger.observation().generation, 6);
+    }
     Ok(())
 }

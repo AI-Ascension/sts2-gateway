@@ -70,6 +70,13 @@ where
                     if !self.response_matches_request(&request, &result)
                         || result.validate().is_err()
                         || result.kind != RuntimeV2MessageKind::ActionResponse
+                        || result.observation.is_some_and(|observation| {
+                            observation.generation > persisted.observation.generation
+                        })
+                        || (result.status == Some(RuntimeV2Status::Settled)
+                            && result.generation <= request.generation)
+                        || (result.status == Some(RuntimeV2Status::Accepted)
+                            && result.generation != request.generation)
                     {
                         return Err(RuntimeV2LedgerError::PersistedStateInvalid);
                     }

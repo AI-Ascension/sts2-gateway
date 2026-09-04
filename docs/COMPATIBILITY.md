@@ -46,6 +46,10 @@ API, and a successful gateway acknowledgment does not prove game state or effect
 
 ## Change classification
 
+The ledger's monotonic-observation repair is a patch to the existing freshness invariant; it does
+not change Runtime-v2 artifact bytes. Historical receipts keep their own generation and are distinct
+from the newest admission observation. Corrupt/inconsistent checkpoint generations fail closed.
+
 The generic control-plane recovery correction is a patch to failed-start capacity and expiry error
 reporting, not a new route or wire field. Failed starts now leave no queryable allocation because no
 allocation identity was returned; consumed IDs are not reused. Expiry reconciliation returns the

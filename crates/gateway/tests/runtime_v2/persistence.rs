@@ -235,3 +235,30 @@ fn persisted_state_cannot_cross_lease_identity() -> Result<(), String> {
     );
     Ok(())
 }
+
+#[test]
+fn restore_rejects_settlement_without_successor_or_with_regressed_binding() -> Result<(), String> {
+    let mut ledger = RuntimeV2Ledger::new(
+        RuntimeV2LedgerConfig::new(4),
+        binding()?,
+        FakeForwarder::new(FakeMode::Settle),
+    )
+    .map_err(|e| e.to_string())?;
+    ledger
+        .submit_action(action_request("corr-restore", "op-restore", 1, 4))
+        .map_err(|e| e.to_string())?;
+    let valid = ledger.persisted_state();
+    let mut stale_binding = valid.clone();
+    stale_binding.observation.generation = 4;
+    let mut no_successor = valid;
+    no_successor.operations[0].request.generation = 5;
+    for invalid in [stale_binding, no_successor] {
+        assert_eq!(
+            ledger.restore_state(invalid),
+            Err(sts2_gateway::RuntimeV2LedgerError::PersistedStateInvalid)
+        );
+        assert_eq!(ledger.observation().generation, 5);
+        assert_eq!(ledger.operation_count(), 1);
+    }
+    Ok(())
+}

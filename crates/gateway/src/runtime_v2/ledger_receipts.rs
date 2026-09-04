@@ -183,14 +183,16 @@ where
                         .as_ref()
                         .is_some_and(|witness| witness.generation == receipt.generation) =>
             {
-                if let Some(observation) = receipt.observation {
+                if let Some(observation) = receipt.observation.filter(|observation| {
+                    observation.generation > self.binding.observation.generation
+                }) {
                     self.binding.observation = observation;
                 }
                 Some(receipt)
             }
             Some(RuntimeV2Status::Accepted | RuntimeV2Status::Rejected)
                 if receipt.observation.is_some_and(|observation| {
-                    observation.generation == self.binding.observation.generation
+                    observation.generation == action_request.generation
                 }) =>
             {
                 Some(receipt)

@@ -11,6 +11,9 @@ runtime or downstream wire contract.
   and lease identities remain unique. Clarified the process port's partial-start cleanup ownership.
 - Expiry reconciliation reports forced-stop failures instead of claiming successful expiration,
   preserving the process handle and revoked lease for explicit cleanup retry.
+- Preserve the newest Runtime-v2 observation when reconciling an older operation receipt; reject
+  regressed state refresh and inconsistent persisted result generations. Accepted and unknown
+  operations retain historical settled receipts without rewinding fresh-action admission.
 
 ### Added
 

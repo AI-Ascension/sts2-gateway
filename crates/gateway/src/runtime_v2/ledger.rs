@@ -84,6 +84,12 @@ where
                 RuntimeV2ValidationError::ResultShape,
             ));
         };
+        if observation.generation < self.binding.observation.generation {
+            return Err(RuntimeV2LedgerError::StaleGeneration {
+                expected: self.binding.observation.generation,
+                actual: observation.generation,
+            });
+        }
         self.binding.observation = observation;
         Ok(response)
     }
