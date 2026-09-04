@@ -4,8 +4,9 @@
 
 The target contains the gateway control-plane package and repository tooling. Policy, formatting,
 lint, build, and package tests run without a product workspace. The package tests use deterministic
-fake clock, process, readiness, transport, and lease-decision seams. No gateway listener, child
-process, game host, provider, save, or deployment is used by these checks.
+fake clock, process, readiness, transport, and lease-decision seams. HTTP regression tests also use
+isolated synthetic loopback sockets with owned joined threads. No game listener, child process,
+game host, provider, save, or deployment is used by these checks.
 
 ## Baseline commands
 
@@ -37,7 +38,14 @@ application, unknown-to-settled retained-receipt reconciliation, duplicate repla
 conflict rejection, stale identity/epoch/generation replay and receipt fencing, cancellation, store
 capacity, no-blind-retry, and rejection of tampered copied schema/manifest/golden bytes. The runtime
 binary tests the fixed typed state route's explicit unavailable response and arbitrary-v2-GET denial.
-The fakes do not represent live process, network, or game-host behavior.
+The fakes do not represent live process, network, or game-host behavior. HTTP tests additionally
+cover absolute deadlines for silent and slow-drip peers, stalled writes, exact/oversized header
+bounds, and ambiguous transfer framing. Pure config tests reject non-loopback/DNS/zero-port
+endpoints. A released-context test rejects reallocation and old lease proofs within one service.
+
+Runtime-v2 recovery regressions separate exact authenticated replay from new-action admission,
+allow read-only Accepted-to-Settled reconciliation, and retain older completion receipts without
+rewinding a newer authoritative observation. They assert no second mutation dispatch.
 
 Control-plane regression oracles include six consecutive failed starts followed by four successful
 allocations at full configured capacity, without reusing failed instance/lease identities or stopping

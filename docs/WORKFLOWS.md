@@ -18,8 +18,8 @@ actions to immutable commits, and have explicit timeouts. Pull requests use `pul
 `pull_request_target`; no workflow may hide failure with `continue-on-error: true` or `|| true`.
 
 The policy workflow tests and runs the target-local `repo-policy` package. The quality workflow
-runs the pinned formatting, lint, and test commands. Neither workflow launches a game, provider,
-gateway listener, deployment, or remote process.
+runs the pinned formatting, lint, and test commands. Synthetic HTTP tests use isolated loopback
+sockets; neither workflow launches a game, provider, deployment, or remote process.
 
 ## Runtime and release workflow
 

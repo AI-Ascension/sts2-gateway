@@ -144,3 +144,11 @@ routes. The attached binary deliberately has no authorized v2 host adapter: its 
 fails closed before write, while the in-memory fake tests cover settlement, uncertainty, replay,
 conflict, fencing, capacity, and artifact tamper rejection. No live gameplay mutation or host
 settlement is evidenced by this route implementation.
+
+The attached adapter enforces absolute HTTP deadlines, strict framing, literal-loopback address
+configuration and terminal in-process release admission. Runtime-v2 exact receipt replay is
+separate from new-action generation admission; read-only reconciliation polls accepted or unknown
+work without redispatch, and historical receipts cannot rewind current observation. See
+[ADR 0011](decisions/0011-attached-runtime-hardening.md). The sequential executable still has no
+timed lease renewal, durable boot epoch, journal or concrete process supervisor; these bounded
+corrections do not imply those capabilities.
