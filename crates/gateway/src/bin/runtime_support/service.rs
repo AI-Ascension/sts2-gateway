@@ -12,8 +12,13 @@ use sts2_gateway::{
 };
 
 use super::http::{
-    HttpRequest, HttpResponse, MAX_BODY_BYTES, ReadError, read_request, read_response,
+    HttpRequest, HttpResponse, MAX_BODY_BYTES, MAX_RESPONSE_BYTES, ReadError, read_request,
+    read_response,
     write_request, write_response,
+};
+use super::runtime_v3_gameplay::RuntimeV3GameplayRoute;
+use super::runtime_v3_gameplay_forwarder::{
+    RuntimeV3GameplayForwardError, RuntimeV3GameplayForwarder,
 };
 
 const DEFAULT_LISTEN_ADDRESS: &str = "127.0.0.1:15525";
@@ -23,6 +28,7 @@ pub(crate) struct RuntimeService {
     config: RuntimeConfig,
     lease_active: bool,
     runtime_v2: RuntimeV2Ledger<UnconfiguredRuntimeV2Forwarder>,
+    runtime_v3: RuntimeV3GameplayForwarder,
 }
 
 struct RuntimeConfig {
@@ -58,6 +64,7 @@ impl RuntimeService {
             config,
             lease_active: false,
             runtime_v2,
+            runtime_v3: RuntimeV3GameplayForwarder::new(MAX_BODY_BYTES, MAX_RESPONSE_BYTES),
         })
     }
 
@@ -98,6 +105,13 @@ impl RuntimeService {
         if !self.has_gateway_token(request) {
             return (401, json_error("unauthorized"));
         }
+        if let Some(route) = RuntimeV3GameplayRoute::parse(
+            request.method.as_str(),
+            request.path.as_str(),
+            self.config.instance_id.as_str(),
+        ) {
+            return self.runtime_v3_request(request, route);
+        }
         match (request.method.as_str(), request.path.as_str()) {
             ("GET", "/health/ready") if request.body.is_empty() => self.health(),
             ("POST", "/v1/sessions/allocate")
@@ -133,6 +147,35 @@ impl RuntimeService {
                 self.release(request)
             }
             _ => (404, json_error("route_not_found")),
+        }
+    }
+
+    fn runtime_v3_request(
+        &mut self,
+        request: &HttpRequest,
+        route: RuntimeV3GameplayRoute,
+    ) -> (u16, Vec<u8>) {
+        if let Err(error) = self.check_lease(request) {
+            return error;
+        }
+        if let Err(error) = self.runtime_v3.validate_request(route, &request.body) {
+            return (runtime_v3_request_status(error), json_error(runtime_v3_error_code(error)));
+        }
+        let correlation = request
+            .headers
+            .get("x-sts2-correlation-id")
+            .map(String::as_str);
+        match self.forward_mod(
+            if route.is_post() { "POST" } else { "GET" },
+            route.downstream_path(),
+            &request.body,
+            correlation,
+        ) {
+            Ok(response) => match self.runtime_v3.validate_response(&response.body) {
+                Ok(()) => (response.status, response.body),
+                Err(error) => (502, json_error(runtime_v3_error_code(error))),
+            },
+            Err(status) => (status, json_error("runtime_v3_downstream_unavailable")),
         }
     }
 
@@ -646,6 +689,7 @@ mod tests {
             config,
             lease_active: true,
             runtime_v2,
+            runtime_v3: RuntimeV3GameplayForwarder::new(MAX_BODY_BYTES, MAX_RESPONSE_BYTES),
         })
     }
 
@@ -702,5 +746,25 @@ mod tests {
             assert_eq!(status, 404, "unexpected route match for {path}");
         }
         Ok(())
+    }
+}
+
+fn runtime_v3_request_status(error: RuntimeV3GameplayForwardError) -> u16 {
+    match error {
+        RuntimeV3GameplayForwardError::RequestBodyOversized => 413,
+        RuntimeV3GameplayForwardError::RequestBodyRequired
+        | RuntimeV3GameplayForwardError::RequestBodyMalformed => 400,
+        RuntimeV3GameplayForwardError::ResponseOversized
+        | RuntimeV3GameplayForwardError::ResponseMalformed => 502,
+    }
+}
+
+fn runtime_v3_error_code(error: RuntimeV3GameplayForwardError) -> &'static str {
+    match error {
+        RuntimeV3GameplayForwardError::RequestBodyRequired => "runtime_v3_body_required",
+        RuntimeV3GameplayForwardError::RequestBodyOversized => "runtime_v3_body_oversized",
+        RuntimeV3GameplayForwardError::RequestBodyMalformed => "runtime_v3_request_invalid",
+        RuntimeV3GameplayForwardError::ResponseOversized => "runtime_v3_response_oversized",
+        RuntimeV3GameplayForwardError::ResponseMalformed => "runtime_v3_response_invalid",
     }
 }

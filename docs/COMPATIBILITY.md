@@ -84,3 +84,12 @@ new work. Clients must not retry an unknown action after restart; they need an e
 receipt or a new operation identity under a newly established context. A future compatibility
 promotion must add exact process ownership, readiness, shutdown, restart, multi-instance, and
 disposable-host evidence.
+
+## Runtime-v3 and co-op row
+
+| Surface | Current evidence | Result |
+| --- | --- | --- |
+| `runtime-v3-gameplay` fixed routes and forwarder | Source validation and route allowlist tests | Source-derived; live gateway/host settlement unverified |
+| Co-op synchronization and process supervisor | Bounded deterministic fakes and identity/failure tests | Source-derived; live restart, cleanup, isolation, and multiplayer unverified |
+
+These surfaces are additive to Runtime-v2 and do not inherit its runtime evidence.

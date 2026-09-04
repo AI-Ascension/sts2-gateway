@@ -14,6 +14,9 @@ runtime or downstream wire contract.
 
 ### Added
 
+- The bounded Runtime-v3 gameplay route allowlist and forwarder, gateway-owned co-op peer
+  synchronization, and an injected process supervisor. Live launch, host settlement, and
+  multiplayer traces remain unverified.
 - The frozen Runtime-v2 gateway operation ledger and fixed forwarding seam: full envelope and lease
   validation, bounded operation keys, canonical duplicate/conflict checks, exactly-once dispatch,
   retained-receipt reconciliation, explicit unknown/cancelled outcomes, capacity fencing, and the

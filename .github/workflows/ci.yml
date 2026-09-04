@@ -24,6 +24,12 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Verify fixed routes and bounded source changes
+        run: |
+          git diff --check
+          rg -n 'State|LegalActions|DispatchAction|WaitForTransition|Reobserve|Recover' crates/gateway/src/bin/runtime_support/runtime_v3_gameplay.rs
+          if rg -n 'arbitrary|proxy' crates/gateway/src/bin/runtime_support/runtime_v3_gameplay.rs; then exit 1; fi
+
       - name: Verify normative protocol artifact
         working-directory: protocol-artifact/poc-v1
         run: sha256sum --check SHA256SUMS

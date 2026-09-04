@@ -144,3 +144,16 @@ routes. The attached binary deliberately has no authorized v2 host adapter: its 
 fails closed before write, while the in-memory fake tests cover settlement, uncertainty, replay,
 conflict, fencing, capacity, and artifact tamper rejection. No live gameplay mutation or host
 settlement is evidenced by this route implementation.
+
+## Runtime-v3 and co-op extension
+
+ADR 0007 keeps Runtime-v3 routing semantic but narrow: state, legal actions, dispatch, wait,
+reobserve, and recovery are the only fixed route classes. The forwarder bounds JSON and delegates
+profile meaning to the game-mod host boundary. The gateway never creates a legal action or infers an
+effect from acceptance.
+
+`CoopSession` is an additive peer ledger with two-to-four bounded peers, one local role, generation
+matching, and explicit disconnected/missing-peer and disagreement state. Mutation authorization is
+available only while synchronized. The process supervisor similarly owns only injected process
+handles; concrete executable, profile, credential, restart, and cleanup adapters remain deployment
+inputs and require runtime evidence.

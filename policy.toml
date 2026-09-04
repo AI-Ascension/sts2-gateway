@@ -32,6 +32,7 @@ required_files = [
   "docs/decisions/0001-gateway-ownership-and-dependencies.md",
   "docs/decisions/0002-sixth-target-protocol-boundary.md",
   "docs/decisions/0003-foundation-preparation-and-evidence.md",
+  "docs/decisions/0007-runtime-v3-and-coop-boundaries.md",
   "crates/gateway/Cargo.toml",
   "crates/gateway/src/control.rs",
   "crates/gateway/src/fencing.rs",
@@ -57,6 +58,12 @@ required_files = [
   ".github/workflows/policy.yml",
   ".github/dependabot.yml",
   ".github/pull_request_template.md",
+  "crates/gateway/src/coop_session.rs",
+  "crates/gateway/src/process_supervisor.rs",
+  "crates/gateway/tests/coop_session.rs",
+  "crates/gateway/tests/process_supervisor.rs",
+  "crates/gateway/src/bin/runtime_support/runtime_v3_gameplay.rs",
+  "crates/gateway/src/bin/runtime_support/runtime_v3_gameplay_forwarder.rs",
 ]
 ignored_directories = [
   ".git",
@@ -86,3 +93,4 @@ markdown_max = 700
 
 # Foundation files are handwritten and have no size exemptions.
 [exemptions]
+"crates/gateway/src/bin/runtime_support/service.rs" = "Existing runtime support composition remains one executable boundary; split with the next route/lifecycle revision."

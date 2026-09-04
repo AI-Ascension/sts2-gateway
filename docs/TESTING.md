@@ -91,3 +91,11 @@ The authorized exact-host lane now confirms the managed mod listener, downstream
 lease fencing, a Godot main-thread callback, the bounded STS2 host effect, and reversible disposable
 profile cleanup. Process supervision/restart, concurrency isolation, and gameplay mutation remain
 `unverified`.
+
+## Runtime-v3 and co-op checks
+
+The source lane tests the six fixed Runtime-v3 route/method pairs, bounded request/response JSON,
+and rejection of arbitrary paths. Co-op tests cover peer capacity, duplicate/local-role rejection,
+generation disagreement, disconnect, missing local identity, and mutation suspension. Process
+supervisor tests cover capacity, ownership, inspection, graceful/forced stop seams, and release of
+owned handles. These tests do not replace an authorized live process or target-host trace.
