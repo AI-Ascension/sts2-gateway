@@ -211,14 +211,11 @@ fn unknown_reconciles_to_settled_without_dispatch_retry() -> Result<(), String> 
     assert_eq!(fake.dispatches(), 1);
     assert_eq!(fake.receipt_reads(), 1);
 
-    let replay = ledger.submit_action(action);
-    assert_eq!(
-        replay,
-        Err(sts2_gateway::RuntimeV2LedgerError::StaleGeneration {
-            expected: 5,
-            actual: 4,
-        })
-    );
+    let replay = ledger
+        .submit_action(action)
+        .map_err(|error| error.to_string())?;
+    assert_eq!(replay.status, Some(RuntimeV2Status::Settled));
+    assert_eq!(replay.generation, 5);
     assert_eq!(fake.dispatches(), 1);
     Ok(())
 }
