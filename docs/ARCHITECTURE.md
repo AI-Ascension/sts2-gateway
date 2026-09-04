@@ -155,5 +155,6 @@ effect from acceptance.
 `CoopSession` is an additive peer ledger with two-to-four bounded peers, one local role, generation
 matching, and explicit disconnected/missing-peer and disagreement state. Mutation authorization is
 available only while synchronized. The process supervisor similarly owns only injected process
-handles; concrete executable, profile, credential, restart, and cleanup adapters remain deployment
-inputs and require runtime evidence.
+handles; its bounded restart seam stops the old owned handle before starting one replacement and
+fails closed if replacement start fails. Concrete executable, profile, credential, and cleanup
+adapters remain deployment inputs and require runtime evidence.

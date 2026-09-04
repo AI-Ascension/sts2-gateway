@@ -37,7 +37,9 @@ application, unknown-to-settled retained-receipt reconciliation, duplicate repla
 conflict rejection, stale identity/epoch/generation replay and receipt fencing, cancellation, store
 capacity, no-blind-retry, and rejection of tampered copied schema/manifest/golden bytes. The runtime
 binary tests the fixed typed state route's explicit unavailable response and arbitrary-v2-GET denial.
-The fakes do not represent live process, network, or game-host behavior.
+The fakes do not represent live process, network, or game-host behavior. The process-supervisor
+fixture also proves that restart replaces ownership only after the old handle is force-stopped;
+live restart/recovery remains unverified.
 
 Control-plane regression oracles include six consecutive failed starts followed by four successful
 allocations at full configured capacity, without reusing failed instance/lease identities or stopping

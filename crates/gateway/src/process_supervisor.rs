@@ -112,6 +112,31 @@ impl<P: ProcessPort> ProcessSupervisor<P> {
         Ok(())
     }
 
+    /// Replaces one owned process with a fresh handle after a controlled stop.
+    ///
+    /// The old handle is removed before the replacement is started. If the replacement cannot
+    /// start, the instance remains unowned and callers must fail closed or allocate anew.
+    pub fn restart(
+        &mut self,
+        instance_id: InstanceId,
+    ) -> Result<ProcessHandle, ProcessSupervisorError> {
+        let old_handle = self
+            .owned
+            .get(&instance_id)
+            .copied()
+            .ok_or(ProcessSupervisorError::NotOwned)?;
+        self.process
+            .stop(old_handle, StopMode::Force)
+            .map_err(ProcessSupervisorError::Process)?;
+        self.owned.remove(&instance_id);
+        let new_handle = self
+            .process
+            .start(crate::LaunchSpec::new(instance_id))
+            .map_err(ProcessSupervisorError::Process)?;
+        self.owned.insert(instance_id, new_handle);
+        Ok(new_handle)
+    }
+
     pub fn process_handle(&self, instance_id: InstanceId) -> Option<ProcessHandle> {
         self.owned.get(&instance_id).copied()
     }
@@ -181,6 +206,24 @@ mod tests {
             .stop(InstanceId::new(1), StopMode::Graceful)
             .map_err(|error| format!("{error:?}"))?;
         assert_eq!(supervisor.owned_count(), 0);
+        Ok(())
+    }
+
+    #[test]
+    fn restart_stops_the_old_handle_before_replacing_ownership() -> Result<(), String> {
+        let config = ProcessSupervisorConfig::try_new(1).map_err(|error| format!("{error:?}"))?;
+        let mut supervisor = ProcessSupervisor::new(config, FakeProcess::default());
+        let instance = InstanceId::new(1);
+        let old_handle = supervisor
+            .start(instance)
+            .map_err(|error| format!("{error:?}"))?;
+        let new_handle = supervisor
+            .restart(instance)
+            .map_err(|error| format!("{error:?}"))?;
+
+        assert_ne!(old_handle, new_handle);
+        assert_eq!(supervisor.process_handle(instance), Some(new_handle));
+        assert_eq!(supervisor.inspect(instance), Ok(ProcessState::Running));
         Ok(())
     }
 }
