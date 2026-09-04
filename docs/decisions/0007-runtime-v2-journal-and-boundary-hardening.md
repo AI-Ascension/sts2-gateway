@@ -31,6 +31,12 @@ while valid settled receipts replay without contacting the mod.
 Identity, lease epoch, request digest, message kind, and bounded result shape are revalidated before
 state is restored; a mismatch rejects the journal rather than adopting another instance's state.
 
+Reads consume at most the 4-MiB limit plus one sentinel byte before rejecting oversized files.
+Temporary siblings are exclusively created (never truncating an existing path), use Unix mode 0600,
+and are removed on failed writes. Relative journal paths sync the current directory on Unix. The
+configured parent directory and stable lock file must still be controlled by the service owner;
+this adapter does not defend against an attacker able to replace that directory or its lock inode.
+
 The journal is an owner-managed component adapter, not a claim of production storage durability or
 a supervisor. The current attached process still owns one configured instance and one sequential
 request loop. The lock prevents accidental same-path multi-process ownership but does not provide a

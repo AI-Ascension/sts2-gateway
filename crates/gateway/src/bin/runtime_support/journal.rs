@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: MIT
 
 use std::fs::{self, File, OpenOptions};
-use std::io::Write;
-use std::path::Path;
+use std::io::{Read, Write};
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use serde::{Deserialize, Serialize};
 use sts2_gateway::RuntimeV2PersistedState;
 
 const JOURNAL_FORMAT_VERSION: u32 = 1;
 const MAX_JOURNAL_BYTES: usize = 4 * 1024 * 1024;
+static TEMPORARY_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 pub(crate) struct JournalLock {
     file: File,
@@ -46,11 +48,15 @@ struct JournalDocument {
 }
 
 pub(crate) fn load(path: &Path) -> Result<Option<RuntimeV2PersistedState>, String> {
-    let bytes = match fs::read(path) {
-        Ok(bytes) => bytes,
+    let file = match File::open(path) {
+        Ok(file) => file,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
         Err(error) => return Err(format!("Runtime-v2 journal read failed: {error}")),
     };
+    let mut bytes = Vec::new();
+    file.take((MAX_JOURNAL_BYTES + 1) as u64)
+        .read_to_end(&mut bytes)
+        .map_err(|error| format!("Runtime-v2 journal read failed: {error}"))?;
     if bytes.len() > MAX_JOURNAL_BYTES {
         return Err(String::from("Runtime-v2 journal exceeds its size bound"));
     }
@@ -76,21 +82,48 @@ pub(crate) fn store(path: &Path, state: &RuntimeV2PersistedState) -> Result<(), 
         return Err(String::from("Runtime-v2 journal exceeds its size bound"));
     }
     ensure_parent_directory(path)?;
-    let temporary_path = path.with_extension("runtime-v2.tmp");
-    let mut file = OpenOptions::new()
-        .create(true)
-        .truncate(true)
-        .write(true)
-        .open(&temporary_path)
-        .map_err(|error| format!("Runtime-v2 journal temporary file open failed: {error}"))?;
-    file.write_all(&bytes)
-        .map_err(|error| format!("Runtime-v2 journal write failed: {error}"))?;
-    file.sync_all()
-        .map_err(|error| format!("Runtime-v2 journal sync failed: {error}"))?;
-    drop(file);
-    fs::rename(&temporary_path, path)
-        .map_err(|error| format!("Runtime-v2 journal replace failed: {error}"))?;
-    sync_parent_directory(path)
+    let (temporary_path, mut file) = create_temporary(path)?;
+    let result = (|| {
+        file.write_all(&bytes)
+            .map_err(|error| format!("Runtime-v2 journal write failed: {error}"))?;
+        file.sync_all()
+            .map_err(|error| format!("Runtime-v2 journal sync failed: {error}"))?;
+        drop(file);
+        fs::rename(&temporary_path, path)
+            .map_err(|error| format!("Runtime-v2 journal replace failed: {error}"))?;
+        sync_parent_directory(path)
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(&temporary_path);
+    }
+    result
+}
+
+fn create_temporary(path: &Path) -> Result<(PathBuf, File), String> {
+    for _ in 0..64 {
+        let sequence = TEMPORARY_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+        let temporary_path =
+            path.with_extension(format!("runtime-v2.{}.{sequence}.tmp", std::process::id()));
+        let mut options = OpenOptions::new();
+        options.create_new(true).write(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            options.mode(0o600);
+        }
+        match options.open(&temporary_path) {
+            Ok(file) => return Ok((temporary_path, file)),
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(error) => {
+                return Err(format!(
+                    "Runtime-v2 journal temporary file open failed: {error}"
+                ));
+            }
+        }
+    }
+    Err(String::from(
+        "Runtime-v2 journal temporary file collision limit",
+    ))
 }
 
 fn ensure_parent_directory(path: &Path) -> Result<(), String> {
@@ -105,12 +138,10 @@ fn ensure_parent_directory(path: &Path) -> Result<(), String> {
 }
 
 fn sync_parent_directory(path: &Path) -> Result<(), String> {
-    let Some(parent) = path
+    let parent = path
         .parent()
         .filter(|parent| !parent.as_os_str().is_empty())
-    else {
-        return Ok(());
-    };
+        .unwrap_or_else(|| Path::new("."));
     sync_directory(parent)
 }
 
@@ -132,7 +163,7 @@ mod tests {
 
     use sts2_gateway::{RuntimeV2CombatPhase, RuntimeV2Observation};
 
-    use super::{JournalLock, load, store};
+    use super::{JournalLock, MAX_JOURNAL_BYTES, load, store};
 
     fn test_path() -> PathBuf {
         std::env::temp_dir().join(format!(
@@ -186,5 +217,36 @@ mod tests {
         })();
         let _ = std::fs::remove_file(path.with_extension("runtime-v2.lock"));
         result
+    }
+
+    #[test]
+    fn oversized_journal_is_rejected_before_json_decoding() -> Result<(), String> {
+        let path = test_path();
+        let file = std::fs::File::create_new(&path).map_err(|e| e.to_string())?;
+        file.set_len((MAX_JOURNAL_BYTES + 1) as u64)
+            .map_err(|e| e.to_string())?;
+        let result = load(&path);
+        std::fs::remove_file(&path).map_err(|e| e.to_string())?;
+        assert_eq!(
+            result,
+            Err(String::from("Runtime-v2 journal exceeds its size bound"))
+        );
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn temporary_journal_has_private_permissions() -> Result<(), String> {
+        use std::os::unix::fs::PermissionsExt;
+        let (path, file) = super::create_temporary(&test_path())?;
+        let permissions = file
+            .metadata()
+            .map_err(|e| e.to_string())?
+            .permissions()
+            .mode();
+        drop(file);
+        std::fs::remove_file(path).map_err(|e| e.to_string())?;
+        assert_eq!(permissions & 0o777, 0o600);
+        Ok(())
     }
 }

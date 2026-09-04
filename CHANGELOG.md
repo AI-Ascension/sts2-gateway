@@ -14,6 +14,8 @@ runtime or downstream wire contract.
 - Preserve the newest Runtime-v2 observation when reconciling an older operation receipt; reject
   regressed state refresh and inconsistent persisted result generations. Accepted and unknown
   operations retain historical settled receipts without rewinding fresh-action admission.
+- Bound journal reads before allocation, create exclusive private temporary files without following
+  existing temporary-path links, and sync the current directory for relative journal paths on Unix.
 
 ### Added
 

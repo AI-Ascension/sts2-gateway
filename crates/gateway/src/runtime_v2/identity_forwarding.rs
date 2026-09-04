@@ -89,6 +89,7 @@ impl RuntimeV2ReceiptRequest {
 
 /// One gateway-retained operation serialized for restart recovery.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct RuntimeV2PersistedOperation {
     pub request: RuntimeV2Message,
     pub result: Option<RuntimeV2Message>,
@@ -96,6 +97,7 @@ pub struct RuntimeV2PersistedOperation {
 
 /// The gateway-owned Runtime-v2 state needed to reconstruct a ledger after restart.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct RuntimeV2PersistedState {
     pub instance_id: String,
     pub session_id: String,
