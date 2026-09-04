@@ -119,23 +119,89 @@ fn expiry_revokes_lease_and_cleans_process() -> Result<(), String> {
 }
 
 #[test]
-fn start_failure_is_visible_and_cleanable() -> Result<(), String> {
+fn start_failure_does_not_consume_capacity_or_reuse_identity() -> Result<(), String> {
     let (mut gateway, _clock, process, _readiness, _transport) = new_gateway();
     process.set_start_fault(Some(ProcessFault::Unavailable));
-    let result = gateway.allocate(owner(), session());
+    for identity in 1..=6 {
+        assert_eq!(
+            gateway.allocate(owner(), session()),
+            Err(GatewayError::ProcessStart(ProcessFault::Unavailable))
+        );
+        assert_eq!(
+            gateway.status(InstanceId::new(identity)),
+            Err(GatewayError::InstanceNotFound)
+        );
+        assert!(process.handle_for(InstanceId::new(identity)).is_none());
+    }
+    process.set_start_fault(None);
+    for identity in 7..=10 {
+        let allocation = ready_gateway(&mut gateway)?;
+        assert_eq!(allocation.instance_id(), InstanceId::new(identity));
+        assert_eq!(allocation.lease().lease_id().value(), identity);
+    }
     assert_eq!(
-        result,
-        Err(GatewayError::ProcessStart(ProcessFault::Unavailable))
+        gateway.allocate(owner(), session()),
+        Err(GatewayError::CapacityExceeded)
+    );
+    assert!(process.stop_modes().is_empty());
+    Ok(())
+}
+
+#[test]
+fn reconcile_expiry_reports_stop_failure_and_retains_cleanup_ownership() -> Result<(), String> {
+    let (mut gateway, clock, process, _readiness, transport) = new_gateway();
+    let allocation = ready_gateway(&mut gateway)?;
+    clock.advance(10);
+    process.set_stop_fault(Some(ProcessFault::StopFailed));
+    assert_eq!(
+        gateway.reconcile(allocation.instance_id()),
+        Err(GatewayError::ProcessStop(ProcessFault::StopFailed))
     );
     let failed = gateway
-        .status(InstanceId::new(1))
+        .status(allocation.instance_id())
         .map_err(|error| error.to_string())?;
     assert_eq!(failed.state(), sts2_gateway::LifecycleState::Failed);
+    assert!(failed.has_process());
     assert_eq!(failed.lease(), None);
-    assert!(!failed.has_process());
+    assert_eq!(
+        gateway.forward(
+            allocation.instance_id(),
+            allocation.lease().proof(),
+            OperationId::new(1),
+            FixedRoute::Command,
+            vec![],
+        ),
+        Err(GatewayError::Fence(FenceFailure::Missing))
+    );
+    assert_eq!(transport.calls(), 0);
+    process.set_stop_fault(None);
     gateway
-        .cleanup(InstanceId::new(1), owner(), session())
+        .cleanup(allocation.instance_id(), owner(), session())
         .map_err(|error| error.to_string())?;
+    assert_eq!(process.stop_modes(), vec![StopMode::Force, StopMode::Force]);
+    assert_eq!(
+        gateway.status(allocation.instance_id()),
+        Err(GatewayError::InstanceNotFound)
+    );
+    Ok(())
+}
+
+#[test]
+fn reconcile_expiry_reports_expired_only_after_successful_cleanup() -> Result<(), String> {
+    let (mut gateway, clock, process, _readiness, _transport) = new_gateway();
+    let allocation = ready_gateway(&mut gateway)?;
+    clock.advance(10);
+    assert_eq!(
+        gateway.reconcile(allocation.instance_id()),
+        Ok(sts2_gateway::LifecycleState::Expired)
+    );
+    let expired = gateway
+        .status(allocation.instance_id())
+        .map_err(|error| error.to_string())?;
+    assert_eq!(expired.state(), sts2_gateway::LifecycleState::Expired);
+    assert!(!expired.has_process());
+    assert_eq!(expired.lease(), None);
+    assert_eq!(process.stop_modes(), vec![StopMode::Force]);
     Ok(())
 }
 

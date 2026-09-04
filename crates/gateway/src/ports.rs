@@ -56,6 +56,10 @@ pub enum StopMode {
 
 /// Owns child-process launch, observation, and stop operations for one gateway instance.
 pub trait ProcessPort {
+    /// Transfers ownership of a started process only on `Ok(handle)`.
+    /// On `Err`, no process is transferred: the port must clean up any partial launch before
+    /// returning. An adapter unable to guarantee this needs a richer ownership-bearing error
+    /// contract before it can implement this seam safely.
     fn start(&mut self, specification: LaunchSpec) -> Result<ProcessHandle, ProcessFault>;
 
     fn inspect(&mut self, process: ProcessHandle) -> Result<ProcessState, ProcessFault>;

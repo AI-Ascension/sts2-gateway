@@ -5,6 +5,13 @@ runtime or downstream wire contract.
 
 ## [Unreleased]
 
+### Fixed
+
+- Failed generic process starts no longer consume an unreachable allocation slot; consumed instance
+  and lease identities remain unique. Clarified the process port's partial-start cleanup ownership.
+- Expiry reconciliation reports forced-stop failures instead of claiming successful expiration,
+  preserving the process handle and revoked lease for explicit cleanup retry.
+
 ### Added
 
 - The frozen Runtime-v2 gateway operation ledger and fixed forwarding seam: full envelope and lease

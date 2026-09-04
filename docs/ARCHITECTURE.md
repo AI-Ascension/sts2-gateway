@@ -83,6 +83,13 @@ retains the operation ID, and permits reconciliation only through a read-only re
 No blind mutation retry is allowed. Duplicate operation identities replay the retained result only
 when the canonical request is identical; conflicting reuse is rejected as `idempotency_conflict`.
 
+In the generic control-plane core, a failed `ProcessPort::start` transfers no process handle. The
+process port must clean partial-launch resources before returning an error. The gateway removes the
+unreturned allocation record and restores capacity without reusing its consumed instance or lease
+identity. It does not guess a handle to kill. Once a start has succeeded, cleanup responsibility stays
+with the gateway: failed forced expiry cleanup revokes the lease, retains the process handle in
+`failed`, and makes `reconcile` return `ProcessStop` for an explicit authorized cleanup retry.
+
 ## Trust and failure boundaries
 
 Caller input is untrusted. Gateway authorization, fixed routing, lease/fence checks, queue limits,
