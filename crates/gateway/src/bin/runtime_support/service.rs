@@ -649,6 +649,26 @@ fn read_error_status(error: ReadError) -> u16 {
     }
 }
 
+fn runtime_v3_request_status(error: RuntimeV3GameplayForwardError) -> u16 {
+    match error {
+        RuntimeV3GameplayForwardError::RequestBodyOversized => 413,
+        RuntimeV3GameplayForwardError::RequestBodyRequired
+        | RuntimeV3GameplayForwardError::RequestBodyMalformed => 400,
+        RuntimeV3GameplayForwardError::ResponseOversized
+        | RuntimeV3GameplayForwardError::ResponseMalformed => 502,
+    }
+}
+
+fn runtime_v3_error_code(error: RuntimeV3GameplayForwardError) -> &'static str {
+    match error {
+        RuntimeV3GameplayForwardError::RequestBodyRequired => "runtime_v3_body_required",
+        RuntimeV3GameplayForwardError::RequestBodyOversized => "runtime_v3_body_oversized",
+        RuntimeV3GameplayForwardError::RequestBodyMalformed => "runtime_v3_request_invalid",
+        RuntimeV3GameplayForwardError::ResponseOversized => "runtime_v3_response_oversized",
+        RuntimeV3GameplayForwardError::ResponseMalformed => "runtime_v3_response_invalid",
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeMap;
@@ -751,25 +771,5 @@ mod tests {
             assert_eq!(status, 404, "unexpected route match for {path}");
         }
         Ok(())
-    }
-}
-
-fn runtime_v3_request_status(error: RuntimeV3GameplayForwardError) -> u16 {
-    match error {
-        RuntimeV3GameplayForwardError::RequestBodyOversized => 413,
-        RuntimeV3GameplayForwardError::RequestBodyRequired
-        | RuntimeV3GameplayForwardError::RequestBodyMalformed => 400,
-        RuntimeV3GameplayForwardError::ResponseOversized
-        | RuntimeV3GameplayForwardError::ResponseMalformed => 502,
-    }
-}
-
-fn runtime_v3_error_code(error: RuntimeV3GameplayForwardError) -> &'static str {
-    match error {
-        RuntimeV3GameplayForwardError::RequestBodyRequired => "runtime_v3_body_required",
-        RuntimeV3GameplayForwardError::RequestBodyOversized => "runtime_v3_body_oversized",
-        RuntimeV3GameplayForwardError::RequestBodyMalformed => "runtime_v3_request_invalid",
-        RuntimeV3GameplayForwardError::ResponseOversized => "runtime_v3_response_oversized",
-        RuntimeV3GameplayForwardError::ResponseMalformed => "runtime_v3_response_invalid",
     }
 }
