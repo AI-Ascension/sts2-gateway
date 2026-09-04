@@ -69,7 +69,6 @@ ignored_directories = [
   ".git",
   ".idea",
   ".vscode",
-  "bin",
   "node_modules",
   "obj",
   "target",
@@ -93,4 +92,3 @@ markdown_max = 700
 
 # Foundation files are handwritten and have no size exemptions.
 [exemptions]
-"crates/gateway/src/bin/runtime_support/service.rs" = "Existing runtime support composition remains one executable boundary; split with the next route/lifecycle revision."
