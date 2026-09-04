@@ -36,9 +36,20 @@ impl RuntimeV2Message {
         serde_json::to_vec(self).map_err(|_| RuntimeV2CodecError::Serialization)
     }
 
+    /// Serializes the request identity used for duplicate/conflict checks.
+    ///
+    /// Correlation is a per-transport-attempt identity, so a retry with a new MCP request ID must
+    /// still replay the retained operation. The operation context, action, and generation remain
+    /// part of this canonical identity and therefore still detect conflicting reuse.
+    pub fn idempotency_canonical_json(&self) -> Result<Vec<u8>, RuntimeV2CodecError> {
+        let mut identity = self.clone();
+        identity.correlation_id.clear();
+        serde_json::to_vec(&identity).map_err(|_| RuntimeV2CodecError::Serialization)
+    }
+
     /// Computes the stable request digest used for duplicate/conflict checks.
     pub fn request_digest(&self) -> Result<RuntimeV2RequestDigest, RuntimeV2CodecError> {
-        let bytes = self.canonical_json()?;
+        let bytes = self.idempotency_canonical_json()?;
         Ok(RuntimeV2RequestDigest(fnv1a(&bytes)))
     }
 

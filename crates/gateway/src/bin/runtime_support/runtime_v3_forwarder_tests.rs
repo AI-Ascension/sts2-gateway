@@ -219,7 +219,9 @@ fn all_six_routes_match_only_exact_methods_instances_and_suffixes() {
 fn catalog_recovery_errors_are_explicit_narrow_and_correlated()
 -> Result<(), Box<dyn std::error::Error>> {
     let forwarder = RuntimeV3GameplayForwarder::new(16 * 1024, 128 * 1024);
-    let request = fixture("state-request.json")?;
+    let mut request = fixture("state-request.json")?;
+    request["kind"] = "legal_actions_request".into();
+    request["state_id"] = "combat-1".into();
     let route = RuntimeV3GameplayRoute::LegalActions;
     for (status, code) in [
         (409, "stale_generation"),
@@ -231,6 +233,12 @@ fn catalog_recovery_errors_are_explicit_narrow_and_correlated()
         let bytes = serde_json::to_vec(&original)?;
         assert!(forwarder.is_legal_actions_recovery(route, &request, status, &bytes));
         assert!(!forwarder.is_legal_actions_recovery(route, &request, 200, &bytes));
+        assert!(!forwarder.is_legal_actions_recovery(
+            route,
+            &request,
+            if status == 409 { 503 } else { 409 },
+            &bytes
+        ));
         assert!(!forwarder.is_legal_actions_recovery(
             RuntimeV3GameplayRoute::State,
             &request,

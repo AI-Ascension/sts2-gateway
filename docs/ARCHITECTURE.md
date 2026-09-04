@@ -44,6 +44,11 @@ The gateway terminates caller authorization and emits only declared downstream i
 does not pass through arbitrary credentials or headers, infer a target from a port, expose an
 arbitrary URL, or interpret game-rule payloads.
 
+The attached Runtime-v2 adapter applies a gateway-local opaque credential policy before queue
+admission. Current and optional previous bearer values have bounded scopes and optional expiry, and
+the previous value supports a controlled rotation overlap. Gateway credentials never cross the
+forwarding seam; the separately configured mod credential is emitted only on fixed downstream paths.
+
 ## Ownership and dependency graph
 
 Runtime communication and compile-time dependencies are separate:
@@ -58,18 +63,25 @@ Compile time:  gateway -> owner-local gateway contracts
 
 The initialized package keeps lifecycle records and lease/fence policy local and testable without
 I/O. Its `Clock`, `ProcessPort`, `ReadinessPort`, `TransportPort`, `LeaseDecisionPort`, and
-`RuntimeV2ForwardingPort` are explicit seams. Concrete process, scheduler, network, and persistence
-access remains outside this package. The POC and Runtime-v2 checks verify checked-in copies of their
-protocol artifacts as inert data; no protocol implementation path dependency is present. See
+`RuntimeV2ForwardingPort` are explicit seams. The attached runtime owns its bounded optional journal
+adapter and its process-lifetime exclusive journal lock at the process boundary; the generic package
+does not acquire filesystem persistence. The
+POC and Runtime-v2 checks verify checked-in copies of their protocol artifacts as inert data; no
+protocol implementation path dependency is present. See
 [ADR 0001](decisions/0001-gateway-ownership-and-dependencies.md),
-[ADR 0002](decisions/0002-sixth-target-protocol-boundary.md), and
-[ADR 0006](decisions/0006-runtime-v2-gameplay-operation-ledger.md).
+[ADR 0002](decisions/0002-sixth-target-protocol-boundary.md),
+[ADR 0006](decisions/0006-runtime-v2-gameplay-operation-ledger.md),
+[ADR 0007](decisions/0007-runtime-v2-journal-and-boundary-hardening.md), and
+[ADR 0010](decisions/0010-runtime-v2-mcp-session-fence.md).
 
 ## Identity, lifecycle, and fencing
 
-The future gateway contract must distinguish caller, gateway session, game session, instance,
-request, operation, lease, lease epoch, and downstream correlation namespaces. The gateway creates
-or validates instance/session/lease identities; it does not borrow game-mod internal identifiers.
+The future gateway contract must distinguish caller, gateway session, MCP session, game session,
+instance, request, operation, lease, lease epoch, and downstream correlation namespaces. The gateway
+creates or validates instance/session/lease identities; it does not borrow game-mod internal
+identifiers. The attached runtime additionally fences the configured MCP session in
+`x-mcp-session-id` without placing that transport identity in the frozen Runtime-v2 envelope or
+forwarding it to the game-mod.
 
 The proposed lifecycle vocabulary is `created`, `starting`, `ready`, `busy`, `degraded`, `stopping`,
 `stopped`, `failed`, and `expired`. The gateway owns admission and successor transitions. A lease
@@ -80,8 +92,9 @@ than inheriting an ambiguous record.
 Accepted work survives caller timeout or disconnect as an explicit status, settled result, cancelled
 result, or unknown outcome. Runtime-v2 returns `unknown` after a timeout or disconnect after write,
 retains the operation ID, and permits reconciliation only through a read-only retained-receipt seam.
-No blind mutation retry is allowed. Duplicate operation identities replay the retained result only
-when the canonical request is identical; conflicting reuse is rejected as `idempotency_conflict`.
+No blind mutation retry is allowed. Duplicate operation identities replay the retained result when
+the canonical operation request is identical; its per-attempt correlation is rebound to the retry.
+Conflicting reuse is rejected as `idempotency_conflict`.
 
 In the generic control-plane core, a failed `ProcessPort::start` transfers no process handle. The
 process port must clean partial-launch resources before returning an error. The gateway removes the
@@ -116,6 +129,11 @@ authentication credential verification, and restart reconciliation only behind r
 
 Each seam needs a named consumer, resource limit, shutdown path, deterministic fake, and evidence
 level. The package has deterministic fakes for its current tests; they are not runtime adapters.
+The attached Runtime-v2 adapter adds fixed TCP forwarding, a bounded optional journal with an
+exclusive process-lifetime lock, and a single-instance retained-operation capacity. It now also has
+one bounded FIFO admission queue,
+authenticated metrics, and an owner-controlled shutdown route; those additions do not provide a
+process supervisor or four-instance scheduler.
 
 ## Attached runtime adapter
 
@@ -137,13 +155,17 @@ The same adapter owns the fixed Runtime-v2 routes `GET /v2/instances/{instance_i
 /v2/instances/{instance_id}/action`, and `GET
 /v2/instances/{instance_id}/operations/{operation_id}`. The operation routes require the full copied
 Runtime-v2 envelope, exact lease/correlation headers, and bounded ledger. The state route constructs
-and validates a typed state request; because the attached binary has no configured host-state adapter,
-it returns an explicit structured `state_unavailable` response rather than claiming its local
-fallback observation is host state. Other v2 GET paths are rejected and never treated as proxy
-routes. The attached binary deliberately has no authorized v2 host adapter: its v2 forwarding seam
-fails closed before write, while the in-memory fake tests cover settlement, uncertainty, replay,
-conflict, fencing, capacity, and artifact tamper rejection. No live gameplay mutation or host
-settlement is evidenced by this route implementation.
+and validates a typed state request, forwards it to the configured authenticated mod endpoint, and
+returns `state_unavailable` when no valid state can be obtained; its local fallback observation is
+never presented as host state. Other v2 GET paths are rejected and never treated as proxy routes.
+The binary includes fixed HTTP state/action/receipt forwarding, with tests for settlement,
+uncertainty, replay, conflict, fencing, capacity, and artifact tamper rejection. This source and
+synthetic component wiring is not evidence of live gameplay mutation or host settlement.
+The attached adapter additionally exposes the
+authenticated `GET /v2/instances/{instance_id}/metrics` route and the lease-fenced `POST
+/v2/instances/{instance_id}/shutdown` route. Its listener authenticates before enqueueing into a
+bounded FIFO worker queue; queue overflow and shutdown cancellation are explicit and do not retry
+mutation-bearing work.
 
 ## Runtime-v3 and co-op extension
 
@@ -169,3 +191,36 @@ Co-op mutation snapshots require a local peer as well as at least two connected 
 session generation advances only when every registered peer is connected and reports the same
 generation at or above the current baseline. Partial agreement, missing peers, and rollback keep
 mutation suspended. This is synchronization bookkeeping, not host or multiplayer evidence.
+
+The attached adapter enforces absolute HTTP deadlines, strict framing, literal-loopback address
+configuration and terminal in-process release admission. Runtime-v2 exact receipt replay is
+separate from new-action generation admission; read-only reconciliation polls accepted or unknown
+work without redispatch, and historical receipts cannot rewind current observation. See
+[ADR 0011](decisions/0011-attached-runtime-hardening.md). The queued executable includes Runtime-v2 journal recovery, but still has no timed lease renewal,
+durable boot epoch, or concrete process supervisor; the co-op and supervisor library seams are
+local prototypes and are not connected to runtime admission or co-op wire serialization.
+
+Both gateway and mod endpoint settings require numeric loopback `IP:port` socket addresses;
+wildcard/non-loopback addresses and DNS hostnames fail configuration. This plaintext attached lane
+does not expose a remote mode. HTTP frames and downstream exchanges use absolute deadlines.
+
+Runtime-v2 journal recovery requires continuity of the configured identity and downstream receipts.
+Restart fencing remains an integration gate; do not reuse stale ownership after a gateway or host
+restart. A new ownership context requires a fresh configured session, lease, and epoch.
+Within one service lifetime, release and shutdown permanently revoke its configured lease. Further
+allocation fails closed rather than reactivating the old epoch; new ownership requires a separately
+configured fresh context. Persisted cross-restart revocation remains an external coordinator gate.
+
+## Runtime-v2 wire closure
+
+The gateway decoder requires every frozen envelope member, including nullable members, to be
+present. Explicit null is accepted where the message kind permits it; omission or unknown members
+fail before ledger admission and forwarding. The gateway owns this decoding boundary; host
+mutation authority and protocol artifact bytes are unchanged.
+
+## Exo component integration
+
+The six Exo routes share the bounded worker queue and full configured MCP-session lease fence.
+State, legal-actions, wait and reobserve require read scope; dispatch requires mutate scope;
+recover requires control scope. Authentication and scope rejection precede admission. The
+Runtime-v2 journal retains only Runtime-v2 operations; it does not persist Exo gameplay requests.

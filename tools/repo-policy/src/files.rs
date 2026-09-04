@@ -272,7 +272,13 @@ mod tests {
         for relative in [
             "crates/gateway/src/bin/sts2-gateway-runtime.rs",
             "crates/gateway/src/bin/runtime_support/service.rs",
+            "crates/gateway/src/bin/runtime_support/service_config.rs",
+            "crates/gateway/src/bin/runtime_support/service_lease.rs",
+            "crates/gateway/src/bin/runtime_support/service_v2.rs",
+            "crates/gateway/src/bin/runtime_support/service_routes_tests.rs",
             "crates/gateway/src/bin/runtime_support/http.rs",
+            "crates/gateway/src/bin/runtime_support/http_deadline.rs",
+            "crates/gateway/src/bin/runtime_support/http_tests.rs",
         ] {
             assert!(
                 files.contains(&root.join(relative)),

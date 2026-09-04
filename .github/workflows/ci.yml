@@ -38,6 +38,11 @@ jobs:
         working-directory: protocol-artifact/runtime-v3-gameplay
         run: sha256sum --check SHA256SUMS
 
+      - name: Verify frozen Runtime-v1 and Runtime-v2 artifacts
+        run: |
+          (cd protocol-artifact/runtime-v1 && sha256sum --check SHA256SUMS)
+          (cd protocol-artifact/runtime-v2 && sha256sum --check SHA256SUMS)
+
       - name: Install pinned Rust toolchain
         run: rustup toolchain install 1.97.1 --profile minimal --component clippy --component rustfmt --no-self-update
 

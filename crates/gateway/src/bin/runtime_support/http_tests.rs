@@ -5,6 +5,14 @@ use std::io::Write;
 use std::net::{TcpListener, TcpStream};
 use std::time::{Duration, Instant};
 
+#[test]
+fn overload_responses_include_bounded_retry_guidance() {
+    let header = super::response_header(429, 17);
+    assert!(header.contains("Retry-After: 1\r\n"));
+    assert!(header.contains("Content-Length: 17\r\n"));
+    assert!(!super::response_header(503, 17).contains("Retry-After:"));
+}
+
 fn pair() -> std::io::Result<(TcpStream, TcpStream)> {
     let listener = TcpListener::bind("127.0.0.1:0")?;
     let client = TcpStream::connect(listener.local_addr()?)?;
@@ -172,5 +180,17 @@ fn exact_header_limit_and_complete_bodies_are_accepted() -> std::io::Result<()> 
     let request = read_request_until(&mut server, Instant::now() + Duration::from_secs(1))
         .map_err(|status| std::io::Error::other(format!("rejected valid request: {status}")))?;
     assert_eq!(request.body, b"{}");
+    Ok(())
+}
+
+#[test]
+fn semantic_adapter_enforces_its_128_kib_response_limit() -> std::io::Result<()> {
+    assert_eq!(super::MAX_RESPONSE_BYTES, 128 * 1024);
+    let (mut client, mut server) = pair()?;
+    client.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 131073\r\n\r\n")?;
+    assert_eq!(
+        read_response(&mut server, Instant::now() + Duration::from_secs(1)).err(),
+        Some(ReadError::Oversized),
+    );
     Ok(())
 }

@@ -1,42 +1,18 @@
 // SPDX-License-Identifier: MIT
 
-use super::{HttpRequest, MAX_BODY_BYTES, RuntimeService, json_bytes, json_error, safe_identity};
-use serde_json::{Value, json};
-use std::collections::BTreeMap;
+use super::*;
 
 impl RuntimeService {
-    pub(super) fn health(&self) -> (u16, Vec<u8>) {
-        match self.forward_mod("GET", "/health/ready", &[], None) {
-            Ok(response) if response.status == 200 => (
-                200,
-                json_bytes(&json!({
-                    "status": "ready",
-                    "instance_id": self.config.instance_id,
-                    "downstream": "ready"
-                })),
-            ),
-            Ok(_) => (503, json_error("downstream_not_ready")),
-            Err(status) => (status, json_error("downstream_unavailable")),
-        }
-    }
-
     pub(super) fn allocate(&mut self, body: &[u8]) -> (u16, Vec<u8>) {
-        if self.lease_released {
+        if self.lease_revoked || self.shutdown_requested {
             return (409, json_error("lease_context_revoked"));
         }
-        let Ok(value) = super::super::strict_json::parse(body) else {
+        let Ok(allocation) = serde_json::from_slice::<AllocationRequest>(body) else {
             return (400, json_error("allocation_body_invalid"));
         };
-        let Some(object) = value.as_object() else {
-            return (400, json_error("allocation_body_invalid"));
-        };
-        if object.len() != 3
-            || object.get("instance_id").and_then(Value::as_str)
-                != Some(self.config.instance_id.as_str())
-            || object.get("caller_id").and_then(Value::as_str)
-                != Some(self.config.caller_id.as_str())
-            || object.get("session_id").and_then(Value::as_str)
-                != Some(self.config.session_id.as_str())
+        if allocation.instance_id != self.config.instance_id
+            || allocation.caller_id != self.config.caller_id
+            || allocation.session_id != self.config.session_id
         {
             return (409, json_error("allocation_identity_rejected"));
         }
@@ -60,7 +36,7 @@ impl RuntimeService {
             return error;
         }
         self.lease_active = false;
-        self.lease_released = true;
+        self.lease_revoked = true;
         (
             200,
             json_bytes(&json!({
@@ -109,6 +85,7 @@ impl RuntimeService {
             ("x-sts2-instance-id", self.config.instance_id.as_str()),
             ("x-sts2-caller-id", self.config.caller_id.as_str()),
             ("x-sts2-session-id", self.config.session_id.as_str()),
+            ("x-mcp-session-id", self.config.mcp_session_id.as_str()),
             ("x-sts2-lease-id", self.config.lease_id.as_str()),
             ("x-sts2-lease-epoch", expected_epoch.as_str()),
         ];
@@ -127,40 +104,75 @@ impl RuntimeService {
         Ok(())
     }
 
-    pub(super) fn has_gateway_token(&self, request: &HttpRequest) -> bool {
-        let expected = format!("Bearer {}", self.config.gateway_token);
-        request.headers.get("authorization").map(String::as_str) == Some(expected.as_str())
-    }
-
-    pub(super) fn state_path(&self) -> String {
-        format!("/v1/instances/{}/state", self.config.instance_id)
-    }
-
-    pub(super) fn action_path(&self) -> String {
-        format!("/v1/instances/{}/action", self.config.instance_id)
-    }
-
-    pub(super) fn release_path(&self) -> String {
-        format!("/v1/instances/{}/release", self.config.instance_id)
+    pub(super) fn forward_mod(
+        &self,
+        method: &str,
+        path: &str,
+        body: &[u8],
+        correlation: Option<&str>,
+    ) -> Result<HttpResponse, u16> {
+        let expires = Instant::now() + Duration::from_secs(5);
+        let address = self
+            .config
+            .mod_address
+            .parse::<SocketAddr>()
+            .map_err(|_| 503_u16)?;
+        let mut stream =
+            TcpStream::connect_timeout(&address, Duration::from_secs(2)).map_err(|_| 503_u16)?;
+        stream
+            .set_read_timeout(Some(Duration::from_secs(5)))
+            .map_err(|_| 503_u16)?;
+        stream
+            .set_write_timeout(Some(Duration::from_secs(5)))
+            .map_err(|_| 503_u16)?;
+        let mut headers = BTreeMap::new();
+        headers.insert(
+            String::from("Authorization"),
+            format!("Bearer {}", self.config.mod_token),
+        );
+        headers.insert(String::from("Host"), self.config.mod_address.clone());
+        headers.insert(String::from("Content-Length"), body.len().to_string());
+        if !body.is_empty() {
+            headers.insert(
+                String::from("Content-Type"),
+                String::from("application/json"),
+            );
+        }
+        if let Some(correlation) = correlation {
+            headers.insert(
+                String::from("x-sts2-instance-id"),
+                self.config.instance_id.clone(),
+            );
+            headers.insert(
+                String::from("x-sts2-caller-id"),
+                self.config.caller_id.clone(),
+            );
+            headers.insert(
+                String::from("x-sts2-session-id"),
+                self.config.session_id.clone(),
+            );
+            headers.insert(
+                String::from("x-sts2-lease-id"),
+                self.config.lease_id.clone(),
+            );
+            headers.insert(
+                String::from("x-sts2-lease-epoch"),
+                self.config.lease_epoch.to_string(),
+            );
+            headers.insert(
+                String::from("x-sts2-correlation-id"),
+                correlation.to_owned(),
+            );
+        }
+        write_request(&mut stream, method, path, &headers, body, expires).map_err(|_| 503_u16)?;
+        read_response(&mut stream, expires).map_err(read_error_status)
     }
 }
-pub(super) fn headers_are_allowed(headers: &BTreeMap<String, String>) -> bool {
-    headers.keys().all(|name| {
-        matches!(
-            name.as_str(),
-            "authorization"
-                | "connection"
-                | "content-length"
-                | "content-type"
-                | "host"
-                | "x-mcp-request-id"
-                | "x-mcp-session-id"
-                | "x-sts2-instance-id"
-                | "x-sts2-caller-id"
-                | "x-sts2-session-id"
-                | "x-sts2-lease-id"
-                | "x-sts2-lease-epoch"
-                | "x-sts2-correlation-id"
-        )
-    })
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct AllocationRequest {
+    instance_id: String,
+    caller_id: String,
+    session_id: String,
 }

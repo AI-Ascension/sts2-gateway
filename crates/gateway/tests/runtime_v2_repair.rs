@@ -4,17 +4,17 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use sts2_gateway::{
-    RuntimeV2Action, RuntimeV2ArtifactFile, RuntimeV2ArtifactFiles, RuntimeV2Binding,
-    RuntimeV2CombatPhase, RuntimeV2EffectWitness, RuntimeV2ForwardRequest, RuntimeV2ForwardingPort,
-    RuntimeV2Ledger, RuntimeV2LedgerConfig, RuntimeV2Message, RuntimeV2MessageKind,
-    RuntimeV2Metadata, RuntimeV2Observation, RuntimeV2ReceiptRequest, RuntimeV2Status,
-    RuntimeV2TransportFault, runtime_v2_artifact_files, verify_runtime_v2_artifact_files,
+    RuntimeV2Action, RuntimeV2Binding, RuntimeV2CombatPhase, RuntimeV2EffectWitness,
+    RuntimeV2ForwardRequest, RuntimeV2ForwardingPort, RuntimeV2Ledger, RuntimeV2LedgerConfig,
+    RuntimeV2Message, RuntimeV2MessageKind, RuntimeV2Metadata, RuntimeV2Observation,
+    RuntimeV2ReceiptRequest, RuntimeV2Status, RuntimeV2TransportFault,
 };
 
 #[derive(Clone, Copy)]
 enum FakeMode {
     Settle,
     DisconnectAfterWrite,
+    Accepted,
 }
 
 struct FakeState {
@@ -61,6 +61,20 @@ impl RuntimeV2ForwardingPort for FakeForwarder {
         state.dispatches += 1;
         let receipt = settled_response(request.message());
         match state.mode {
+            FakeMode::Accepted => {
+                state.retained_receipt = Some(receipt.clone());
+                let mut accepted = receipt;
+                accepted.status = Some(RuntimeV2Status::Accepted);
+                accepted.generation = request.message().generation;
+                accepted.observation = Some(RuntimeV2Observation::new(
+                    RuntimeV2CombatPhase::PlayerTurn,
+                    2,
+                    true,
+                    4,
+                ));
+                accepted.effect_witness = None;
+                Ok(accepted)
+            }
             FakeMode::Settle => {
                 state.applications += 1;
                 Ok(receipt)
@@ -75,11 +89,15 @@ impl RuntimeV2ForwardingPort for FakeForwarder {
 
     fn read_runtime_v2_receipt(
         &mut self,
-        _request: RuntimeV2ReceiptRequest,
+        request: RuntimeV2ReceiptRequest,
     ) -> Result<Option<RuntimeV2Message>, RuntimeV2TransportFault> {
         let mut state = self.0.borrow_mut();
         state.receipt_reads += 1;
-        Ok(state.retained_receipt.clone())
+        let mut receipt = state.retained_receipt.clone();
+        if let Some(receipt) = receipt.as_mut() {
+            receipt.correlation_id = request.message().correlation_id.clone();
+        }
+        Ok(receipt)
     }
 }
 
@@ -158,47 +176,6 @@ fn settled_response(request: &RuntimeV2Message) -> RuntimeV2Message {
         Some(RuntimeV2EffectWitness::turn_end_settled(5)),
         RuntimeV2MessageKind::ActionResponse,
     )
-}
-
-#[test]
-fn copied_artifact_rejects_tampered_schema_manifest_and_golden() -> Result<(), String> {
-    let base = runtime_v2_artifact_files();
-
-    let mut tampered_schema = base.source_schema.to_vec();
-    tampered_schema[0] ^= 1;
-    assert!(
-        verify_runtime_v2_artifact_files(RuntimeV2ArtifactFiles {
-            source_schema: &tampered_schema,
-            ..base
-        })
-        .is_err()
-    );
-
-    let mut tampered_manifest = base.manifest.to_vec();
-    tampered_manifest.push(b'\n');
-    assert!(
-        verify_runtime_v2_artifact_files(RuntimeV2ArtifactFiles {
-            manifest: &tampered_manifest,
-            ..base
-        })
-        .is_err()
-    );
-
-    let mut tampered_golden = base.goldens[0].bytes.to_vec();
-    tampered_golden.push(b'\n');
-    let mut goldens = base.goldens.to_vec();
-    goldens[0] = RuntimeV2ArtifactFile {
-        path: goldens[0].path,
-        bytes: &tampered_golden,
-    };
-    assert!(
-        verify_runtime_v2_artifact_files(RuntimeV2ArtifactFiles {
-            goldens: &goldens,
-            ..base
-        })
-        .is_err()
-    );
-    Ok(())
 }
 
 #[test]
@@ -325,5 +302,89 @@ fn stale_generation_is_checked_before_receipt_reconciliation() -> Result<(), Str
     );
     assert_eq!(fake.receipt_reads(), 1);
     assert_eq!(fake.dispatches(), 1);
+    Ok(())
+}
+
+#[test]
+fn persisted_state_cannot_cross_a_restarted_lease_epoch() -> Result<(), String> {
+    let source = RuntimeV2Ledger::new(
+        RuntimeV2LedgerConfig::new(4),
+        binding()?,
+        FakeForwarder::new(FakeMode::Settle),
+    )
+    .map_err(|error| error.to_string())?;
+    let persisted = source.persisted_state();
+    let replacement_binding = RuntimeV2Binding::new(
+        "instance-1",
+        "session-1",
+        "lease-1",
+        2,
+        RuntimeV2Observation::new(RuntimeV2CombatPhase::PlayerTurn, 2, true, 4),
+    )
+    .map_err(|error| error.to_string())?;
+    let mut replacement = RuntimeV2Ledger::new(
+        RuntimeV2LedgerConfig::new(4),
+        replacement_binding,
+        FakeForwarder::new(FakeMode::Settle),
+    )
+    .map_err(|error| error.to_string())?;
+
+    assert_eq!(
+        replacement.restore_state(persisted),
+        Err(sts2_gateway::RuntimeV2LedgerError::PersistedStateMismatch)
+    );
+    Ok(())
+}
+
+fn refresh(ledger: &mut RuntimeV2Ledger<FakeForwarder>, generation: u64) -> Result<(), String> {
+    let request = RuntimeV2Message::state_request(
+        RuntimeV2Metadata::new(),
+        "corr-state",
+        "instance-1",
+        "session-1",
+        "lease-1",
+        1,
+        ledger.observation().generation,
+    );
+    let response = RuntimeV2Message::state_response(
+        RuntimeV2Metadata::new(),
+        "corr-state",
+        "instance-1",
+        "session-1",
+        "lease-1",
+        1,
+        RuntimeV2Observation::new(RuntimeV2CombatPhase::PlayerTurn, 4, true, generation),
+    );
+    ledger
+        .accept_state_response(&request, response)
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}
+
+#[test]
+fn late_settlement_retains_receipt_without_rewinding_observation() -> Result<(), String> {
+    for mode in [FakeMode::Accepted, FakeMode::DisconnectAfterWrite] {
+        let fake = FakeForwarder::new(mode);
+        let mut ledger =
+            RuntimeV2Ledger::new(RuntimeV2LedgerConfig::new(4), binding()?, fake.clone())
+                .map_err(|e| e.to_string())?;
+        let request = action_request("corr-action", "op-late", 1, 4);
+        ledger
+            .submit_action(request.clone())
+            .map_err(|e| e.to_string())?;
+        refresh(&mut ledger, 6)?;
+        let receipt = ledger
+            .reconcile(reconcile_request("corr-read", "op-late", 6))
+            .map_err(|e| e.to_string())?;
+        assert_eq!(receipt.status, Some(RuntimeV2Status::Settled));
+        assert_eq!(receipt.generation, 5);
+        assert_eq!(ledger.observation().generation, 6);
+        let replay = ledger.submit_action(request).map_err(|e| e.to_string())?;
+        assert_eq!(replay.status, Some(RuntimeV2Status::Settled));
+        assert_eq!(fake.dispatches(), 1);
+        assert_eq!(fake.receipt_reads(), 1);
+        assert!(refresh(&mut ledger, 5).is_err());
+        assert_eq!(ledger.observation().generation, 6);
+    }
     Ok(())
 }
