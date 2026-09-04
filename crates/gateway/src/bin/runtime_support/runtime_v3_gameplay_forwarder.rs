@@ -27,14 +27,6 @@ impl RuntimeV3GameplayForwarder {
         }
     }
 
-    pub(crate) const fn max_request_bytes(self) -> usize {
-        self.max_request_bytes
-    }
-
-    pub(crate) const fn max_response_bytes(self) -> usize {
-        self.max_response_bytes
-    }
-
     pub(crate) fn validate_request(
         self,
         _route: RuntimeV3GameplayRoute,

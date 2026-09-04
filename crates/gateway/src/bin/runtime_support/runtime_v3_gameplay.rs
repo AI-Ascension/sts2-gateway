@@ -45,14 +45,4 @@ impl RuntimeV3GameplayRoute {
         )
     }
 
-    pub(crate) const fn name(self) -> &'static str {
-        match self {
-            Self::State => "state",
-            Self::LegalActions => "legal_actions",
-            Self::DispatchAction => "dispatch_action",
-            Self::WaitForTransition => "wait_for_transition",
-            Self::Reobserve => "reobserve",
-            Self::Recover => "recover",
-        }
-    }
 }
