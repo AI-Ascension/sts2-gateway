@@ -1,7 +1,7 @@
 # Repository layout
 
 The target keeps a standard Rust governance root and one non-empty target-owned control-plane
-package. Concrete adapters and product integration remain deferred.
+package plus a separate attached runtime binary. General lifecycle adapters remain unverified.
 
 ```text
 sts2-gateway/

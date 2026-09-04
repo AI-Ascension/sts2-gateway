@@ -225,9 +225,13 @@ fn read_error_status(error: ReadError) -> u16 {
 #[cfg(test)]
 #[path = "service_admission_tests.rs"]
 mod admission_tests;
+
 #[cfg(test)]
 #[path = "service_auth_tests.rs"]
 mod auth_tests;
+#[cfg(test)]
+#[path = "service_tests.rs"]
+mod legacy_tests;
 #[cfg(test)]
 #[path = "service_routes_tests.rs"]
 mod routes_tests;

@@ -14,7 +14,7 @@ otherwise valid lease.
 ## Decision
 
 The attached gateway runtime reads `STS2_MCP_SESSION_ID`, defaulting to the
-configured gateway `STS2_SESSION_ID`. Every lease-protected request must carry
+independent transport identity `mcp-session-1` (gateway session defaults to `session-1`). Every lease-protected request must carry
 the exact configured value in `x-mcp-session-id`, in addition to the existing
 caller/session/instance/lease/epoch fence. A mismatch or omission returns the
 existing sanitized `lease_fence_rejected` response before the mod forwarder
@@ -27,9 +27,10 @@ propagates the MCP-session value on allocation metadata and on lease release.
 
 ## Compatibility and limits
 
-The default preserves the old single-session configuration. A distinct MCP
-session requires the same explicit value in the gateway, MCP process, and
-harness configuration. This is a component adapter rule, not an external
+The MCP transport and gateway session use independent namespaces. The MCP default matches
+the MCP process and harness defaults. An explicit override requires the same value in all three
+components; deployments relying on the former inherited gateway-session default must configure
+their intended MCP identity explicitly. This is a component adapter rule, not an external
 issuer, revocation system, production supervisor, or host isolation proof.
 The existing Runtime-v1 routes receive the same lease fence when used by the
 attached runtime process.

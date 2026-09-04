@@ -4,11 +4,10 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use sts2_gateway::{
-    RuntimeV2Action, RuntimeV2ArtifactFile, RuntimeV2ArtifactFiles, RuntimeV2Binding,
-    RuntimeV2CombatPhase, RuntimeV2EffectWitness, RuntimeV2ForwardRequest, RuntimeV2ForwardingPort,
-    RuntimeV2Ledger, RuntimeV2LedgerConfig, RuntimeV2Message, RuntimeV2MessageKind,
-    RuntimeV2Metadata, RuntimeV2Observation, RuntimeV2ReceiptRequest, RuntimeV2Status,
-    RuntimeV2TransportFault, runtime_v2_artifact_files, verify_runtime_v2_artifact_files,
+    RuntimeV2Action, RuntimeV2Binding, RuntimeV2CombatPhase, RuntimeV2EffectWitness,
+    RuntimeV2ForwardRequest, RuntimeV2ForwardingPort, RuntimeV2Ledger, RuntimeV2LedgerConfig,
+    RuntimeV2Message, RuntimeV2MessageKind, RuntimeV2Metadata, RuntimeV2Observation,
+    RuntimeV2ReceiptRequest, RuntimeV2Status, RuntimeV2TransportFault,
 };
 
 #[derive(Clone, Copy)]
@@ -180,47 +179,6 @@ fn settled_response(request: &RuntimeV2Message) -> RuntimeV2Message {
 }
 
 #[test]
-fn copied_artifact_rejects_tampered_schema_manifest_and_golden() -> Result<(), String> {
-    let base = runtime_v2_artifact_files();
-
-    let mut tampered_schema = base.source_schema.to_vec();
-    tampered_schema[0] ^= 1;
-    assert!(
-        verify_runtime_v2_artifact_files(RuntimeV2ArtifactFiles {
-            source_schema: &tampered_schema,
-            ..base
-        })
-        .is_err()
-    );
-
-    let mut tampered_manifest = base.manifest.to_vec();
-    tampered_manifest.push(b'\n');
-    assert!(
-        verify_runtime_v2_artifact_files(RuntimeV2ArtifactFiles {
-            manifest: &tampered_manifest,
-            ..base
-        })
-        .is_err()
-    );
-
-    let mut tampered_golden = base.goldens[0].bytes.to_vec();
-    tampered_golden.push(b'\n');
-    let mut goldens = base.goldens.to_vec();
-    goldens[0] = RuntimeV2ArtifactFile {
-        path: goldens[0].path,
-        bytes: &tampered_golden,
-    };
-    assert!(
-        verify_runtime_v2_artifact_files(RuntimeV2ArtifactFiles {
-            goldens: &goldens,
-            ..base
-        })
-        .is_err()
-    );
-    Ok(())
-}
-
-#[test]
 fn identity_and_epoch_are_checked_before_duplicate_replay() -> Result<(), String> {
     let fake = FakeForwarder::new(FakeMode::DisconnectAfterWrite);
     let mut ledger = RuntimeV2Ledger::new(RuntimeV2LedgerConfig::new(4), binding()?, fake.clone())
@@ -258,14 +216,19 @@ fn exact_duplicate_replays_after_generation_advances() -> Result<(), String> {
     let mut ledger = RuntimeV2Ledger::new(RuntimeV2LedgerConfig::new(4), binding()?, fake.clone())
         .map_err(|error| error.to_string())?;
     let request = action_request("corr-stale-replay", "op-stale-replay", 1, 4);
-    ledger
+    let original = ledger
         .submit_action(request.clone())
         .map_err(|error| error.to_string())?;
     let replay = ledger
-        .submit_action(request)
+        .submit_action(request.clone())
         .map_err(|error| error.to_string())?;
-    assert_eq!(replay.status, Some(RuntimeV2Status::Settled));
-    assert_eq!(replay.generation, 5);
+    assert_eq!(replay, original);
+    assert_eq!(
+        ledger
+            .cancel_before_dispatch(request)
+            .map_err(|error| error.to_string())?,
+        original
+    );
     assert_eq!(fake.dispatches(), 1);
     assert_eq!(fake.applications(), 1);
     Ok(())

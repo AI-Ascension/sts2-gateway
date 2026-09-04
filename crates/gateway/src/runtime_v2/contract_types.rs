@@ -219,10 +219,25 @@ pub struct RuntimeV2Message {
     pub lease_epoch: u64,
     pub generation: u64,
     pub kind: RuntimeV2MessageKind,
+    #[serde(deserialize_with = "required_nullable")]
     pub operation_id: Option<String>,
+    #[serde(deserialize_with = "required_nullable")]
     pub observation: Option<RuntimeV2Observation>,
+    #[serde(deserialize_with = "required_nullable")]
     pub action: Option<RuntimeV2Action>,
+    #[serde(deserialize_with = "required_nullable")]
     pub status: Option<RuntimeV2Status>,
+    #[serde(deserialize_with = "required_nullable")]
     pub error_code: Option<String>,
+    #[serde(deserialize_with = "required_nullable")]
     pub effect_witness: Option<RuntimeV2EffectWitness>,
+}
+
+// A missing nullable member is not equivalent to an explicit null in the frozen wire contract.
+fn required_nullable<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    Option::<T>::deserialize(deserializer)
 }

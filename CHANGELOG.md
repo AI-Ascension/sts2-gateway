@@ -7,6 +7,30 @@ runtime or downstream wire contract.
 
 ### Fixed
 
+- Retain the bounded Runtime-v3 proposal after independent Runtime-v2 wiring merged in PR #11.
+  This branch remains incompatible with the selected Exo profile and is not the integration lane.
+- Keep bounded Runtime-v3 accepted/unknown operations reconcilable, rebind per-attempt correlation,
+  compare canonical payloads, and reject regressed observations or invalid settlements.
+
+- Default MCP transport identity independently to `mcp-session-1` to match MCP and harness
+  configuration; retain validated explicit overrides and the complete session fence.
+
+- Split the independent Runtime-v2 component wiring from PR #6 at
+  `3cf7f08f36daf31ca2d9cc3e455a622db78d68af`; retain its original branch and commits for review.
+  The separate Exo gameplay lane owns Runtime-v3 integration.
+- Complete the inert Runtime-v1 protocol copy and check frozen v1/v2 inventories in CI; preserve
+  existing schema/manifest bytes and distinguish attached adapters in the repository layout.
+- Reject omitted required nullable Runtime-v2 envelope members during decoding while preserving
+  explicit null values and the frozen artifact bytes.
+
+- Bound attached HTTP request/reply and downstream exchange lifetimes with absolute five-second
+  deadlines, and reject oversized or ambiguous header framing. Require literal loopback endpoints
+  and prevent reallocation of a released attached lease context during the same process lifetime.
+- Replay exact authenticated Runtime-v2 operation receipts before fresh-action generation checks;
+  reconcile Accepted as well as Unknown work and prevent late receipts from rewinding observation.
+- Include executable Rust sources under `src/bin` in repository policy; split attached service
+  concerns under unchanged file budgets and regression-test the actual scanner's coverage.
+
 - Keep a released/shutdown attached lease revoked for the service lifetime; a later allocation
   cannot resurrect the same credential/epoch and authorize queued stale work.
 
@@ -19,8 +43,6 @@ runtime or downstream wire contract.
 
 - Enforce numeric loopback endpoints, absolute bounded HTTP I/O, unambiguous HTTP framing, and
   connection-owned shutdown cancellation; reserve queue metrics before publishing work.
-- Keep earlier Runtime-v3 accepted/unknown operations reconcilable, rebind per-attempt correlation,
-  compare canonical operation payloads, and reject regressed observations or invalid settlements.
 
 - Preserve the newest Runtime-v2 observation when reconciling an older operation receipt; reject
   regressed state refresh and inconsistent persisted result generations. Accepted and unknown

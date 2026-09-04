@@ -171,13 +171,26 @@ Both gateway and mod endpoint settings require numeric loopback `IP:port` socket
 wildcard/non-loopback addresses and DNS hostnames fail configuration. This plaintext attached lane
 does not expose a remote mode. HTTP frames and downstream exchanges use absolute deadlines.
 
-The earlier Runtime-v3 gameplay proxy in this branch consumes the protocol-PR-7 contract with
-`action`, `status`, and `reconcile_request`; it is not the protocol-PR-8 `action_ref`/receipt/wait
-contract proposed separately in gateway PR #7. Its in-memory operation cache retains canonical
-payload identity excluding attempt correlation, polls accepted/unknown outcomes without mutation
-retry, and rebinds cached receipt correlation. The optional Runtime-v2 journal does not persist
-Runtime-v3 operations. Restart fencing and downstream receipt continuity remain integration gates;
-do not reuse a stale configured lease/session/epoch after a gateway or host restart.
+Runtime-v2 journal recovery requires continuity of the configured identity and downstream receipts.
+Restart fencing remains an integration gate; do not reuse stale ownership after a gateway or host
+restart. A new ownership context requires a fresh configured session, lease, and epoch.
 Within one service lifetime, release and shutdown permanently revoke its configured lease. Further
 allocation fails closed rather than reactivating the old epoch; new ownership requires a separately
 configured fresh context. Persisted cross-restart revocation remains an external coordinator gate.
+
+## Runtime-v2 wire closure
+
+The gateway decoder requires every frozen envelope member, including nullable members, to be
+present. Explicit null is accepted where the message kind permits it; omission or unknown members
+fail before ledger admission and forwarding. The gateway owns this decoding boundary; host
+mutation authority and protocol artifact bytes are unchanged.
+
+## Retained bounded Runtime-v3 proposal
+
+This branch retains the protocol-PR-7 bounded `play_card` contract after independent Runtime-v2
+component wiring merged in PR #11. Its `action`/`status`/`reconcile_request` model is incompatible
+with the selected Exo semantic-catalog lane in gateway PR #7. The bounded in-memory operation cache
+retains canonical payload identity excluding attempt correlation, polls accepted/unknown results
+without retrying mutations, and rebinds cached receipt correlation. The optional Runtime-v2 journal
+does not persist bounded Runtime-v3 operations. Restart fencing and downstream receipt continuity
+remain external integration gates. This branch is retained for review and is not a merged profile.

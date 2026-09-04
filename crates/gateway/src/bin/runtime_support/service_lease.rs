@@ -5,21 +5,14 @@ use super::*;
 impl RuntimeService {
     pub(super) fn allocate(&mut self, body: &[u8]) -> (u16, Vec<u8>) {
         if self.lease_revoked || self.shutdown_requested {
-            return (409, json_error("lease_revoked"));
+            return (409, json_error("lease_context_revoked"));
         }
-        let Ok(value) = serde_json::from_slice::<Value>(body) else {
+        let Ok(allocation) = serde_json::from_slice::<AllocationRequest>(body) else {
             return (400, json_error("allocation_body_invalid"));
         };
-        let Some(object) = value.as_object() else {
-            return (400, json_error("allocation_body_invalid"));
-        };
-        if object.len() != 3
-            || object.get("instance_id").and_then(Value::as_str)
-                != Some(self.config.instance_id.as_str())
-            || object.get("caller_id").and_then(Value::as_str)
-                != Some(self.config.caller_id.as_str())
-            || object.get("session_id").and_then(Value::as_str)
-                != Some(self.config.session_id.as_str())
+        if allocation.instance_id != self.config.instance_id
+            || allocation.caller_id != self.config.caller_id
+            || allocation.session_id != self.config.session_id
         {
             return (409, json_error("allocation_identity_rejected"));
         }
@@ -174,4 +167,12 @@ impl RuntimeService {
         write_request(&mut stream, method, path, &headers, body, expires).map_err(|_| 503_u16)?;
         read_response(&mut stream, expires).map_err(read_error_status)
     }
+}
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct AllocationRequest {
+    instance_id: String,
+    caller_id: String,
+    session_id: String,
 }

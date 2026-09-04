@@ -16,8 +16,11 @@ fn released_or_shutdown_lease_cannot_be_reallocated() -> Result<(), String> {
         let (status, _) = service.handle_request(&request);
         assert_eq!(status, if shutdown { 202 } else { 200 });
         let allocation =
-            br#"{"instance_id":"instance-1","caller_id":"caller-1","session_id":"session-1"}"#;
-        assert_eq!(service.allocate(allocation).0, 409);
+            br#"{"instance_id":"instance-1","caller_id":"harness","session_id":"session-1"}"#;
+        let (status, body) = service.allocate(allocation);
+        assert_eq!(status, 409);
+        let response: Value = serde_json::from_slice(&body).map_err(|e| e.to_string())?;
+        assert_eq!(response["error_code"], "lease_context_revoked");
         assert!(!service.lease_active);
         let stale = authenticated_request("/v2/instances/instance-1/state");
         assert_eq!(service.handle_request(&stale).0, 409);
@@ -62,6 +65,8 @@ fn runtime_endpoints_are_numeric_loopback_addresses() {
         "example.com:80",
         "127.0.0.1",
         "127.0.0.1:99999",
+        "127.0.0.1:0",
+        "[::1]:0",
     ] {
         assert!(super::configuration::validate_loopback_address("endpoint", address).is_err());
     }
@@ -185,5 +190,28 @@ fn shutdown_drains_requests_until_admission_producer_exits() -> Result<(), Strin
         1
     );
     assert_eq!(metrics.snapshot("instance-1", 2)["queue_depth"], 0);
+    Ok(())
+}
+
+#[test]
+fn mcp_session_configuration_has_its_own_default_and_validates_overrides() -> Result<(), String> {
+    use super::configuration::configured_mcp_session;
+    assert_eq!(
+        configured_mcp_session(Err(std::env::VarError::NotPresent))?,
+        "mcp-session-1"
+    );
+    assert_eq!(
+        configured_mcp_session(Ok("mcp-explicit".to_owned()))?,
+        "mcp-explicit"
+    );
+    for value in [String::new(), "invalid session".to_owned(), "x".repeat(129)] {
+        assert!(configured_mcp_session(Ok(value)).is_err());
+    }
+    assert!(
+        configured_mcp_session(Err(std::env::VarError::NotUnicode(
+            std::ffi::OsString::from("non-unicode-error-fixture")
+        )))
+        .is_err()
+    );
     Ok(())
 }

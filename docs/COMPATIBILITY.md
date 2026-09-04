@@ -27,6 +27,11 @@ process supervision, real concurrency isolation, host gameplay, and general comp
 Static policy results may establish configuration and source compatibility with the pinned Rust
 toolchain. They do not establish compatibility with a game or a historical implementation.
 
+The Runtime-v1 inert copy now includes the canonical checksum inventory, five golden messages,
+source schema and conformance companion from merged protocol `main`. Existing package schema and
+manifest bytes are unchanged; the README restores its canonical local source link. CI verifies
+both frozen Runtime-v1 and Runtime-v2 inventories. This confirms copy integrity only.
+
 ## Independent version axes
 
 Keep these values separate and record each in a future compatibility matrix:
@@ -76,6 +81,12 @@ test; use `source-derived`, `inferred`, `proposed`, or `unverified` precisely.
 
 ## Runtime adapter row
 
+The independently merged [ADR 0011](decisions/0011-attached-runtime-hardening.md) baseline is retained:
+configured loopback ports must be nonzero, allocation uses a closed typed body (missing/unknown/
+duplicate fields return400), and same-process reallocation after release returns409
+`lease_context_revoked`. Component additions in ADRs 0007–0010 remain implemented; merging the
+baseline does not replace concrete v2 forwarding with its earlier unconfigured adapter.
+
 Endpoint configuration now enforces numeric loopback socket addresses (`127.0.0.1:port` or
 `[::1]:port`). Previously accepted DNS names, wildcard binds, and remote addresses must be migrated
 to an explicit numeric loopback endpoint; this enforces the documented local-only trust boundary.
@@ -86,8 +97,8 @@ route profile without changing frozen Runtime-v2 schema bytes or generic ledger 
 Release/shutdown now permanently revoke the attached configured lease for that process lifetime.
 Clients cannot allocate the same context again to undo revocation; a coordinator must provide a
 fresh session/lease/epoch for replacement ownership. This does not implement durable restart fencing.
-The earlier Runtime-v3 gameplay contract on this branch is distinct from protocol PR #8 and gateway
-PR #7 despite sharing a version label. The two proposals cannot be merged as compatible wire formats.
+The independent Runtime-v2 split preserves the frozen artifact and fixed v2 routes. The Exo
+Runtime-v3 profile is integrated separately after its protocol dependency is accepted.
 
 | Adapter | Downstream | Current evidence | Result |
 | --- | --- | --- | --- |
@@ -105,6 +116,40 @@ process ownership, readiness, lease-epoch rotation, multi-instance, downstream c
 disposable-host evidence. The attached process also accepts a bounded FIFO queue-capacity setting
 from 1 through 64, exposes sanitized metrics, and supports a lease-fenced shutdown route. These
 additions are component lifecycle controls; they do not establish process ownership, signal
-handling, global scheduling, or host compatibility. `STS2_MCP_SESSION_ID` defaults to the gateway
-session and may be set independently; every lease-protected request must then carry the matching
+handling, global scheduling, or host compatibility. `STS2_MCP_SESSION_ID` defaults independently to `mcp-session-1`, matching MCP and harness; the gateway
+session remains `session-1` by default and may be set independently; every lease-protected request must then carry the matching
 `x-mcp-session-id` value.
+
+## Attached runtime hardening compatibility
+
+[ADR 0011](decisions/0011-attached-runtime-hardening.md) corrects the existing unpublished attached
+baseline without adding a gameplay profile, journal, queue, or restart issuer. The component
+ADRs add the v2 journal and queue above this baseline. Both configured
+addresses must now be literal loopback addresses with nonzero ports. Clients using DNS names or
+non-loopback endpoints must change configuration. Incoming reads and reply writes each expire
+after five seconds; the whole downstream connect/write/read exchange shares five seconds. An
+incomplete inbound request expires with HTTP408; an uncertain downstream mutation is not retried.
+The existing body/response limits and frozen Runtime-v2 artifact are unchanged.
+
+Allocation uses a closed typed body: malformed, duplicate, missing or unknown fields return400;
+well-formed requests naming the wrong configured identity return409. No partial allocation occurs.
+
+Release is terminal for the fixed context in that process; reallocation returns409
+`lease_context_revoked`. This is an intentional compatibility correction to unsafe lease reuse,
+not automatic epoch rotation. The binary still uses a boolean active lease, with no TTL/renewal,
+durable boot epoch, or persisted revocation. Restarting with the same config and allocating can
+still admit earlier proofs; no restart-ready or autonomous-gameplay claim follows from these fixes.
+Runtime-v2 exact receipt replay is read-only and need not match current state generation, but it
+still requires the original identity/epoch and canonical payload; fresh mutations remain fenced.
+
+## Runtime-v2 required nullable members
+
+This patch enforces the existing frozen Runtime-v2 schema: nullable members must be present, even
+when their value is null. Clients omitting a member must send an explicit null instead. No route,
+field, digest, artifact byte, or valid serialized message changes.
+
+## Retained bounded gameplay lane
+
+PR #6 retains its original bounded Runtime-v3 proposal after its independent Runtime-v2 work was
+merged through PR #11. The bounded profile remains incompatible with protocol PR #8 and gateway
+PR #7 despite sharing the version label. It must not be combined with the Exo wire contract.

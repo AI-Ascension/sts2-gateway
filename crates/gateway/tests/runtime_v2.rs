@@ -275,6 +275,7 @@ fn unknown_reconciles_to_settled_without_dispatch_retry() -> Result<(), String> 
     assert_eq!(replay.status, Some(RuntimeV2Status::Settled));
     assert_eq!(replay.kind, RuntimeV2MessageKind::ActionResponse);
     assert_eq!(replay.correlation_id, "corr-action");
+    assert_eq!(replay.generation, 5);
     assert_eq!(fake.dispatches(), 1);
     Ok(())
 }

@@ -18,6 +18,7 @@ cargo fmt --all --check
 cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 cargo test --workspace --all-targets --all-features --locked
 (cd protocol-artifact/poc-v1 && sha256sum -c SHA256SUMS)
+(cd protocol-artifact/runtime-v1 && sha256sum -c SHA256SUMS)
 (cd protocol-artifact/runtime-v2 && sha256sum -c SHA256SUMS)
 ```
 
@@ -56,7 +57,7 @@ Late retained settlement is checked after a newer authoritative observation: the
 remains replayable, but cannot rewind admission generation. Both accepted and unknown operations
 are covered. State refresh rejects a regressed generation, and restore rejects a settled receipt
 without a successor or a persisted binding older than a retained result.
-Both attached action profiles also reject operation IDs that cannot be reconciled by the fixed
+The attached Runtime-v2 action profile also rejects operation IDs that cannot be reconciled by the fixed
 single-segment receipt route; an ephemeral listener verifies these invalid IDs cause zero forwards.
 Release/shutdown followed by allocation is rejected and leaves old lease-protected requests fenced.
 
@@ -115,3 +116,23 @@ The authorized exact-host lane now confirms the managed mod listener, downstream
 lease fencing, a Godot main-thread callback, the bounded STS2 host effect, and reversible disposable
 profile cleanup. Process supervision/restart, concurrency isolation, and gameplay mutation remain
 `unverified`.
+
+## Runtime-v2 wire closure
+
+`crates/gateway/tests/runtime_v2_wire_closure.rs` round-trips every copied golden message, removes
+each of the six nullable envelope members individually, and verifies decoding rejection. It also
+checks unknown envelope member rejection. This deterministic decoder evidence does not establish
+host or downstream runtime compatibility.
+
+## MCP-session configuration
+
+A pure MCP-session configuration test covers the independent default, explicit override and invalid
+values without changing process environment. Cross-process identity issuance remains unverified.
+
+## Retained bounded proposal checks
+
+The retained bounded Runtime-v3 branch tests fixed state/action/receipt routes, exact profile
+validation, canonical payload conflicts, accepted/unknown receipt polling, correlation rebinding,
+and observation/witness consistency with synthetic loopback peers. Both v2 and bounded v3 reject
+operation IDs that cannot occupy the fixed receipt-route segment before any downstream dispatch.
+These checks do not establish host gameplay or promote the proposal to the selected Exo profile.

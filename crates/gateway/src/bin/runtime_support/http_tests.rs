@@ -182,3 +182,15 @@ fn exact_header_limit_and_complete_bodies_are_accepted() -> std::io::Result<()> 
     assert_eq!(request.body, b"{}");
     Ok(())
 }
+
+#[test]
+fn main_adapter_retains_its_64_kib_response_limit() -> std::io::Result<()> {
+    assert_eq!(super::MAX_RESPONSE_BYTES, 64 * 1024);
+    let (mut client, mut server) = pair()?;
+    client.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 65537\r\n\r\n")?;
+    assert_eq!(
+        read_response(&mut server, Instant::now() + Duration::from_secs(1)).err(),
+        Some(ReadError::Oversized),
+    );
+    Ok(())
+}
