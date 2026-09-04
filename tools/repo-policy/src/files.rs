@@ -263,4 +263,29 @@ mod tests {
         let findings = language_findings(root, &files);
         assert_eq!(findings.len(), 3);
     }
+
+    #[test]
+    fn repository_policy_scans_the_runtime_binary_source() -> Result<(), String> {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let policy = crate::config::Policy::load(&root.join("policy.toml"))?;
+        let files = super::collect(&root, &policy)?;
+        for relative in [
+            "crates/gateway/src/bin/sts2-gateway-runtime.rs",
+            "crates/gateway/src/bin/runtime_support/service.rs",
+            "crates/gateway/src/bin/runtime_support/service_config.rs",
+            "crates/gateway/src/bin/runtime_support/service_control.rs",
+            "crates/gateway/src/bin/runtime_support/service_downstream.rs",
+            "crates/gateway/src/bin/runtime_support/service_v2.rs",
+            "crates/gateway/src/bin/runtime_support/service_tests.rs",
+            "crates/gateway/src/bin/runtime_support/http.rs",
+            "crates/gateway/src/bin/runtime_support/http_deadline.rs",
+            "crates/gateway/src/bin/runtime_support/http_tests.rs",
+        ] {
+            assert!(
+                files.contains(&root.join(relative)),
+                "policy omitted {relative}"
+            );
+        }
+        Ok(())
+    }
 }
