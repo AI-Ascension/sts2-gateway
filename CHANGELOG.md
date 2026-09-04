@@ -7,6 +7,14 @@ runtime or downstream wire contract.
 
 ### Fixed
 
+- Bound attached HTTP request/reply and downstream exchange lifetimes with absolute five-second
+  deadlines, and reject oversized or ambiguous header framing. Require literal loopback endpoints
+  and prevent reallocation of a released attached lease context during the same process lifetime.
+- Replay exact authenticated Runtime-v2 operation receipts before fresh-action generation checks;
+  reconcile Accepted as well as Unknown work and prevent late receipts from rewinding observation.
+- Include executable Rust sources under `src/bin` in repository policy; split attached service
+  concerns under unchanged file budgets and regression-test the actual scanner's coverage.
+
 - Failed generic process starts no longer consume an unreachable allocation slot; consumed instance
   and lease identities remain unique. Clarified the process port's partial-start cleanup ownership.
 - Expiry reconciliation reports forced-stop failures instead of claiming successful expiration,

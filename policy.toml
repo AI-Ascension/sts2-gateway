@@ -62,7 +62,6 @@ ignored_directories = [
   ".git",
   ".idea",
   ".vscode",
-  "bin",
   "node_modules",
   "obj",
   "target",

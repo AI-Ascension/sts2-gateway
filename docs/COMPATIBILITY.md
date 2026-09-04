@@ -81,6 +81,28 @@ The adapters' fixed configurations are sprint boundaries, not general lifecycle 
 Runtime-v2 ledger retains entries only in memory until capacity is reached; it does not evict entries
 or persist them. A restart loses retained receipts and must establish a new lease epoch before any
 new work. Clients must not retry an unknown action after restart; they need an externally retained
-receipt or a new operation identity under a newly established context. A future compatibility
+receipt before deciding whether any further mutation is safe. A new operation identity must not
+be used to repeat an unresolved action. A future compatibility
 promotion must add exact process ownership, readiness, shutdown, restart, multi-instance, and
 disposable-host evidence.
+
+## Attached runtime hardening compatibility
+
+[ADR 0011](decisions/0011-attached-runtime-hardening.md) corrects the existing unpublished attached
+adapter without adding a gameplay profile, journal, queue, or restart issuer. Both configured
+addresses must now be literal loopback addresses with nonzero ports. Clients using DNS names or
+non-loopback endpoints must change configuration. Incoming reads and reply writes each expire
+after five seconds; the whole downstream connect/write/read exchange shares five seconds. An
+incomplete inbound request expires with HTTP408; an uncertain downstream mutation is not retried.
+The existing body/response limits and frozen Runtime-v2 artifact are unchanged.
+
+Allocation uses a closed typed body: malformed, duplicate, missing or unknown fields return400;
+well-formed requests naming the wrong configured identity return409. No partial allocation occurs.
+
+Release is terminal for the fixed context in that process; reallocation returns409
+`lease_context_revoked`. This is an intentional compatibility correction to unsafe lease reuse,
+not automatic epoch rotation. The binary still uses a boolean active lease, with no TTL/renewal,
+durable boot epoch, or persisted revocation. Restarting with the same config and allocating can
+still admit earlier proofs; no restart-ready or autonomous-gameplay claim follows from these fixes.
+Runtime-v2 exact receipt replay is read-only and need not match current state generation, but it
+still requires the original identity/epoch and canonical payload; fresh mutations remain fenced.

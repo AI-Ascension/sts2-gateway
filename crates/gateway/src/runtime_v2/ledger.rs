@@ -73,12 +73,6 @@ where
             .map_err(RuntimeV2LedgerError::RequestDigest)?;
         self.validate_context(&request)?;
         if let Some(existing) = self.operations.get(&key) {
-            if request.generation != self.binding.observation.generation {
-                return Err(RuntimeV2LedgerError::StaleGeneration {
-                    expected: self.binding.observation.generation,
-                    actual: request.generation,
-                });
-            }
             return self.replay_or_conflict(existing, &request, digest, &canonical_request);
         }
         if self.operations.len() >= self.config.operation_capacity {
@@ -150,12 +144,6 @@ where
             .map_err(RuntimeV2LedgerError::RequestDigest)?;
         self.validate_context(&request)?;
         if let Some(existing) = self.operations.get(&key) {
-            if request.generation != self.binding.observation.generation {
-                return Err(RuntimeV2LedgerError::StaleGeneration {
-                    expected: self.binding.observation.generation,
-                    actual: request.generation,
-                });
-            }
             return self.replay_or_conflict(existing, &request, digest, &canonical_request);
         }
         if self.operations.len() >= self.config.operation_capacity {
@@ -179,7 +167,7 @@ where
         Ok(response)
     }
 
-    /// Reconciles an unknown operation by reading a retained receipt only.
+    /// Reconciles an accepted or unknown operation by reading a retained receipt only.
     pub fn reconcile(
         &mut self,
         request: RuntimeV2Message,
@@ -202,7 +190,10 @@ where
             };
             (operation.request.clone(), result)
         };
-        if original_result.status != Some(RuntimeV2Status::Unknown) {
+        if !matches!(
+            original_result.status,
+            Some(RuntimeV2Status::Accepted | RuntimeV2Status::Unknown)
+        ) {
             return Ok(self.as_reconcile_response(&original_result, &request));
         }
         let action = original_request

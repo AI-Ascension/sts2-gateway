@@ -234,20 +234,23 @@ fn identity_and_epoch_are_checked_before_duplicate_replay() -> Result<(), String
 }
 
 #[test]
-fn stale_generation_is_checked_before_duplicate_replay() -> Result<(), String> {
+fn exact_duplicate_replays_after_generation_advances() -> Result<(), String> {
     let fake = FakeForwarder::new(FakeMode::Settle);
     let mut ledger = RuntimeV2Ledger::new(RuntimeV2LedgerConfig::new(4), binding()?, fake.clone())
         .map_err(|error| error.to_string())?;
     let request = action_request("corr-stale-replay", "op-stale-replay", 1, 4);
-    ledger
+    let original = ledger
         .submit_action(request.clone())
         .map_err(|error| error.to_string())?;
+    let replay = ledger
+        .submit_action(request.clone())
+        .map_err(|error| error.to_string())?;
+    assert_eq!(replay, original);
     assert_eq!(
-        ledger.submit_action(request),
-        Err(sts2_gateway::RuntimeV2LedgerError::StaleGeneration {
-            expected: 5,
-            actual: 4,
-        })
+        ledger
+            .cancel_before_dispatch(request)
+            .map_err(|error| error.to_string())?,
+        original
     );
     assert_eq!(fake.dispatches(), 1);
     assert_eq!(fake.applications(), 1);

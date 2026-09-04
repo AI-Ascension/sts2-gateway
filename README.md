@@ -76,8 +76,8 @@ cargo test --workspace --all-targets --all-features --locked
 
 The first command is the local policy entrypoint and checks required paths, licenses, links,
 workflow restrictions, Rust configuration, language restrictions, and file budgets. The package
-tests exercise only injected deterministic fakes; these commands do not launch a gateway listener,
-game process, MCP server, provider, or host.
+tests exercise injected deterministic fakes and isolated synthetic loopback HTTP sockets; these
+commands do not launch a game process, MCP server, provider, or real host.
 
 ## Repository map
 
