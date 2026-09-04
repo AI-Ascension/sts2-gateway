@@ -661,7 +661,7 @@ mod tests {
 
     use super::{
         HttpRequest, MAX_BODY_BYTES, MAX_RESPONSE_BYTES, RuntimeConfig, RuntimeService,
-        UnconfiguredRuntimeV2Forwarder,
+        RuntimeV3GameplayForwarder, UnconfiguredRuntimeV2Forwarder,
     };
 
     fn test_service() -> Result<RuntimeService, String> {
