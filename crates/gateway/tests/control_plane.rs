@@ -3,8 +3,9 @@
 mod support;
 
 use sts2_gateway::{
-    FenceFailure, FixedRoute, GatewayError, HealthFault, InstanceId, LeaseEpoch, LeaseProof,
-    OperationId, ProcessFault, ProcessState, Readiness, StopMode, TransportFault,
+    CallerId, FenceFailure, FixedRoute, GatewayError, HealthFault, InstanceId, LeaseEpoch,
+    LeaseProof, OperationId, ProcessFault, ProcessState, Readiness, SessionId, StopMode,
+    TransportFault,
 };
 use support::{new_gateway, owner, ready_gateway, session};
 
@@ -65,6 +66,80 @@ fn stale_epoch_and_wrong_instance_are_denied_before_transport() -> Result<(), St
         Err(GatewayError::Fence(FenceFailure::WrongInstance))
     );
     assert_eq!(transport.calls(), 0);
+    Ok(())
+}
+
+#[test]
+fn four_allocated_instances_keep_identity_and_capacity_separate() -> Result<(), String> {
+    let (mut gateway, _clock, process, _readiness, transport) = new_gateway();
+    let mut allocations = Vec::new();
+    for value in 1..=4 {
+        let allocation = gateway
+            .allocate(CallerId::new(value), SessionId::new(value + 10))
+            .map_err(|error| error.to_string())?;
+        assert_eq!(
+            gateway
+                .reconcile(allocation.instance_id())
+                .map_err(|error| error.to_string())?,
+            sts2_gateway::LifecycleState::Ready
+        );
+        allocations.push(allocation);
+    }
+
+    assert_eq!(
+        gateway.allocate(CallerId::new(5), SessionId::new(15)),
+        Err(GatewayError::CapacityExceeded)
+    );
+    assert_eq!(
+        gateway.forward(
+            allocations[1].instance_id(),
+            allocations[0].lease().proof(),
+            OperationId::new(1),
+            FixedRoute::ReadOnly,
+            vec![1],
+        ),
+        Err(GatewayError::Fence(FenceFailure::WrongInstance))
+    );
+    assert_eq!(transport.calls(), 0);
+
+    gateway
+        .release(allocations[1].lease().proof())
+        .map_err(|error| error.to_string())?;
+    assert_eq!(
+        gateway
+            .status(allocations[1].instance_id())
+            .map_err(|error| error.to_string())?
+            .state(),
+        sts2_gateway::LifecycleState::Stopped
+    );
+    for (index, allocation) in allocations.iter().enumerate() {
+        if index != 1 {
+            assert_eq!(
+                gateway
+                    .status(allocation.instance_id())
+                    .map_err(|error| error.to_string())?
+                    .state(),
+                sts2_gateway::LifecycleState::Ready
+            );
+        }
+    }
+    for (index, allocation) in allocations.iter().enumerate() {
+        if index != 1 {
+            gateway
+                .release(allocation.lease().proof())
+                .map_err(|error| error.to_string())?;
+        }
+    }
+    for (index, allocation) in allocations.iter().enumerate() {
+        gateway
+            .cleanup(
+                allocation.instance_id(),
+                CallerId::new(u64::try_from(index + 1).map_err(|error| error.to_string())?),
+                SessionId::new(u64::try_from(index + 11).map_err(|error| error.to_string())?),
+            )
+            .map_err(|error| error.to_string())?;
+    }
+    assert_eq!(process.stop_modes().len(), 4);
     Ok(())
 }
 

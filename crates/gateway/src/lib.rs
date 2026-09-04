@@ -32,8 +32,9 @@ pub use runtime_v2::{
     RuntimeV2EffectWitness, RuntimeV2FenceFailure, RuntimeV2ForwardRequest,
     RuntimeV2ForwardingPort, RuntimeV2Ledger, RuntimeV2LedgerConfig, RuntimeV2LedgerError,
     RuntimeV2Message, RuntimeV2MessageKind, RuntimeV2Metadata, RuntimeV2Observation,
-    RuntimeV2OperationKey, RuntimeV2Provenance, RuntimeV2ReceiptRequest, RuntimeV2RequestDigest,
-    RuntimeV2Status, RuntimeV2TransportFault, RuntimeV2ValidationError,
+    RuntimeV2OperationKey, RuntimeV2PersistedOperation, RuntimeV2PersistedState,
+    RuntimeV2Provenance, RuntimeV2ReceiptRequest, RuntimeV2RequestDigest, RuntimeV2Status,
+    RuntimeV2TransportFault, RuntimeV2ValidationError,
 };
 pub use runtime_v2_artifact::{
     RUNTIME_V2_ACTION_ID, RUNTIME_V2_ARTIFACT, RUNTIME_V2_EFFECT_KIND, RUNTIME_V2_GENERATOR,
