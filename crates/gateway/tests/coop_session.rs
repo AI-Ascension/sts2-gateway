@@ -7,19 +7,19 @@ fn session() -> CoopSession {
 }
 
 #[test]
-fn disagreement_and_disconnect_suspend_mutation() {
+fn disagreement_and_disconnect_suspend_mutation() -> Result<(), String> {
     let mut session = session();
     session
         .register_peer(CallerId::new(1), CoopPeerRole::Local, 10)
-        .expect("local registers");
+        .map_err(|error| format!("{error:?}"))?;
     session
         .register_peer(CallerId::new(2), CoopPeerRole::Ally, 10)
-        .expect("ally registers");
+        .map_err(|error| format!("{error:?}"))?;
     assert!(session.authorize_mutation(10).is_ok());
 
     session
         .update_generation(CallerId::new(2), 11)
-        .expect("peer update is recorded");
+        .map_err(|error| format!("{error:?}"))?;
     assert!(session.snapshot().disagreement());
     assert_eq!(
         session.authorize_mutation(10),
@@ -28,23 +28,24 @@ fn disagreement_and_disconnect_suspend_mutation() {
 
     session
         .reconnect(CallerId::new(2), 10)
-        .expect("peer resynchronizes");
+        .map_err(|error| format!("{error:?}"))?;
     session
         .disconnect(CallerId::new(2))
-        .expect("disconnect is recorded");
+        .map_err(|error| format!("{error:?}"))?;
     assert!(!session.snapshot().missing_peers().is_empty());
     assert_eq!(
         session.authorize_mutation(10),
         Err(CoopSessionError::MutationSuspended)
     );
+    Ok(())
 }
 
 #[test]
-fn local_identity_and_peer_capacity_are_explicit() {
+fn local_identity_and_peer_capacity_are_explicit() -> Result<(), String> {
     let mut session = session();
     session
         .register_peer(CallerId::new(1), CoopPeerRole::Local, 10)
-        .expect("local registers");
+        .map_err(|error| format!("{error:?}"))?;
     assert_eq!(
         session.register_peer(CallerId::new(2), CoopPeerRole::Local, 10),
         Err(CoopSessionError::DuplicateLocalPeer)
@@ -52,10 +53,11 @@ fn local_identity_and_peer_capacity_are_explicit() {
     for peer in 2..=4 {
         session
             .register_peer(CallerId::new(peer), CoopPeerRole::Ally, 10)
-            .expect("ally registers");
+            .map_err(|error| format!("{error:?}"))?;
     }
     assert_eq!(
         session.register_peer(CallerId::new(5), CoopPeerRole::Ally, 10),
         Err(CoopSessionError::PeerCapacity)
     );
+    Ok(())
 }

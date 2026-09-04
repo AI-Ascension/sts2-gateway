@@ -35,12 +35,12 @@ impl ProcessPort for FakeProcessPort {
 }
 
 #[test]
-fn capacity_and_ownership_are_enforced_before_process_port_calls() {
-    let config = ProcessSupervisorConfig::try_new(1).expect("valid process supervisor config");
+fn capacity_and_ownership_are_enforced_before_process_port_calls() -> Result<(), String> {
+    let config = ProcessSupervisorConfig::try_new(1).map_err(|error| format!("{error:?}"))?;
     let mut supervisor = ProcessSupervisor::new(config, FakeProcessPort::default());
     supervisor
         .start(InstanceId::new(1))
-        .expect("first process starts");
+        .map_err(|error| format!("{error:?}"))?;
     assert_eq!(
         supervisor.start(InstanceId::new(2)),
         Err(ProcessSupervisorError::CapacityExceeded)
@@ -55,9 +55,10 @@ fn capacity_and_ownership_are_enforced_before_process_port_calls() {
     );
     supervisor
         .stop(InstanceId::new(1), StopMode::Force)
-        .expect("owned process stops");
+        .map_err(|error| format!("{error:?}"))?;
     assert_eq!(
         supervisor.inspect(InstanceId::new(1)),
         Err(ProcessSupervisorError::NotOwned)
     );
+    Ok(())
 }
