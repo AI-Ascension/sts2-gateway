@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 
 use std::collections::BTreeMap;
-use std::net::{TcpStream, ToSocketAddrs};
-use std::time::Duration;
+use std::net::{SocketAddr, TcpStream};
+use std::time::{Duration, Instant};
 
 use serde_json::from_slice;
 use sts2_gateway::{
@@ -16,8 +16,7 @@ const ACTION_PATH: &str = "/api/v2/runtime/action";
 const STATE_PATH: &str = "/api/v2/runtime/state";
 const OPERATIONS_PATH: &str = "/api/v2/runtime/operations/";
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(2);
-const READ_TIMEOUT: Duration = Duration::from_secs(5);
-const WRITE_TIMEOUT: Duration = Duration::from_secs(5);
+const EXCHANGE_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// HTTP forwarding implementation for the authenticated Runtime-v2 mod boundary.
 ///
@@ -72,19 +71,15 @@ impl HttpRuntimeV2Forwarder {
         message: &RuntimeV2Message,
         include_body: bool,
     ) -> Result<HttpResponse, RuntimeV2TransportFault> {
+        let expires = Instant::now() + EXCHANGE_TIMEOUT;
         let address = self
             .mod_address
-            .to_socket_addrs()
-            .map_err(|_| RuntimeV2TransportFault::UnavailableBeforeWrite)?
-            .next()
-            .ok_or(RuntimeV2TransportFault::UnavailableBeforeWrite)?;
+            .parse::<SocketAddr>()
+            .map_err(|_| RuntimeV2TransportFault::UnavailableBeforeWrite)?;
+        if !address.ip().is_loopback() {
+            return Err(RuntimeV2TransportFault::UnavailableBeforeWrite);
+        }
         let mut stream = TcpStream::connect_timeout(&address, CONNECT_TIMEOUT)
-            .map_err(|_| RuntimeV2TransportFault::UnavailableBeforeWrite)?;
-        stream
-            .set_read_timeout(Some(READ_TIMEOUT))
-            .map_err(|_| RuntimeV2TransportFault::UnavailableBeforeWrite)?;
-        stream
-            .set_write_timeout(Some(WRITE_TIMEOUT))
             .map_err(|_| RuntimeV2TransportFault::UnavailableBeforeWrite)?;
 
         let body = if include_body {
@@ -93,9 +88,9 @@ impl HttpRuntimeV2Forwarder {
             Vec::new()
         };
         let headers = self.headers(message, body.len(), include_body);
-        write_request(&mut stream, method, path, &headers, &body)
+        write_request(&mut stream, method, path, &headers, &body, expires)
             .map_err(|_| RuntimeV2TransportFault::DisconnectedAfterWrite)?;
-        read_response(&mut stream).map_err(map_read_error)
+        read_response(&mut stream, expires).map_err(map_read_error)
     }
 
     fn headers(

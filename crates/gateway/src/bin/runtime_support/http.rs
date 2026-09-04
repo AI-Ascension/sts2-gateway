@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: MIT
 
 use std::collections::BTreeMap;
-use std::io::{Read, Write};
 use std::net::TcpStream;
+use std::time::Instant;
+
+#[path = "http_deadline.rs"]
+mod deadline;
 
 pub(crate) const MAX_HEADER_BYTES: usize = 8 * 1024;
 pub(crate) const MAX_BODY_BYTES: usize = 16 * 1024;
@@ -35,16 +38,23 @@ pub(crate) enum ReadError {
 }
 
 pub(crate) fn read_request(stream: &mut TcpStream) -> Result<HttpRequest, u16> {
+    read_request_until(stream, Instant::now() + deadline::MESSAGE_TIMEOUT)
+}
+
+fn read_request_until(stream: &mut TcpStream, expires: Instant) -> Result<HttpRequest, u16> {
     let mut bytes = Vec::with_capacity(MAX_HEADER_BYTES);
     let mut buffer = [0_u8; 2048];
     let header_end = loop {
         if let Some(end) = find_header_end(&bytes) {
+            if end + 4 > MAX_HEADER_BYTES {
+                return Err(413);
+            }
             break end;
         }
         if bytes.len() >= MAX_HEADER_BYTES {
             return Err(413);
         }
-        let read = stream.read(&mut buffer).map_err(|_| 400_u16)?;
+        let read = deadline::read(stream, &mut buffer, expires).map_err(request_io_status)?;
         if read == 0 {
             return Err(400);
         }
@@ -70,7 +80,10 @@ pub(crate) fn read_request(stream: &mut TcpStream) -> Result<HttpRequest, u16> {
         let Some((name, value)) = line.split_once(':') else {
             return Err(400);
         };
-        let name = name.trim().to_ascii_lowercase();
+        if !valid_header(name, value) {
+            return Err(400);
+        }
+        let name = name.to_ascii_lowercase();
         let value = value.trim();
         if name.is_empty()
             || value.len() > MAX_HEADER_BYTES
@@ -79,8 +92,11 @@ pub(crate) fn read_request(stream: &mut TcpStream) -> Result<HttpRequest, u16> {
             return Err(400);
         }
     }
+    if headers.contains_key("transfer-encoding") {
+        return Err(400);
+    }
     let content_length = match headers.get("content-length") {
-        Some(value) => value.parse::<usize>().map_err(|_| 400_u16)?,
+        Some(value) => parse_length(value).ok_or(400_u16)?,
         None => 0,
     };
     if content_length > MAX_BODY_BYTES {
@@ -95,9 +111,8 @@ pub(crate) fn read_request(stream: &mut TcpStream) -> Result<HttpRequest, u16> {
     while body.len() < content_length {
         let remaining = content_length - body.len();
         let read_capacity = remaining.min(buffer.len());
-        let read = stream
-            .read(&mut buffer[..read_capacity])
-            .map_err(|_| 400_u16)?;
+        let read = deadline::read(stream, &mut buffer[..read_capacity], expires)
+            .map_err(request_io_status)?;
         if read == 0 {
             return Err(400);
         }
@@ -111,17 +126,23 @@ pub(crate) fn read_request(stream: &mut TcpStream) -> Result<HttpRequest, u16> {
     })
 }
 
-pub(crate) fn read_response(stream: &mut TcpStream) -> Result<HttpResponse, ReadError> {
+pub(crate) fn read_response(
+    stream: &mut TcpStream,
+    expires: Instant,
+) -> Result<HttpResponse, ReadError> {
     let mut bytes = Vec::new();
     let mut buffer = [0_u8; 2048];
     let header_end = loop {
         if let Some(end) = find_header_end(&bytes) {
+            if end + 4 > MAX_HEADER_BYTES {
+                return Err(ReadError::Oversized);
+            }
             break end;
         }
         if bytes.len() >= MAX_HEADER_BYTES {
             return Err(ReadError::Oversized);
         }
-        let read = stream.read(&mut buffer).map_err(classify_io)?;
+        let read = deadline::read(stream, &mut buffer, expires).map_err(classify_io)?;
         if read == 0 {
             return Err(ReadError::Malformed);
         }
@@ -139,21 +160,22 @@ pub(crate) fn read_response(stream: &mut TcpStream) -> Result<HttpResponse, Read
         .ok_or(ReadError::Malformed)?
         .parse::<u16>()
         .map_err(|_| ReadError::Malformed)?;
+    if !(100..=599).contains(&status) {
+        return Err(ReadError::Malformed);
+    }
     let mut content_length = None;
     for line in lines {
         let Some((name, value)) = line.split_once(':') else {
             return Err(ReadError::Malformed);
         };
+        if !valid_header(name, value) || name.eq_ignore_ascii_case("transfer-encoding") {
+            return Err(ReadError::Malformed);
+        }
         if name.eq_ignore_ascii_case("content-length") {
             if content_length.is_some() {
                 return Err(ReadError::Malformed);
             }
-            content_length = Some(
-                value
-                    .trim()
-                    .parse::<usize>()
-                    .map_err(|_| ReadError::Malformed)?,
-            );
+            content_length = Some(parse_length(value.trim()).ok_or(ReadError::Malformed)?);
         }
     }
     let content_length = content_length.ok_or(ReadError::Malformed)?;
@@ -169,9 +191,8 @@ pub(crate) fn read_response(stream: &mut TcpStream) -> Result<HttpResponse, Read
     while body.len() < content_length {
         let remaining = content_length - body.len();
         let read_capacity = remaining.min(buffer.len());
-        let read = stream
-            .read(&mut buffer[..read_capacity])
-            .map_err(classify_io)?;
+        let read =
+            deadline::read(stream, &mut buffer[..read_capacity], expires).map_err(classify_io)?;
         if read == 0 {
             return Err(ReadError::Malformed);
         }
@@ -186,6 +207,7 @@ pub(crate) fn write_request(
     path: &str,
     headers: &BTreeMap<String, String>,
     body: &[u8],
+    expires: Instant,
 ) -> std::io::Result<()> {
     let mut request = format!("{method} {path} HTTP/1.1\r\n");
     for (name, value) in headers {
@@ -195,8 +217,8 @@ pub(crate) fn write_request(
         request.push_str("\r\n");
     }
     request.push_str("Connection: close\r\n\r\n");
-    stream.write_all(request.as_bytes())?;
-    stream.write_all(body)
+    deadline::write(stream, request.as_bytes(), expires)?;
+    deadline::write(stream, body, expires)
 }
 
 pub(crate) fn write_response(
@@ -204,9 +226,10 @@ pub(crate) fn write_response(
     status: u16,
     body: &[u8],
 ) -> std::io::Result<()> {
+    let expires = Instant::now() + deadline::MESSAGE_TIMEOUT;
     let header = response_header(status, body.len());
-    stream.write_all(header.as_bytes())?;
-    stream.write_all(body)
+    deadline::write(stream, header.as_bytes(), expires)?;
+    deadline::write(stream, body, expires)
 }
 
 fn response_header(status: u16, body_len: usize) -> String {
@@ -217,6 +240,7 @@ fn response_header(status: u16, body_len: usize) -> String {
         401 => "Unauthorized",
         403 => "Forbidden",
         404 => "Not Found",
+        408 => "Request Timeout",
         409 => "Conflict",
         413 => "Payload Too Large",
         429 => "Too Many Requests",
@@ -235,6 +259,30 @@ fn response_header(status: u16, body_len: usize) -> String {
     )
 }
 
+fn valid_header(name: &str, value: &str) -> bool {
+    !name.is_empty()
+        && name
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || b"!#$%&'*+-.^_`|~".contains(&byte))
+        && value
+            .bytes()
+            .all(|byte| byte == b'\t' || (32..=126).contains(&byte))
+}
+
+fn parse_length(value: &str) -> Option<usize> {
+    (!value.is_empty() && value.bytes().all(|byte| byte.is_ascii_digit()))
+        .then(|| value.parse().ok())
+        .flatten()
+}
+
+fn request_io_status(error: std::io::Error) -> u16 {
+    if classify_io(error) == ReadError::Timeout {
+        408
+    } else {
+        400
+    }
+}
+
 fn classify_io(error: std::io::Error) -> ReadError {
     if matches!(
         error.kind(),
@@ -251,20 +299,5 @@ fn find_header_end(bytes: &[u8]) -> Option<usize> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{find_header_end, response_header};
-
-    #[test]
-    fn detects_only_crlf_header_termination() {
-        assert_eq!(find_header_end(b"GET / HTTP/1.1\r\n\r\nbody"), Some(14));
-        assert_eq!(find_header_end(b"GET / HTTP/1.1\n\n"), None);
-    }
-
-    #[test]
-    fn overload_responses_include_bounded_retry_guidance() {
-        let header = response_header(429, 17);
-        assert!(header.contains("Retry-After: 1\r\n"));
-        assert!(header.contains("Content-Length: 17\r\n"));
-        assert!(!response_header(503, 17).contains("Retry-After:"));
-    }
-}
+#[path = "http_tests.rs"]
+mod tests;

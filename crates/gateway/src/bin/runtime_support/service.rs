@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 
 use std::collections::BTreeMap;
-use std::net::{SocketAddr, TcpListener, TcpStream, ToSocketAddrs};
+use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -641,13 +641,12 @@ impl RuntimeService {
         body: &[u8],
         correlation: Option<&str>,
     ) -> Result<HttpResponse, u16> {
+        let expires = Instant::now() + Duration::from_secs(5);
         let address = self
             .config
             .mod_address
-            .to_socket_addrs()
-            .map_err(|_| 503_u16)?
-            .next()
-            .ok_or(503_u16)?;
+            .parse::<SocketAddr>()
+            .map_err(|_| 503_u16)?;
         let mut stream =
             TcpStream::connect_timeout(&address, Duration::from_secs(2)).map_err(|_| 503_u16)?;
         stream
@@ -695,8 +694,8 @@ impl RuntimeService {
                 correlation.to_owned(),
             );
         }
-        write_request(&mut stream, method, path, &headers, body).map_err(|_| 503_u16)?;
-        read_response(&mut stream).map_err(read_error_status)
+        write_request(&mut stream, method, path, &headers, body, expires).map_err(|_| 503_u16)?;
+        read_response(&mut stream, expires).map_err(read_error_status)
     }
 }
 
@@ -716,13 +715,16 @@ fn run_worker(
         }
         if service.shutdown_requested {
             admission_open.store(false, Ordering::Release);
-            while let Ok(queued) = receiver.try_recv() {
+            // Wake admission before draining. A listener may still be parsing a
+            // request; retain the receiver until that producer has exited so a
+            // concurrent successful enqueue always receives cancellation.
+            wake_listener(listener_address);
+            while let Ok(queued) = receiver.recv() {
                 service.metrics.work_cancelled_on_shutdown();
                 if let Err(error) = service.cancel_queued_request(queued.stream) {
                     eprintln!("gateway shutdown cancellation failed: {error}");
                 }
             }
-            wake_listener(listener_address);
             return Ok(());
         }
     }
@@ -739,6 +741,9 @@ fn accept_requests(
     metrics: RuntimeMetrics,
 ) -> Result<(), String> {
     loop {
+        if !admission_open.load(Ordering::Acquire) {
+            break;
+        }
         let (mut stream, _) = listener
             .accept()
             .map_err(|error| format!("gateway accept failed: {error}"))?;
@@ -770,9 +775,22 @@ fn accept_requests(
             continue;
         }
         let queued = QueuedRequest { stream, request };
+        if !admission_open.load(Ordering::Acquire) {
+            let mut stream = queued.stream;
+            let _ = write_response(
+                &mut stream,
+                503,
+                &json_error("runtime_v2_shutdown_admission_closed"),
+            );
+            break;
+        }
+        // Publish accounting before the receiver can consume the request.
+        // Failed nonblocking sends roll back their reservation.
+        metrics.queue_admitted();
         match sender.try_send(queued) {
-            Ok(()) => metrics.queue_admitted(),
+            Ok(()) => {}
             Err(TrySendError::Full(queued)) => {
+                metrics.queue_admission_reverted();
                 metrics.queue_rejected();
                 let mut stream = queued.stream;
                 let _ = write_response(
@@ -782,6 +800,7 @@ fn accept_requests(
                 );
             }
             Err(TrySendError::Disconnected(queued)) => {
+                metrics.queue_admission_reverted();
                 let mut stream = queued.stream;
                 let _ = write_response(
                     &mut stream,
@@ -846,6 +865,8 @@ impl RuntimeConfig {
     fn from_environment() -> Result<Self, String> {
         let listen_address = env_or_default("STS2_GATEWAY_ADDR", DEFAULT_LISTEN_ADDRESS)?;
         let mod_address = env_or_default("STS2_MOD_ADDR", DEFAULT_MOD_ADDRESS)?;
+        validate_loopback_address("STS2_GATEWAY_ADDR", &listen_address)?;
+        validate_loopback_address("STS2_MOD_ADDR", &mod_address)?;
         let auth_policy = AuthPolicy::from_environment()?;
         let mod_token = required("STS2_MOD_TOKEN")?;
         let instance_id = env_or_default("STS2_INSTANCE_ID", "instance-1")?;
@@ -904,6 +925,18 @@ impl RuntimeConfig {
 
 fn required(name: &str) -> Result<String, String> {
     std::env::var(name).map_err(|_| format!("{name} is required"))
+}
+
+fn validate_loopback_address(name: &str, value: &str) -> Result<(), String> {
+    let address = value
+        .parse::<SocketAddr>()
+        .map_err(|_| format!("{name} must be a numeric loopback IP:port endpoint"))?;
+    if !address.ip().is_loopback() {
+        return Err(format!(
+            "{name} must be a numeric loopback IP:port endpoint"
+        ));
+    }
+    Ok(())
 }
 
 fn env_or_default(name: &str, default: &str) -> Result<String, String> {
@@ -1328,6 +1361,24 @@ mod tests {
     }
 
     #[test]
+    fn runtime_endpoints_are_numeric_loopback_addresses() {
+        for address in ["127.0.0.1:15525", "127.0.0.2:15526", "[::1]:15525"] {
+            assert!(super::validate_loopback_address("endpoint", address).is_ok());
+        }
+        for address in [
+            "0.0.0.0:15525",
+            "[::]:15525",
+            "192.0.2.1:15525",
+            "localhost:15525",
+            "example.com:80",
+            "127.0.0.1",
+            "127.0.0.1:99999",
+        ] {
+            assert!(super::validate_loopback_address("endpoint", address).is_err());
+        }
+    }
+
+    #[test]
     fn operation_overload_is_typed_and_retryable() -> Result<(), String> {
         let (status, body) =
             super::runtime_v2_error(sts2_gateway::RuntimeV2LedgerError::CapacityExceeded);
@@ -1476,6 +1527,89 @@ mod tests {
         assert_eq!(value["status"], "shutdown_requested");
         assert!(service.shutdown_requested);
         assert!(!service.lease_active);
+        Ok(())
+    }
+
+    #[test]
+    fn shutdown_drains_requests_until_admission_producer_exits() -> Result<(), String> {
+        use std::net::{TcpListener, TcpStream};
+        use std::sync::atomic::AtomicBool;
+        use std::sync::{Arc, mpsc};
+        use std::time::Duration;
+
+        let service = test_service()?;
+        let metrics = service.metrics.clone();
+        let listener = TcpListener::bind("127.0.0.1:0").map_err(|e| e.to_string())?;
+        let address = listener.local_addr().map_err(|e| e.to_string())?;
+        let (sender, receiver) = mpsc::sync_channel(2);
+        let (finished_sender, finished_receiver) = mpsc::sync_channel(1);
+        let worker = std::thread::spawn(move || {
+            let result =
+                super::run_worker(service, receiver, Arc::new(AtomicBool::new(true)), address);
+            let _ = finished_sender.send(result);
+        });
+        let mut shutdown_client = TcpStream::connect(address).map_err(|e| e.to_string())?;
+        shutdown_client
+            .set_read_timeout(Some(Duration::from_secs(2)))
+            .map_err(|e| e.to_string())?;
+        let (shutdown_stream, _) = listener.accept().map_err(|e| e.to_string())?;
+        let mut request = authenticated_request("/v2/instances/instance-1/shutdown");
+        request.method = String::from("POST");
+        metrics.queue_admitted();
+        sender
+            .send(super::QueuedRequest {
+                stream: shutdown_stream,
+                request,
+            })
+            .map_err(|e| e.to_string())?;
+        assert_eq!(
+            super::read_response(
+                &mut shutdown_client,
+                super::Instant::now() + Duration::from_secs(2)
+            )
+            .map_err(|e| format!("{e:?}"))?
+            .status,
+            202
+        );
+        assert!(matches!(
+            finished_receiver.recv_timeout(Duration::from_millis(30)),
+            Err(mpsc::RecvTimeoutError::Timeout)
+        ));
+        // Admission was already reading this connection when shutdown began.
+        let late_listener = TcpListener::bind("127.0.0.1:0").map_err(|e| e.to_string())?;
+        let mut late_client =
+            TcpStream::connect(late_listener.local_addr().map_err(|e| e.to_string())?)
+                .map_err(|e| e.to_string())?;
+        late_client
+            .set_read_timeout(Some(Duration::from_secs(2)))
+            .map_err(|e| e.to_string())?;
+        let (late_stream, _) = late_listener.accept().map_err(|e| e.to_string())?;
+        metrics.queue_admitted();
+        sender
+            .send(super::QueuedRequest {
+                stream: late_stream,
+                request: authenticated_request("/v2/instances/instance-1/metrics"),
+            })
+            .map_err(|e| e.to_string())?;
+        drop(sender);
+        assert_eq!(
+            super::read_response(
+                &mut late_client,
+                super::Instant::now() + Duration::from_secs(2)
+            )
+            .map_err(|e| format!("{e:?}"))?
+            .status,
+            503
+        );
+        finished_receiver
+            .recv_timeout(Duration::from_secs(2))
+            .map_err(|e| e.to_string())??;
+        worker.join().map_err(|_| String::from("worker panicked"))?;
+        assert_eq!(
+            metrics.snapshot("instance-1", 2)["cancelled_on_shutdown"],
+            1
+        );
+        assert_eq!(metrics.snapshot("instance-1", 2)["queue_depth"], 0);
         Ok(())
     }
 }

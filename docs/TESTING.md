@@ -102,9 +102,9 @@ disposable fixture status, sanitized logs, and cleanup result.
 
 The standalone runtime binary has bounded HTTP parser tests and builds with the pinned Rust
 toolchain. Its v1 lane can run against a disposable synthetic downstream. Runtime-v2 route parsing,
-envelope validation, ledger calls, and error mapping are source/build checked; the v2 forwarding
-seam intentionally has no live host adapter. A controlled v2 component lane and host mutation trace
-are unverified and require a separately authorized downstream contract.
+envelope validation, ledger calls, error mapping, and fixed TCP forwarding are exercised against
+synthetic peers. This is not a live host adapter test; host mutation and settlement remain unverified
+and require a separately authorized downstream contract and disposable host environment.
 
 The authorized exact-host lane now confirms the managed mod listener, downstream forwarding,
 lease fencing, a Godot main-thread callback, the bounded STS2 host effect, and reversible disposable

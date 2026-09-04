@@ -7,10 +7,11 @@ runtime or downstream wire contract.
 
 ### Fixed
 
-- Failed generic process starts no longer consume an unreachable allocation slot; consumed instance
-  and lease identities remain unique. Clarified the process port's partial-start cleanup ownership.
-- Expiry reconciliation reports forced-stop failures instead of claiming successful expiration,
-  preserving the process handle and revoked lease for explicit cleanup retry.
+- Enforce numeric loopback endpoints, absolute bounded HTTP I/O, unambiguous HTTP framing, and
+  connection-owned shutdown cancellation; reserve queue metrics before publishing work.
+- Keep earlier Runtime-v3 accepted/unknown operations reconcilable, rebind per-attempt correlation,
+  compare canonical operation payloads, and reject regressed observations or invalid settlements.
+
 - Preserve the newest Runtime-v2 observation when reconciling an older operation receipt; reject
   regressed state refresh and inconsistent persisted result generations. Accepted and unknown
   operations retain historical settled receipts without rewinding fresh-action admission.

@@ -76,6 +76,12 @@ test; use `source-derived`, `inferred`, `proposed`, or `unverified` precisely.
 
 ## Runtime adapter row
 
+Endpoint configuration now enforces numeric loopback socket addresses (`127.0.0.1:port` or
+`[::1]:port`). Previously accepted DNS names, wildcard binds, and remote addresses must be migrated
+to an explicit numeric loopback endpoint; this enforces the documented local-only trust boundary.
+The earlier Runtime-v3 gameplay contract on this branch is distinct from protocol PR #8 and gateway
+PR #7 despite sharing a version label. The two proposals cannot be merged as compatible wire formats.
+
 | Adapter | Downstream | Current evidence | Result |
 | --- | --- | --- | --- |
 | `sts2-gateway-runtime` | Attached loopback runtime-v1 listener | Rust gates, synthetic TCP lane, and authorized exact-host trace | Attached forwarding and lease path confirmed for STS2 v0.107.1 Windows x86-64; general lifecycle and gameplay unverified |

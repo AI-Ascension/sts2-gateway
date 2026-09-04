@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 
 use std::collections::BTreeMap;
-use std::net::{TcpStream, ToSocketAddrs};
-use std::time::Duration;
+use std::net::{SocketAddr, TcpStream};
+use std::time::{Duration, Instant};
 
 use super::super::http::{
     HttpResponse, MAX_RESPONSE_BYTES, ReadError, read_response, write_request,
@@ -12,8 +12,7 @@ const STATE_PATH: &str = "/api/v3/runtime/state";
 const ACTION_PATH: &str = "/api/v3/runtime/action";
 const OPERATIONS_PATH: &str = "/api/v3/runtime/operations/";
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(2);
-const READ_TIMEOUT: Duration = Duration::from_secs(5);
-const WRITE_TIMEOUT: Duration = Duration::from_secs(5);
+const EXCHANGE_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum RuntimeV3GameplayTransportError {
@@ -86,19 +85,15 @@ impl HttpRuntimeV3GameplayForwarder {
         correlation_id: &str,
         body: &[u8],
     ) -> Result<HttpResponse, RuntimeV3GameplayTransportError> {
+        let expires = Instant::now() + EXCHANGE_TIMEOUT;
         let address = self
             .mod_address
-            .to_socket_addrs()
-            .map_err(|_| RuntimeV3GameplayTransportError::Unavailable)?
-            .next()
-            .ok_or(RuntimeV3GameplayTransportError::Unavailable)?;
+            .parse::<SocketAddr>()
+            .map_err(|_| RuntimeV3GameplayTransportError::Unavailable)?;
+        if !address.ip().is_loopback() {
+            return Err(RuntimeV3GameplayTransportError::Unavailable);
+        }
         let mut stream = TcpStream::connect_timeout(&address, CONNECT_TIMEOUT)
-            .map_err(|_| RuntimeV3GameplayTransportError::Unavailable)?;
-        stream
-            .set_read_timeout(Some(READ_TIMEOUT))
-            .map_err(|_| RuntimeV3GameplayTransportError::Unavailable)?;
-        stream
-            .set_write_timeout(Some(WRITE_TIMEOUT))
             .map_err(|_| RuntimeV3GameplayTransportError::Unavailable)?;
         let headers = BTreeMap::from([
             (
@@ -124,9 +119,9 @@ impl HttpRuntimeV3GameplayForwarder {
                 correlation_id.to_owned(),
             ),
         ]);
-        write_request(&mut stream, method, path, &headers, body)
+        write_request(&mut stream, method, path, &headers, body, expires)
             .map_err(|_| RuntimeV3GameplayTransportError::Uncertain)?;
-        read_response(&mut stream).map_err(map_read_error)
+        read_response(&mut stream, expires).map_err(map_read_error)
     }
 }
 

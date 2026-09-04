@@ -55,6 +55,11 @@ impl RuntimeMetrics {
         self.inner.queue_rejected.fetch_add(1, Ordering::Relaxed);
     }
 
+    pub(crate) fn queue_admission_reverted(&self) {
+        self.inner.queued.fetch_sub(1, Ordering::Relaxed);
+        self.inner.requests_admitted.fetch_sub(1, Ordering::Relaxed);
+    }
+
     pub(crate) fn work_started(&self) {
         self.inner.queued.fetch_sub(1, Ordering::Relaxed);
         self.inner.active.fetch_add(1, Ordering::Relaxed);
@@ -130,6 +135,19 @@ mod tests {
     use std::time::Duration;
 
     use super::RuntimeMetrics;
+
+    #[test]
+    fn admission_is_accounted_before_worker_and_reverted_on_failed_send() {
+        let metrics = RuntimeMetrics::default();
+        metrics.queue_admitted();
+        metrics.work_started();
+        assert_eq!(metrics.snapshot("instance-1", 1)["queue_depth"], 0);
+        metrics.queue_admitted();
+        metrics.queue_admission_reverted();
+        let snapshot = metrics.snapshot("instance-1", 1);
+        assert_eq!(snapshot["queue_depth"], 0);
+        assert_eq!(snapshot["requests_admitted"], 1);
+    }
 
     #[test]
     fn snapshot_tracks_queue_and_shutdown_transitions() {

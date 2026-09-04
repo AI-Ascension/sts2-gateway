@@ -50,6 +50,7 @@ const WITNESS_FIELDS: &[&str] = &["kind", "generation", "card_index", "target_id
 
 #[derive(Clone, Debug)]
 pub(crate) struct ParsedAction {
+    pub(crate) canonical_body: Vec<u8>,
     pub(crate) operation_id: String,
     pub(crate) generation: u64,
     pub(crate) card_index: u16,
@@ -64,8 +65,7 @@ pub(crate) fn parse_action_request(
     lease_epoch: u64,
     correlation_id: &str,
 ) -> Result<ParsedAction, &'static str> {
-    let root =
-        serde_json::from_slice::<Value>(body).map_err(|_| "runtime_v3_gameplay_request_invalid")?;
+    let root = super::wire::decode(body).map_err(|_| "runtime_v3_gameplay_request_invalid")?;
     let object = object(&root, TOP_LEVEL_FIELDS)?;
     validate_base(
         object,
@@ -99,6 +99,7 @@ pub(crate) fn parse_action_request(
     )? as u16;
     let target_id = optional_identity(action.get("target_id"))?;
     Ok(ParsedAction {
+        canonical_body: super::wire::canonical(&root)?,
         operation_id,
         generation: bounded_u64(object.get("generation"), RUNTIME_V3_GAMEPLAY_MAX_GENERATION)?,
         card_index,
@@ -114,8 +115,7 @@ pub(crate) fn validate_state_response(
     lease_epoch: u64,
     correlation_id: &str,
 ) -> Result<u64, &'static str> {
-    let root = serde_json::from_slice::<Value>(body)
-        .map_err(|_| "runtime_v3_gameplay_response_invalid")?;
+    let root = super::wire::decode(body).map_err(|_| "runtime_v3_gameplay_response_invalid")?;
     let object = object(&root, TOP_LEVEL_FIELDS)?;
     validate_base(
         object,
@@ -161,8 +161,7 @@ pub(crate) fn validate_result_response(
     expected_operation_id: &str,
     expected_action: &ParsedAction,
 ) -> Result<u64, &'static str> {
-    let root = serde_json::from_slice::<Value>(body)
-        .map_err(|_| "runtime_v3_gameplay_response_invalid")?;
+    let root = super::wire::decode(body).map_err(|_| "runtime_v3_gameplay_response_invalid")?;
     let object = object(&root, TOP_LEVEL_FIELDS)?;
     let kind = object
         .get("kind")
@@ -214,7 +213,7 @@ pub(crate) fn validate_result_response(
         }
         "settled" => {
             validate_observation(observation.ok_or("runtime_v3_gameplay_result_invalid")?)?;
-            if !is_null(error_code) {
+            if !is_null(error_code) || generation <= expected_action.generation {
                 return Err("runtime_v3_gameplay_result_invalid");
             }
             validate_witness(witness, expected_action, generation)?;

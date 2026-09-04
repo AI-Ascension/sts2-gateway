@@ -2,8 +2,13 @@
 
 #[path = "runtime_v3_gameplay_forwarder.rs"]
 mod forwarder;
+#[cfg(test)]
+#[path = "runtime_v3_gameplay_tests.rs"]
+mod tests;
 #[path = "runtime_v3_gameplay_validation.rs"]
 mod validation;
+#[path = "runtime_v3_gameplay_wire.rs"]
+mod wire;
 
 use std::collections::BTreeMap;
 
@@ -102,11 +107,11 @@ impl RuntimeV3GameplayProxy {
                     lease_epoch,
                     correlation_id,
                 ) {
-                    Ok(generation) => {
+                    Ok(generation) if generation >= self.generation => {
                         self.generation = self.generation.max(generation);
                         (200, response.body)
                     }
-                    Err(_) => (502, json_error("runtime_v3_downstream_response_invalid")),
+                    _ => (502, json_error("runtime_v3_downstream_response_invalid")),
                 }
             }
             Ok(_) => (502, json_error("runtime_v3_downstream_response_oversized")),
@@ -140,10 +145,10 @@ impl RuntimeV3GameplayProxy {
             Err(code) => return (400, json_error(code)),
         };
         if let Some(operation) = self.operations.get(&parsed.operation_id) {
-            return if operation.request_body == request.body {
+            return if operation.request_body == parsed.canonical_body {
                 operation.response.as_ref().map_or_else(
                     || (503, json_error("runtime_v3_operation_in_progress")),
-                    stored_response_bytes,
+                    |response| stored_response_bytes(response, correlation_id),
                 )
             } else {
                 (409, json_error("runtime_v3_idempotency_conflict"))
@@ -159,7 +164,7 @@ impl RuntimeV3GameplayProxy {
         self.operations.insert(
             operation_id.clone(),
             RuntimeV3GameplayOperation {
-                request_body: request.body.clone(),
+                request_body: parsed.canonical_body.clone(),
                 action: parsed.clone(),
                 response: None,
             },
@@ -191,8 +196,12 @@ impl RuntimeV3GameplayProxy {
         let Some(operation) = self.operations.get(operation_id) else {
             return (404, json_error("runtime_v3_operation_not_found"));
         };
-        if let Some(stored_response) = operation.response.as_ref() {
-            return stored_response_bytes(stored_response);
+        if let Some(stored_response) = operation
+            .response
+            .as_ref()
+            .filter(|response| wire::terminal(&response.body))
+        {
+            return stored_response_bytes(stored_response, correlation_id);
         }
         let action = operation.action.clone();
         let response = self
@@ -222,7 +231,7 @@ impl RuntimeV3GameplayProxy {
                 if let Some(operation) = self.operations.get_mut(operation_id) {
                     operation.response = Some(stored.clone());
                 }
-                stored_response_bytes(&stored)
+                stored_response_bytes(&stored, correlation_id)
             }
             Ok(_) => (502, json_error("runtime_v3_downstream_response_oversized")),
             Err(error) => transport_error(error),
@@ -249,6 +258,10 @@ impl RuntimeV3GameplayProxy {
         };
         let response = match response {
             Ok(response) => response,
+            Err(RuntimeV3GameplayTransportError::Unavailable) => {
+                self.operations.remove(operation_id);
+                return transport_error(RuntimeV3GameplayTransportError::Unavailable);
+            }
             Err(error) => return transport_error(error),
         };
         if !response_body_is_bounded(&response) {
@@ -276,12 +289,15 @@ impl RuntimeV3GameplayProxy {
         if let Some(operation) = self.operations.get_mut(operation_id) {
             operation.response = Some(stored.clone());
         }
-        stored_response_bytes(&stored)
+        stored_response_bytes(&stored, correlation_id)
     }
 }
 
-fn stored_response_bytes(response: &StoredResponse) -> (u16, Vec<u8>) {
-    (response.status, response.body.clone())
+fn stored_response_bytes(response: &StoredResponse, correlation_id: &str) -> (u16, Vec<u8>) {
+    match wire::rebind(&response.body, correlation_id) {
+        Ok(body) => (response.status, body),
+        Err(_) => (502, json_error("runtime_v3_downstream_response_invalid")),
+    }
 }
 
 fn generation(body: &[u8]) -> u64 {
