@@ -166,10 +166,12 @@ mod tests {
     }
 
     #[test]
-    fn owns_bounded_handles_and_releases_only_after_stop() {
-        let config = ProcessSupervisorConfig::try_new(1).expect("valid config");
+    fn owns_bounded_handles_and_releases_only_after_stop() -> Result<(), String> {
+        let config = ProcessSupervisorConfig::try_new(1).map_err(|error| format!("{error:?}"))?;
         let mut supervisor = ProcessSupervisor::new(config, FakeProcess::default());
-        let first = supervisor.start(InstanceId::new(1)).expect("first process");
+        let first = supervisor
+            .start(InstanceId::new(1))
+            .map_err(|error| format!("{error:?}"))?;
         assert_eq!(supervisor.process_handle(InstanceId::new(1)), Some(first));
         assert_eq!(
             supervisor.start(InstanceId::new(2)),
@@ -177,7 +179,8 @@ mod tests {
         );
         supervisor
             .stop(InstanceId::new(1), StopMode::Graceful)
-            .expect("stop process");
+            .map_err(|error| format!("{error:?}"))?;
         assert_eq!(supervisor.owned_count(), 0);
+        Ok(())
     }
 }
