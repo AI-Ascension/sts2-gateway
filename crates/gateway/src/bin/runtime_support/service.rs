@@ -13,8 +13,7 @@ use sts2_gateway::{
 
 use super::http::{
     HttpRequest, HttpResponse, MAX_BODY_BYTES, MAX_RESPONSE_BYTES, ReadError, read_request,
-    read_response,
-    write_request, write_response,
+    read_response, write_request, write_response,
 };
 use super::runtime_v3_gameplay::RuntimeV3GameplayRoute;
 use super::runtime_v3_gameplay_forwarder::{
@@ -159,7 +158,10 @@ impl RuntimeService {
             return error;
         }
         if let Err(error) = self.runtime_v3.validate_request(route, &request.body) {
-            return (runtime_v3_request_status(error), json_error(runtime_v3_error_code(error)));
+            return (
+                runtime_v3_request_status(error),
+                json_error(runtime_v3_error_code(error)),
+            );
         }
         let correlation = request
             .headers

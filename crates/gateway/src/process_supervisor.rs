@@ -12,7 +12,9 @@ pub struct ProcessSupervisorConfig {
 
 impl ProcessSupervisorConfig {
     pub const fn new(max_owned_processes: usize) -> Self {
-        Self { max_owned_processes }
+        Self {
+            max_owned_processes,
+        }
     }
 
     pub const fn try_new(max_owned_processes: usize) -> Result<Self, ProcessSupervisorConfigError> {
@@ -61,7 +63,10 @@ impl<P: ProcessPort> ProcessSupervisor<P> {
         }
     }
 
-    pub fn start(&mut self, instance_id: InstanceId) -> Result<ProcessHandle, ProcessSupervisorError> {
+    pub fn start(
+        &mut self,
+        instance_id: InstanceId,
+    ) -> Result<ProcessHandle, ProcessSupervisorError> {
         if self.owned.contains_key(&instance_id) {
             return Err(ProcessSupervisorError::AlreadyOwned);
         }
@@ -76,7 +81,10 @@ impl<P: ProcessPort> ProcessSupervisor<P> {
         Ok(handle)
     }
 
-    pub fn inspect(&mut self, instance_id: InstanceId) -> Result<ProcessState, ProcessSupervisorError> {
+    pub fn inspect(
+        &mut self,
+        instance_id: InstanceId,
+    ) -> Result<ProcessState, ProcessSupervisorError> {
         let handle = self
             .owned
             .get(&instance_id)
@@ -126,7 +134,9 @@ mod tests {
     use std::collections::BTreeMap;
 
     use super::{ProcessSupervisor, ProcessSupervisorConfig, ProcessSupervisorError};
-    use crate::{InstanceId, LaunchSpec, ProcessFault, ProcessHandle, ProcessPort, ProcessState, StopMode};
+    use crate::{
+        InstanceId, LaunchSpec, ProcessFault, ProcessHandle, ProcessPort, ProcessState, StopMode,
+    };
 
     #[derive(Default)]
     struct FakeProcess {

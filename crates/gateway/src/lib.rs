@@ -15,11 +15,11 @@ mod runtime_v2_artifact;
 
 use std::fmt;
 
+pub use coop_session::{CoopPeerRole, CoopSession, CoopSessionError, CoopSynchronizationSnapshot};
 pub use identity::{
     CallerId, FenceFailure, InstanceId, Lease, LeaseEpoch, LeaseId, LeaseProof, OperationId,
     SessionId, Tick, evaluate_fence,
 };
-pub use coop_session::{CoopPeerRole, CoopSession, CoopSessionError, CoopSynchronizationSnapshot};
 pub use lifecycle::{InstanceSnapshot, LifecycleState};
 pub use ports::{
     Clock, DeterministicLeaseDecision, FixedRoute, HealthFault, LaunchSpec, LeaseDecisionPort,

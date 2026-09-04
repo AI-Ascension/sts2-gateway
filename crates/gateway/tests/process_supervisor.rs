@@ -3,8 +3,8 @@
 use std::collections::BTreeMap;
 
 use sts2_gateway::{
-    InstanceId, LaunchSpec, ProcessFault, ProcessHandle, ProcessPort, ProcessState, ProcessSupervisor,
-    ProcessSupervisorConfig, ProcessSupervisorError, StopMode,
+    InstanceId, LaunchSpec, ProcessFault, ProcessHandle, ProcessPort, ProcessState,
+    ProcessSupervisor, ProcessSupervisorConfig, ProcessSupervisorError, StopMode,
 };
 
 #[derive(Default)]
@@ -38,7 +38,9 @@ impl ProcessPort for FakeProcessPort {
 fn capacity_and_ownership_are_enforced_before_process_port_calls() {
     let config = ProcessSupervisorConfig::try_new(1).expect("valid process supervisor config");
     let mut supervisor = ProcessSupervisor::new(config, FakeProcessPort::default());
-    supervisor.start(InstanceId::new(1)).expect("first process starts");
+    supervisor
+        .start(InstanceId::new(1))
+        .expect("first process starts");
     assert_eq!(
         supervisor.start(InstanceId::new(2)),
         Err(ProcessSupervisorError::CapacityExceeded)
@@ -54,5 +56,8 @@ fn capacity_and_ownership_are_enforced_before_process_port_calls() {
     supervisor
         .stop(InstanceId::new(1), StopMode::Force)
         .expect("owned process stops");
-    assert_eq!(supervisor.inspect(InstanceId::new(1)), Err(ProcessSupervisorError::NotOwned));
+    assert_eq!(
+        supervisor.inspect(InstanceId::new(1)),
+        Err(ProcessSupervisorError::NotOwned)
+    );
 }
