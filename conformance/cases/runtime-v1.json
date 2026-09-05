@@ -1,0 +1,16 @@
+{
+  "case_id": "CT-RUNTIME-V1-001",
+  "contract": "sts2.protocol/runtime-v1",
+  "profile": "runtime-v1",
+  "schema": "schemas/runtime-v1.schema.json",
+  "artifacts": [
+    "artifacts/runtime-v1/manifest.json",
+    "artifacts/runtime-v1/schema.json"
+  ],
+  "consumers": [
+    "sts2-game-mod",
+    "sts2-gateway",
+    "sts2-harness",
+    "sts2-mcp-server"
+  ]
+}

@@ -27,6 +27,11 @@ process supervision, real concurrency isolation, host gameplay, and general comp
 Static policy results may establish configuration and source compatibility with the pinned Rust
 toolchain. They do not establish compatibility with a game or a historical implementation.
 
+The Runtime-v1 inert copy now includes the canonical checksum inventory, five golden messages,
+source schema and conformance companion from merged protocol `main`. Existing package schema and
+manifest bytes are unchanged; the README restores its canonical local source link. CI verifies
+both frozen Runtime-v1 and Runtime-v2 inventories. This confirms copy integrity only.
+
 ## Independent version axes
 
 Keep these values separate and record each in a future compatibility matrix:

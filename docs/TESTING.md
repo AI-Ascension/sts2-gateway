@@ -18,6 +18,7 @@ cargo fmt --all --check
 cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 cargo test --workspace --all-targets --all-features --locked
 (cd protocol-artifact/poc-v1 && sha256sum -c SHA256SUMS)
+(cd protocol-artifact/runtime-v1 && sha256sum -c SHA256SUMS)
 (cd protocol-artifact/runtime-v2 && sha256sum -c SHA256SUMS)
 ```
 
