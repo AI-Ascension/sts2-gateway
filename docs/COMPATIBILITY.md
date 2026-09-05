@@ -27,6 +27,11 @@ process supervision, real concurrency isolation, host gameplay, and general comp
 Static policy results may establish configuration and source compatibility with the pinned Rust
 toolchain. They do not establish compatibility with a game or a historical implementation.
 
+The Runtime-v1 inert copy now includes the canonical checksum inventory, five golden messages,
+source schema and conformance companion from merged protocol `main`. Existing package schema and
+manifest bytes are unchanged; the README restores its canonical local source link. CI verifies
+both frozen Runtime-v1 and Runtime-v2 inventories. This confirms copy integrity only.
+
 ## Independent version axes
 
 Keep these values separate and record each in a future compatibility matrix:
@@ -106,3 +111,9 @@ durable boot epoch, or persisted revocation. Restarting with the same config and
 still admit earlier proofs; no restart-ready or autonomous-gameplay claim follows from these fixes.
 Runtime-v2 exact receipt replay is read-only and need not match current state generation, but it
 still requires the original identity/epoch and canonical payload; fresh mutations remain fenced.
+
+## Runtime-v2 required nullable members
+
+This patch enforces the existing frozen Runtime-v2 schema: nullable members must be present, even
+when their value is null. Clients omitting a member must send an explicit null instead. No route,
+field, digest, artifact byte, or valid serialized message changes.

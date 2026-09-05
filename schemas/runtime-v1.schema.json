@@ -1,0 +1,204 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sts2-runtime-v1",
+  "title": "STS2 bounded live host-probe contract",
+  "description": "One authenticated host state read and one host-visible action with a fresh observation witness.",
+  "oneOf": [
+    { "$ref": "#/$defs/state_request" },
+    { "$ref": "#/$defs/state_response" },
+    { "$ref": "#/$defs/action_request" },
+    { "$ref": "#/$defs/action_response" }
+  ],
+  "$defs": {
+    "identity": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.:/-]{1,128}$"
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact", "source", "generator"],
+      "properties": {
+        "artifact": { "const": "sts2-protocol/runtime-v1" },
+        "source": { "const": "schemas/runtime-v1.schema.json" },
+        "generator": { "const": "hand-authored" }
+      }
+    },
+    "base": {
+      "type": "object",
+      "required": [
+        "protocol_version",
+        "schema_digest",
+        "provenance",
+        "correlation_id",
+        "instance_id",
+        "session_id",
+        "lease_id",
+        "lease_epoch",
+        "generation"
+      ],
+      "properties": {
+        "protocol_version": { "const": "runtime-v1" },
+        "schema_digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "provenance": { "$ref": "#/$defs/provenance" },
+        "correlation_id": { "$ref": "#/$defs/identity" },
+        "instance_id": { "$ref": "#/$defs/identity" },
+        "session_id": { "$ref": "#/$defs/identity" },
+        "lease_id": { "$ref": "#/$defs/identity" },
+        "lease_epoch": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "generation": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      }
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["host_ready", "overlay_visible", "screen", "action_count"],
+      "properties": {
+        "host_ready": { "type": "boolean" },
+        "overlay_visible": { "type": "boolean" },
+        "screen": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.:/-]{1,64}$"
+        },
+        "action_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1024
+        }
+      }
+    },
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action_id"],
+      "properties": {
+        "action_id": { "const": "show_runtime_probe" }
+      }
+    },
+    "effect_witness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "generation"],
+      "properties": {
+        "kind": { "const": "status_overlay_visible" },
+        "generation": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      }
+    },
+    "state_request": {
+      "allOf": [
+        { "$ref": "#/$defs/base" },
+        {
+          "type": "object",
+          "required": ["kind", "observation", "action", "status", "error_code", "effect_witness"],
+          "properties": {
+            "kind": { "const": "state_request" },
+            "observation": { "type": "null" },
+            "action": { "type": "null" },
+            "status": { "type": "null" },
+            "error_code": { "type": "null" },
+            "effect_witness": { "type": "null" }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "state_response": {
+      "allOf": [
+        { "$ref": "#/$defs/base" },
+        {
+          "type": "object",
+          "required": ["kind", "observation", "action", "status", "error_code", "effect_witness"],
+          "properties": {
+            "kind": { "const": "state_response" },
+            "observation": { "$ref": "#/$defs/observation" },
+            "action": { "type": "null" },
+            "status": { "type": "null" },
+            "error_code": { "type": "null" },
+            "effect_witness": { "type": "null" }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "action_request": {
+      "allOf": [
+        { "$ref": "#/$defs/base" },
+        {
+          "type": "object",
+          "required": ["kind", "observation", "action", "status", "error_code", "effect_witness"],
+          "properties": {
+            "kind": { "const": "action_request" },
+            "observation": { "type": "null" },
+            "action": { "$ref": "#/$defs/action" },
+            "status": { "type": "null" },
+            "error_code": { "type": "null" },
+            "effect_witness": { "type": "null" }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "action_response": {
+      "allOf": [
+        { "$ref": "#/$defs/base" },
+        {
+          "type": "object",
+          "required": ["kind", "observation", "action", "status", "error_code", "effect_witness"],
+          "properties": {
+            "kind": { "const": "action_response" },
+            "observation": { "$ref": "#/$defs/observation" },
+            "action": { "$ref": "#/$defs/action" },
+            "status": { "enum": ["accepted", "rejected"] },
+            "error_code": {
+              "anyOf": [
+                { "$ref": "#/$defs/identity" },
+                { "type": "null" }
+              ]
+            },
+            "effect_witness": {
+              "anyOf": [
+                { "$ref": "#/$defs/effect_witness" },
+                { "type": "null" }
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "status": { "const": "accepted" } }
+          },
+          "then": {
+            "properties": {
+              "error_code": { "type": "null" },
+              "effect_witness": { "$ref": "#/$defs/effect_witness" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "status": { "const": "rejected" } }
+          },
+          "then": {
+            "properties": {
+              "error_code": { "$ref": "#/$defs/identity" },
+              "effect_witness": { "type": "null" }
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    }
+  }
+}
