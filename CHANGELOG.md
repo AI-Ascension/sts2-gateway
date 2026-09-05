@@ -7,6 +7,9 @@ runtime or downstream wire contract.
 
 ### Fixed
 
+- Split the independent Runtime-v2 component wiring from PR #6 at
+  `3cf7f08f36daf31ca2d9cc3e455a622db78d68af`; retain its original branch and commits for review.
+  The separate Exo gameplay lane owns Runtime-v3 integration.
 - Complete the inert Runtime-v1 protocol copy and check frozen v1/v2 inventories in CI; preserve
   existing schema/manifest bytes and distinguish attached adapters in the repository layout.
 - Reject omitted required nullable Runtime-v2 envelope members during decoding while preserving
@@ -20,6 +23,24 @@ runtime or downstream wire contract.
 - Include executable Rust sources under `src/bin` in repository policy; split attached service
   concerns under unchanged file budgets and regression-test the actual scanner's coverage.
 
+- Keep a released/shutdown attached lease revoked for the service lifetime; a later allocation
+  cannot resurrect the same credential/epoch and authorize queued stale work.
+
+- Reject attached action operation IDs that cannot be represented by the fixed receipt route,
+  before dispatch; keep neutral ledger identity and frozen artifact bytes unchanged.
+
+- Remove the policy scanner's blanket `bin` exclusion, split attached runtime source/tests by
+  responsibility, and verify the runtime entrypoint and routing/HTTP source remain scanned under
+  unchanged size limits without exemptions.
+
+- Enforce numeric loopback endpoints, absolute bounded HTTP I/O, unambiguous HTTP framing, and
+  connection-owned shutdown cancellation; reserve queue metrics before publishing work.
+
+- Preserve the newest Runtime-v2 observation when reconciling an older operation receipt; reject
+  regressed state refresh and inconsistent persisted result generations. Accepted and unknown
+  operations retain historical settled receipts without rewinding fresh-action admission.
+- Bound journal reads before allocation, create exclusive private temporary files without following
+  existing temporary-path links, and sync the current directory for relative journal paths on Unix.
 - Failed generic process starts no longer consume an unreachable allocation slot; consumed instance
   and lease identities remain unique. Clarified the process port's partial-start cleanup ownership.
 - Expiry reconciliation reports forced-stop failures instead of claiming successful expiration,
@@ -38,6 +59,28 @@ runtime or downstream wire contract.
   when no host adapter is configured, fenced duplicate/receipt reads by current identity and
   generation, and made the in-process artifact verifier calculate every listed SHA-256 with tamper
   coverage.
+- Added an optional bounded Runtime-v2 journal with atomic replacement, admission/terminal
+  checkpoints, restart-to-unknown recovery, settled-receipt replay without downstream mutation, and
+  fail-closed identity validation. The journal now holds an exclusive process-lifetime lock per
+  configured path and syncs the parent directory after replacement on Unix. Exact duplicate replay
+  now precedes generation revalidation, and the attached bearer check uses a length-independent byte
+  comparison.
+- Added the bounded `STS2_RUNTIME_V2_OPERATION_CAPACITY` setting (1 through 64) and deterministic
+  overload/persistence/authentication tests. This remains a single-instance component lane; it does
+  not claim global backpressure, process supervision, four-instance isolation, or live host support.
+- Added a single-worker FIFO admission queue configured by
+  `STS2_RUNTIME_V2_QUEUE_CAPACITY`, typed 429 overflow, sanitized authenticated metrics, and a
+  lease-fenced shutdown route that explicitly cancels queued requests. This is component-level
+  backpressure and lifecycle evidence, not a production multi-instance supervisor.
+- Added gateway-local credential scopes, current/previous token rotation overlap, bounded expiry
+  checks, and stable 401/403 failures before queue admission. Credential issuance, revocation, and
+  downstream secret rotation remain external responsibilities.
+- Added the configured `STS2_MCP_SESSION_ID` lease fence. The attached runtime now rejects a missing
+  or mismatched `x-mcp-session-id` before forwarding, while retaining the frozen Runtime-v2 envelope
+  and defaulting to the gateway session for compatibility.
+- Added deterministic four-instance control-plane coverage for independent caller/session fences,
+  capacity exhaustion, survivor readiness, release, and terminal cleanup. This remains fake
+  control-plane evidence and does not claim process-supervisor or host isolation.
 
 - The bounded `sts2-gateway-runtime` attached single-instance loopback adapter with bearer
   authentication, allocation/release, lease fencing, fixed runtime routes, and `runtime-v1`
@@ -57,6 +100,7 @@ runtime or downstream wire contract.
 
 ### Not implemented
 
-- Generic process adapters, persistence, game rules, host integration, and live host runtime behavior
-  remain outside this attached adapter. The component binary is intentionally fixed to one attached
-  downstream instance; broader lifecycle and host behavior remain runtime-unverified.
+- Generic process adapters, game rules, host integration, and live host runtime behavior remain
+  outside this attached adapter. The component binary is intentionally fixed to one attached
+  downstream instance; production storage durability, broader lifecycle, and host behavior remain
+  runtime-unverified.

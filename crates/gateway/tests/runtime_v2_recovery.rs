@@ -63,10 +63,13 @@ impl RuntimeV2ForwardingPort for DeferredForwarder {
 
     fn read_runtime_v2_receipt(
         &mut self,
-        _request: RuntimeV2ReceiptRequest,
+        request: RuntimeV2ReceiptRequest,
     ) -> Result<Option<RuntimeV2Message>, RuntimeV2TransportFault> {
         self.receipt_reads += 1;
-        Ok(self.receipt.clone())
+        Ok(self.receipt.clone().map(|mut receipt| {
+            receipt.correlation_id = request.message().correlation_id.clone();
+            receipt
+        }))
     }
 }
 

@@ -5,6 +5,12 @@
 
 ## Requirement and owner
 
+This decision records the independently merged main-only hardening baseline (PR #9), before
+Runtime-v2 component wiring. On the component-wiring branch, ADRs 0007–0010 extend that baseline
+with the optional journal, FIFO admission, scoped credentials and MCP-session fence; fixed v2
+forwarding is configured there. The statements below about absent adapters/queues describe the
+baseline scope, not removal of those later-composed component features.
+
 Gateway owns bounded transport, configured endpoint trust, lease admission and retained-operation
 recovery. An unauthenticated partial request must not hold the sequential service indefinitely;
 slow traffic must not reset an exchange deadline. Plaintext bearer credentials must remain on

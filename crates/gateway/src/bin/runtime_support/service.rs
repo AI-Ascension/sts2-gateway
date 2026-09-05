@@ -1,38 +1,95 @@
 // SPDX-License-Identifier: MIT
 
+use std::collections::BTreeMap;
+use std::net::{SocketAddr, TcpListener, TcpStream};
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc::{Receiver, SyncSender, TrySendError, sync_channel};
+use std::thread;
+use std::time::{Duration, Instant};
+
+use serde_json::{Value, json};
+use sts2_gateway::{
+    RuntimeV2Binding, RuntimeV2CombatPhase, RuntimeV2Ledger, RuntimeV2LedgerConfig,
+    RuntimeV2LedgerError, RuntimeV2Message, RuntimeV2Observation, RuntimeV2Status,
+    RuntimeV2TransportFault,
+};
+
+use super::auth::{AuthFailure, AuthPolicy, AuthScope};
+use super::forwarder::HttpRuntimeV2Forwarder;
 use super::http::{
     HttpRequest, HttpResponse, MAX_BODY_BYTES, ReadError, read_request, read_response,
     write_request, write_response,
 };
-use serde_json::{Value, json};
-use service_config::RuntimeConfig;
-use service_control::headers_are_allowed;
-use service_v2::UnconfiguredRuntimeV2Forwarder;
-use std::net::{TcpListener, TcpStream};
-use sts2_gateway::{
-    RuntimeV2Binding, RuntimeV2CombatPhase, RuntimeV2Ledger, RuntimeV2LedgerConfig,
-    RuntimeV2Observation,
-};
+use super::journal;
+use super::metrics::RuntimeMetrics;
 
-#[path = "service_config.rs"]
-mod service_config;
-#[path = "service_control.rs"]
-mod service_control;
-#[path = "service_downstream.rs"]
-mod service_downstream;
-#[path = "service_v2.rs"]
-mod service_v2;
+const DEFAULT_LISTEN_ADDRESS: &str = "127.0.0.1:15525";
+const DEFAULT_MOD_ADDRESS: &str = "127.0.0.1:15526";
+const DEFAULT_OPERATION_CAPACITY: &str = "8";
+const MAX_OPERATION_CAPACITY: usize = 64;
+const DEFAULT_QUEUE_CAPACITY: &str = "8";
+const MAX_QUEUE_CAPACITY: usize = 64;
+const REQUEST_READ_TIMEOUT: Duration = Duration::from_secs(2);
+const REQUEST_WRITE_TIMEOUT: Duration = Duration::from_secs(2);
 
 pub(crate) struct RuntimeService {
     config: RuntimeConfig,
     lease_active: bool,
-    lease_released: bool,
-    runtime_v2: RuntimeV2Ledger<UnconfiguredRuntimeV2Forwarder>,
+    lease_revoked: bool,
+    shutdown_requested: bool,
+    runtime_v2: RuntimeV2Ledger<HttpRuntimeV2Forwarder>,
+    journal_path: Option<PathBuf>,
+    _journal_lock: Option<journal::JournalLock>,
+    metrics: RuntimeMetrics,
 }
+
+struct RuntimeConfig {
+    listen_address: String,
+    mod_address: String,
+    auth_policy: AuthPolicy,
+    mod_token: String,
+    instance_id: String,
+    caller_id: String,
+    session_id: String,
+    mcp_session_id: String,
+    lease_id: String,
+    lease_epoch: u64,
+    operation_capacity: usize,
+    queue_capacity: usize,
+    journal_path: Option<PathBuf>,
+}
+
+struct QueuedRequest {
+    stream: TcpStream,
+    request: HttpRequest,
+}
+
+#[path = "service_admission.rs"]
+mod admission;
+#[path = "service_authorization.rs"]
+mod authorization;
+#[path = "service_config.rs"]
+mod configuration;
+#[path = "service_lease.rs"]
+mod lease;
+#[path = "service_routes.rs"]
+mod routes;
+#[path = "service_v2.rs"]
+mod v2;
+
+use admission::{accept_requests, run_worker};
+use authorization::request_rejection;
 
 impl RuntimeService {
     pub(crate) fn from_environment() -> Result<Self, String> {
         let config = RuntimeConfig::from_environment()?;
+        let journal_lock = config
+            .journal_path
+            .as_deref()
+            .map(journal::JournalLock::acquire)
+            .transpose()?;
         let binding = RuntimeV2Binding::new(
             &config.instance_id,
             &config.session_id,
@@ -41,92 +98,72 @@ impl RuntimeService {
             RuntimeV2Observation::new(RuntimeV2CombatPhase::OutsideCombat, 0, false, 0),
         )
         .map_err(|error| format!("Runtime-v2 binding is invalid: {error}"))?;
-        let runtime_v2 = RuntimeV2Ledger::new(
-            RuntimeV2LedgerConfig::new(8),
+        let forwarder = HttpRuntimeV2Forwarder::new(
+            &config.mod_address,
+            &config.mod_token,
+            &config.instance_id,
+            &config.caller_id,
+            &config.session_id,
+            &config.lease_id,
+            config.lease_epoch,
+        );
+        let mut runtime_v2 = RuntimeV2Ledger::new(
+            RuntimeV2LedgerConfig::new(config.operation_capacity),
             binding,
-            UnconfiguredRuntimeV2Forwarder,
+            forwarder,
         )
         .map_err(|error| format!("Runtime-v2 ledger is invalid: {error}"))?;
+        if let Some(path) = config.journal_path.as_deref()
+            && let Some(state) = journal::load(path)?
+        {
+            runtime_v2
+                .restore_state(state)
+                .map_err(|error| format!("Runtime-v2 journal state is invalid: {error}"))?;
+        }
+
         Ok(Self {
+            journal_path: config.journal_path.clone(),
+            _journal_lock: journal_lock,
             config,
             lease_active: false,
-            lease_released: false,
+            lease_revoked: false,
+            shutdown_requested: false,
             runtime_v2,
+            metrics: RuntimeMetrics::default(),
         })
     }
 
-    pub(crate) fn run(mut self) -> Result<(), String> {
+    pub(crate) fn run(self) -> Result<(), String> {
         let listener = TcpListener::bind(&self.config.listen_address)
             .map_err(|error| format!("gateway bind failed: {error}"))?;
+        let listener_address = listener
+            .local_addr()
+            .map_err(|error| format!("gateway address lookup failed: {error}"))?;
         println!(
             "sts2-gateway runtime listening on {} for instance {}",
             self.config.listen_address, self.config.instance_id
         );
-        for stream in listener.incoming() {
-            let mut stream = stream.map_err(|error| format!("gateway accept failed: {error}"))?;
-            if let Err(error) = self.handle_connection(&mut stream) {
-                let _ = write_response(&mut stream, 500, &json_error("gateway_internal_error"));
-                eprintln!("gateway connection failed: {error}");
-            }
-        }
-        Ok(())
-    }
-
-    fn handle_connection(&mut self, stream: &mut TcpStream) -> Result<(), String> {
-        let request = match read_request(stream) {
-            Ok(request) => request,
-            Err(status) => {
-                write_response(stream, status, &json_error("malformed_request"))
-                    .map_err(|error| error.to_string())?;
-                return Ok(());
-            }
-        };
-        let (status, body) = self.handle_request(&request);
-        write_response(stream, status, &body).map_err(|error| error.to_string())
-    }
-
-    fn handle_request(&mut self, request: &HttpRequest) -> (u16, Vec<u8>) {
-        if !headers_are_allowed(&request.headers) {
-            return (400, json_error("unsupported_header"));
-        }
-        if !self.has_gateway_token(request) {
-            return (401, json_error("unauthorized"));
-        }
-        match (request.method.as_str(), request.path.as_str()) {
-            ("GET", "/health/ready") if request.body.is_empty() => self.health(),
-            ("POST", "/v1/sessions/allocate")
-                if request.content_type_is_json() && !request.body.is_empty() =>
-            {
-                self.allocate(&request.body)
-            }
-            ("GET", path) if path == self.state_path() && request.body.is_empty() => {
-                self.relay_data(request, "GET", "/api/v1/runtime/state", &[])
-            }
-            ("POST", path) if path == self.action_path() && request.content_type_is_json() => {
-                if request.body.is_empty() {
-                    (400, json_error("action_body_required"))
-                } else {
-                    self.relay_data(request, "POST", "/api/v1/runtime/action", &request.body)
-                }
-            }
-            ("POST", path)
-                if path == self.runtime_v2_action_path() && request.content_type_is_json() =>
-            {
-                self.runtime_v2_action(request)
-            }
-            ("GET", path) if path == self.runtime_v2_state_path() && request.body.is_empty() => {
-                self.runtime_v2_state(request)
-            }
-            ("GET", path) if request.body.is_empty() => {
-                let Some(operation_id) = self.runtime_v2_operation_id(path) else {
-                    return (404, json_error("route_not_found"));
-                };
-                self.runtime_v2_reconcile(request, operation_id)
-            }
-            ("POST", path) if path == self.release_path() && request.body.is_empty() => {
-                self.release(request)
-            }
-            _ => (404, json_error("route_not_found")),
+        let (sender, receiver) = sync_channel(self.config.queue_capacity);
+        let admission_open = Arc::new(AtomicBool::new(true));
+        let worker_open = Arc::clone(&admission_open);
+        let auth_policy = self.config.auth_policy.clone();
+        let metrics = self.metrics.clone();
+        let instance_id = self.config.instance_id.clone();
+        let worker = thread::Builder::new()
+            .name(String::from("sts2-gateway-runtime-worker"))
+            .spawn(move || run_worker(self, receiver, worker_open, listener_address))
+            .map_err(|error| format!("gateway worker spawn failed: {error}"))?;
+        let result = accept_requests(
+            listener,
+            sender,
+            admission_open,
+            auth_policy,
+            instance_id,
+            metrics,
+        );
+        match worker.join() {
+            Ok(worker_result) => result.and(worker_result),
+            Err(_) => Err(String::from("gateway worker panicked")),
         }
     }
 }
@@ -140,6 +177,10 @@ fn safe_identity(value: &str) -> bool {
         })
 }
 
+fn safe_operation_id(value: &str) -> bool {
+    safe_identity(value) && !value.contains('/')
+}
+
 fn json_bytes(value: &Value) -> Vec<u8> {
     match serde_json::to_vec(value) {
         Ok(bytes) => bytes,
@@ -151,6 +192,35 @@ fn json_error(code: &str) -> Vec<u8> {
     json_bytes(&json!({ "error_code": code }))
 }
 
+fn json_overload(code: &str) -> Vec<u8> {
+    json_bytes(&json!({
+        "error_code": code,
+        "retryable": true,
+        "retry_after_ms": 1000
+    }))
+}
+
+fn read_error_status(error: ReadError) -> u16 {
+    match error {
+        ReadError::Timeout => 504,
+        ReadError::Malformed | ReadError::Oversized => 502,
+        ReadError::Unavailable => 503,
+    }
+}
+
+#[cfg(test)]
+#[path = "service_admission_tests.rs"]
+mod admission_tests;
+
+#[cfg(test)]
+#[path = "service_auth_tests.rs"]
+mod auth_tests;
 #[cfg(test)]
 #[path = "service_tests.rs"]
-mod tests;
+mod legacy_tests;
+#[cfg(test)]
+#[path = "service_routes_tests.rs"]
+mod routes_tests;
+#[cfg(test)]
+#[path = "service_support_tests.rs"]
+mod test_support;
