@@ -27,7 +27,7 @@ struct PeerBinding {
     status: PeerStatus,
 }
 
-/// Synchronization status exported to the harness/MCP coordination lane.
+/// Local gateway synchronization snapshot; no runtime or co-op wire mapping is attached.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CoopSynchronizationSnapshot {
     instance_id: InstanceId,
@@ -196,6 +196,8 @@ impl CoopSession {
         }
     }
 
+    /// Checks a local synchronization precondition only; this grants no host mutation authority.
+    /// The attached runtime does not consult this prototype ledger for forwarding admission.
     pub fn authorize_mutation(&self, generation: u64) -> Result<(), CoopSessionError> {
         let snapshot = self.snapshot();
         if generation != snapshot.generation {
