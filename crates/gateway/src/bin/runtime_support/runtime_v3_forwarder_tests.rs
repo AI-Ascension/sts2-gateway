@@ -65,6 +65,15 @@ fn requests_require_route_kind_and_authenticated_envelope() -> Result<(), Box<dy
             "{field}"
         );
     }
+    Ok(())
+}
+
+#[test]
+fn requests_reject_stale_epoch_wrong_route_and_malformed_envelope()
+-> Result<(), Box<dyn std::error::Error>> {
+    let forwarder = RuntimeV3GameplayForwarder::new(16 * 1024, 128 * 1024);
+    let original = fixture("state-request.json")?;
+    let headers = headers(&original);
     let mut value = original.clone();
     value["lease_epoch"] = 2.into();
     assert!(
