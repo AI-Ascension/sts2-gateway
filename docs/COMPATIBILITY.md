@@ -139,6 +139,13 @@ profile, not the incompatible earlier bounded-card profile used by gateway PR #6
 profile name does not establish compatibility; the exact digest is required and mixed digests
 are rejected. See [ADR 0014](decisions/0014-runtime-v3-framing-and-fencing.md).
 
+Runtime-v3 envelope validation depends on the `jsonschema` crate, pinned to `=0.52.1` with default
+features off (no remote or filesystem reference resolution). The validator is compiled once from
+the embedded schema; a unit test proves the embedded schema compiles and admits a golden request so
+a silent fail-closed rejection of every v3 envelope cannot go unnoticed. The workspace lint
+`unsafe_code = "forbid"` is unchanged for all first-party crates. Acceptance conditions and the
+evidence for each are in [ADR 0015](decisions/0015-jsonschema-dependency-acceptance.md).
+
 The attached executable has a boolean active lease, **not** a timed/renewable lease. It has no
 durable boot-epoch rotation. Starting another process with the same configured identity/token/
 epoch and allocating it can admit proofs from the earlier process; this remains an unresolved
