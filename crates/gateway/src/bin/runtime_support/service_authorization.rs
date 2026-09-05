@@ -22,6 +22,17 @@ pub(super) fn request_rejection(
 }
 
 pub(super) fn required_scope(request: &HttpRequest, instance_id: &str) -> AuthScope {
+    if let Some(route) = RuntimeV3GameplayRoute::parse(&request.method, &request.path, instance_id)
+    {
+        return match route {
+            RuntimeV3GameplayRoute::DispatchAction => AuthScope::Mutate,
+            RuntimeV3GameplayRoute::Recover => AuthScope::Control,
+            RuntimeV3GameplayRoute::State
+            | RuntimeV3GameplayRoute::LegalActions
+            | RuntimeV3GameplayRoute::WaitForTransition
+            | RuntimeV3GameplayRoute::Reobserve => AuthScope::Read,
+        };
+    }
     let action_path = format!("/v2/instances/{instance_id}/action");
     let legacy_action_path = format!("/v1/instances/{instance_id}/action");
     if request.method == "POST"

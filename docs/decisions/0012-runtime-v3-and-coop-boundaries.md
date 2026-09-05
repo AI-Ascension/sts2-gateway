@@ -16,6 +16,8 @@ reobserve, and recovery. The Runtime-v3 forwarder bounds JSON bodies and respons
 meaning to the host boundary. `CoopSession` is an additive, bounded peer ledger: it permits two to
 four peers, one local peer, generation matching, explicit disconnect/missing-peer state, and
 mutation authorization only while synchronized. It has no game-state or provider dependency.
+This API is a local prototype; it neither serializes a neutral co-op profile nor gates attached
+runtime forwarding. No co-op protocol artifact or live multiplayer support is admitted here.
 
 The process supervisor accepts an injected process port and owns only handles it started. It has
 bounded capacity and explicit graceful/forced stop; executable paths, credentials, profiles, and

@@ -116,3 +116,56 @@ fn wrong_mcp_session_is_rejected_before_downstream_forwarding() -> Result<(), St
     assert_eq!(value["error_code"], "lease_fence_rejected");
     Ok(())
 }
+
+#[test]
+fn v3_routes_enforce_scopes_before_envelope_and_lease_processing() -> Result<(), String> {
+    let routes = [
+        ("GET", "state", "read"),
+        ("GET", "legal-actions", "read"),
+        ("POST", "action", "mutate"),
+        ("POST", "wait", "read"),
+        ("GET", "reobserve", "read"),
+        ("POST", "recover", "control"),
+    ];
+    for (method, suffix, required) in routes {
+        for scope in ["read", "mutate", "control"] {
+            let mut service = test_service()?;
+            service.config.auth_policy =
+                AuthPolicy::test_with_previous("gateway-token", None, None, scope)?;
+            let mut request = authenticated_request(&format!("/v3/instances/instance-1/{suffix}"));
+            request.method = method.to_owned();
+            request
+                .headers
+                .insert("content-type".to_owned(), "application/json".to_owned());
+            request.body = b"{}".to_vec();
+            let expected = if scope == required { 400 } else { 403 };
+            assert_eq!(
+                service.handle_request(&request).0,
+                expected,
+                "{suffix}: {scope}"
+            );
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn v3_routes_keep_the_configured_mcp_session_fence() -> Result<(), String> {
+    for (method, suffix) in [
+        ("GET", "state"),
+        ("GET", "legal-actions"),
+        ("POST", "action"),
+        ("POST", "wait"),
+        ("GET", "reobserve"),
+        ("POST", "recover"),
+    ] {
+        let mut service = test_service()?;
+        let mut request = authenticated_request(&format!("/v3/instances/instance-1/{suffix}"));
+        request.method = method.to_owned();
+        request
+            .headers
+            .insert("x-mcp-session-id".to_owned(), "other-session".to_owned());
+        assert_eq!(service.handle_request(&request).0, 409, "{suffix}");
+    }
+    Ok(())
+}
