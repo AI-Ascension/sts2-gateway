@@ -81,7 +81,10 @@ impl RuntimeV2OperationKey {
     }
 }
 
-/// A digest of the complete canonical request identity.
+/// A digest of the canonical idempotency request identity.
+///
+/// The request correlation is deliberately excluded because it identifies one transport attempt,
+/// not the operation being retried.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct RuntimeV2RequestDigest(u64);
 

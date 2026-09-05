@@ -227,25 +227,36 @@ pub(crate) fn write_response(
     body: &[u8],
 ) -> std::io::Result<()> {
     let expires = Instant::now() + deadline::MESSAGE_TIMEOUT;
+    let header = response_header(status, body.len());
+    deadline::write(stream, header.as_bytes(), expires)?;
+    deadline::write(stream, body, expires)
+}
+
+fn response_header(status: u16, body_len: usize) -> String {
     let reason = match status {
         200 => "OK",
+        202 => "Accepted",
         400 => "Bad Request",
         401 => "Unauthorized",
+        403 => "Forbidden",
         404 => "Not Found",
         408 => "Request Timeout",
         409 => "Conflict",
         413 => "Payload Too Large",
+        429 => "Too Many Requests",
         502 => "Bad Gateway",
         503 => "Service Unavailable",
         504 => "Gateway Timeout",
         _ => "Error",
     };
-    let header = format!(
-        "HTTP/1.1 {status} {reason}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
-        body.len()
-    );
-    deadline::write(stream, header.as_bytes(), expires)?;
-    deadline::write(stream, body, expires)
+    let retry_after = if status == 429 {
+        "Retry-After: 1\r\n"
+    } else {
+        ""
+    };
+    format!(
+        "HTTP/1.1 {status} {reason}\r\nContent-Type: application/json\r\nContent-Length: {body_len}\r\n{retry_after}Connection: close\r\n\r\n"
+    )
 }
 
 fn valid_header(name: &str, value: &str) -> bool {

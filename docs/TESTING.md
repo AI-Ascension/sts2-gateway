@@ -4,9 +4,9 @@
 
 The target contains the gateway control-plane package and repository tooling. Policy, formatting,
 lint, build, and package tests run without a product workspace. The package tests use deterministic
-fake clock, process, readiness, transport, and lease-decision seams. HTTP regression tests also use
-isolated synthetic loopback sockets with owned joined threads. No game listener, child process,
-game host, provider, save, or deployment is used by these checks.
+fake clock, process, readiness, transport, and lease-decision seams. Runtime adapter tests also use
+ephemeral loopback TCP listeners and synthetic peer threads. No game process, game host, provider,
+save, or deployment is used by these checks.
 
 ## Baseline commands
 
@@ -32,21 +32,34 @@ for every copied file named by `SHA256SUMS`.
 The current deterministic suite covers allocation and readiness, process inspection and crash
 failure, lease expiry and forced cleanup, stale epoch and wrong-instance rejection before transport,
 graceful release, shutdown admission closure, bounded fixed-route forwarding, and transport/stop/
-start failure reporting. The POC case additionally verifies the copied artifact identity while
+start failure reporting. It also exercises four independently identified allocated instances,
+capacity exhaustion, survivor readiness after one instance is released, and wrong-instance fencing
+without transport dispatch. The POC case additionally verifies the copied artifact identity while
 combining readiness, fixed command forwarding, stale-epoch rejection, and wrong-instance fencing.
 The Runtime-v2 case verifies the copied artifact and a bounded fake ledger for exactly-once
 application, unknown-to-settled retained-receipt reconciliation, duplicate replay, canonical
 conflict rejection, stale identity/epoch/generation replay and receipt fencing, cancellation, store
-capacity, no-blind-retry, and rejection of tampered copied schema/manifest/golden bytes. The runtime
-binary tests the fixed typed state route's explicit unavailable response and arbitrary-v2-GET denial.
-The fakes do not represent live process, network, or game-host behavior. HTTP tests additionally
-cover absolute deadlines for silent and slow-drip peers, stalled writes, exact/oversized header
-bounds, and ambiguous transfer framing. Pure config tests reject non-loopback/DNS/zero-port
-endpoints. A released-context test rejects reallocation and old lease proofs within one service.
+capacity, no-blind-retry, persistence checkpoint failure, restart recovery, and rejection of tampered
+copied schema/manifest/golden bytes. The runtime binary tests the fixed typed state route's explicit
+unavailable response, exact bearer authentication, bounded operation and queue-capacity
+configuration, FIFO admission overload with retry guidance, authenticated metrics including
+unknown-result and service-time counters, shutdown admission closure, and
+arbitrary-v2-GET denial. The journal adapter also tests exclusive process-lifetime ownership of a
+configured journal path and can sync its parent directory after atomic replacement where supported.
+The auth component additionally covers expired credentials, route scopes, and previous-token
+rotation overlap; these tests use an injected test time and do not prove an external issuer or live
+secret-management system. The attached runtime also tests that a mismatched configured MCP-session
+header fails at the lease fence before downstream forwarding.
+The control-plane fakes do not represent real processes or game hosts. Ephemeral TCP tests exercise
+actual socket framing, timeouts, and forwarding only against synthetic peers.
 
-Runtime-v2 recovery regressions separate exact authenticated replay from new-action admission,
-allow read-only Accepted-to-Settled reconciliation, and retain older completion receipts without
-rewinding a newer authoritative observation. They assert no second mutation dispatch.
+Late retained settlement is checked after a newer authoritative observation: the historical receipt
+remains replayable, but cannot rewind admission generation. Both accepted and unknown operations
+are covered. State refresh rejects a regressed generation, and restore rejects a settled receipt
+without a successor or a persisted binding older than a retained result.
+The attached Runtime-v2 action profile also rejects operation IDs that cannot be reconciled by the fixed
+single-segment receipt route; an ephemeral listener verifies these invalid IDs cause zero forwards.
+Release/shutdown followed by allocation is rejected and leaves old lease-protected requests fenced.
 
 Control-plane regression oracles include six consecutive failed starts followed by four successful
 allocations at full configured capacity, without reusing failed instance/lease identities or stopping
@@ -72,8 +85,11 @@ transports, bounded storage, and isolated temporary ports. Extend coverage with:
 
 The gateway must report accepted downstream work separately from completed game effects. A timeout
 or disconnect requires a status/reconciliation oracle; it must not trigger a blind mutation retry.
-Runtime-v2's retained ledger is in-memory and non-persistent: restart/eviction durability is
-unverified and deliberately outside this wave.
+The attached Runtime-v2 binary can use its bounded optional journal for component restart tests.
+Those tests do not establish production storage durability, mod/game crash recovery, lease-epoch
+rotation, accepted-work recovery across an independently restarted downstream, or multi-instance
+supervision. Its FIFO queue and shutdown route are process-component evidence only until exercised
+with the authorized host supervisor.
 
 ## Evidence levels
 
@@ -92,9 +108,9 @@ disposable fixture status, sanitized logs, and cleanup result.
 
 The standalone runtime binary has bounded HTTP parser tests and builds with the pinned Rust
 toolchain. Its v1 lane can run against a disposable synthetic downstream. Runtime-v2 route parsing,
-envelope validation, ledger calls, and error mapping are source/build checked; the v2 forwarding
-seam intentionally has no live host adapter. A controlled v2 component lane and host mutation trace
-are unverified and require a separately authorized downstream contract.
+envelope validation, ledger calls, error mapping, and fixed TCP forwarding are exercised against
+synthetic peers. This is not a live host adapter test; host mutation and settlement remain unverified
+and require a separately authorized downstream contract and disposable host environment.
 
 The authorized exact-host lane now confirms the managed mod listener, downstream forwarding,
 lease fencing, a Godot main-thread callback, the bounded STS2 host effect, and reversible disposable

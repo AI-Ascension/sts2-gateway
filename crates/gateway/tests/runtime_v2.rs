@@ -13,6 +13,7 @@ use sts2_gateway::{
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum FakeMode {
     Settle,
+    AcceptedThenReceipt,
     DisconnectAfterWrite,
     DisconnectWithoutReceipt,
 }
@@ -66,6 +67,11 @@ impl RuntimeV2ForwardingPort for FakeForwarder {
                 state.applications += 1;
                 Ok(receipt)
             }
+            FakeMode::AcceptedThenReceipt => {
+                state.applications += 1;
+                state.retained_receipt = Some(receipt);
+                Ok(accepted_response(request.message()))
+            }
             FakeMode::DisconnectAfterWrite => {
                 state.applications += 1;
                 state.retained_receipt = Some(receipt);
@@ -79,11 +85,15 @@ impl RuntimeV2ForwardingPort for FakeForwarder {
 
     fn read_runtime_v2_receipt(
         &mut self,
-        _request: RuntimeV2ReceiptRequest,
+        request: RuntimeV2ReceiptRequest,
     ) -> Result<Option<RuntimeV2Message>, RuntimeV2TransportFault> {
         let mut state = self.0.borrow_mut();
         state.receipt_reads += 1;
-        Ok(state.retained_receipt.clone())
+        let mut receipt = state.retained_receipt.clone();
+        if let Some(receipt) = receipt.as_mut() {
+            receipt.correlation_id = request.message().correlation_id.clone();
+        }
+        Ok(receipt)
     }
 }
 
@@ -164,6 +174,36 @@ fn settled_response(request: &RuntimeV2Message) -> RuntimeV2Message {
     )
 }
 
+fn accepted_response(request: &RuntimeV2Message) -> RuntimeV2Message {
+    RuntimeV2Message::result(
+        RuntimeV2Metadata::new(),
+        &request.correlation_id,
+        &request.instance_id,
+        &request.session_id,
+        &request.lease_id,
+        request.lease_epoch,
+        request.generation,
+        request
+            .operation_id
+            .as_deref()
+            .unwrap_or("missing-operation"),
+        request
+            .action
+            .clone()
+            .unwrap_or_else(RuntimeV2Action::end_turn),
+        RuntimeV2Status::Accepted,
+        Some(RuntimeV2Observation::new(
+            RuntimeV2CombatPhase::PlayerTurn,
+            2,
+            true,
+            request.generation,
+        )),
+        None,
+        None,
+        RuntimeV2MessageKind::ActionResponse,
+    )
+}
+
 #[test]
 fn copied_artifact_is_verified_before_the_fake_lane() -> Result<(), String> {
     verify_runtime_v2_artifact().map_err(|error| error.to_string())
@@ -190,6 +230,25 @@ fn exactly_once_application_and_duplicate_replay() -> Result<(), String> {
 }
 
 #[test]
+fn retry_correlation_replays_without_second_dispatch() -> Result<(), String> {
+    let fake = FakeForwarder::new(FakeMode::Settle);
+    let mut ledger = RuntimeV2Ledger::new(RuntimeV2LedgerConfig::new(4), binding()?, fake.clone())
+        .map_err(|error| error.to_string())?;
+    ledger
+        .submit_action(action_request("corr-first", "op-retry-correlation", 1, 4))
+        .map_err(|error| error.to_string())?;
+
+    let replay = ledger
+        .submit_action(action_request("corr-retry", "op-retry-correlation", 1, 4))
+        .map_err(|error| error.to_string())?;
+    assert_eq!(replay.status, Some(RuntimeV2Status::Settled));
+    assert_eq!(replay.correlation_id, "corr-retry");
+    assert_eq!(fake.dispatches(), 1);
+    assert_eq!(fake.applications(), 1);
+    Ok(())
+}
+
+#[test]
 fn unknown_reconciles_to_settled_without_dispatch_retry() -> Result<(), String> {
     let fake = FakeForwarder::new(FakeMode::DisconnectAfterWrite);
     let mut ledger = RuntimeV2Ledger::new(RuntimeV2LedgerConfig::new(4), binding()?, fake.clone())
@@ -208,15 +267,41 @@ fn unknown_reconciles_to_settled_without_dispatch_retry() -> Result<(), String> 
     assert_eq!(settled.kind, RuntimeV2MessageKind::ReconcileResponse);
     assert_eq!(settled.status, Some(RuntimeV2Status::Settled));
     assert_eq!(settled.observation.map(|value| value.generation), Some(5));
-    assert_eq!(fake.dispatches(), 1);
     assert_eq!(fake.receipt_reads(), 1);
 
     let replay = ledger
         .submit_action(action)
         .map_err(|error| error.to_string())?;
     assert_eq!(replay.status, Some(RuntimeV2Status::Settled));
+    assert_eq!(replay.kind, RuntimeV2MessageKind::ActionResponse);
+    assert_eq!(replay.correlation_id, "corr-action");
     assert_eq!(replay.generation, 5);
     assert_eq!(fake.dispatches(), 1);
+    Ok(())
+}
+
+#[test]
+fn accepted_reconciles_to_settled_without_dispatch_retry() -> Result<(), String> {
+    let fake = FakeForwarder::new(FakeMode::AcceptedThenReceipt);
+    let mut ledger = RuntimeV2Ledger::new(RuntimeV2LedgerConfig::new(4), binding()?, fake.clone())
+        .map_err(|error| error.to_string())?;
+    let action = action_request("corr-accepted", "op-accepted", 1, 4);
+    let accepted = ledger
+        .submit_action(action.clone())
+        .map_err(|error| error.to_string())?;
+    assert_eq!(accepted.status, Some(RuntimeV2Status::Accepted));
+    assert_eq!(fake.dispatches(), 1);
+    assert_eq!(fake.applications(), 1);
+
+    let settled = ledger
+        .reconcile(reconcile_request("corr-reconcile", "op-accepted", 4))
+        .map_err(|error| error.to_string())?;
+    assert_eq!(settled.kind, RuntimeV2MessageKind::ReconcileResponse);
+    assert_eq!(settled.status, Some(RuntimeV2Status::Settled));
+    assert_eq!(settled.observation.map(|value| value.generation), Some(5));
+    assert_eq!(fake.dispatches(), 1);
+    assert_eq!(fake.applications(), 1);
+    assert_eq!(fake.receipt_reads(), 1);
     Ok(())
 }
 
@@ -310,3 +395,6 @@ fn capacity_is_fail_closed() -> Result<(), String> {
     assert_eq!(fake.dispatches(), 1);
     Ok(())
 }
+
+#[path = "runtime_v2/persistence.rs"]
+mod persistence;

@@ -51,6 +51,10 @@ API, and a successful gateway acknowledgment does not prove game state or effect
 
 ## Change classification
 
+The ledger's monotonic-observation repair is a patch to the existing freshness invariant; it does
+not change Runtime-v2 artifact bytes. Historical receipts keep their own generation and are distinct
+from the newest admission observation. Corrupt/inconsistent checkpoint generations fail closed.
+
 The generic control-plane recovery correction is a patch to failed-start capacity and expiry error
 reporting, not a new route or wire field. Failed starts now leave no queryable allocation because no
 allocation identity was returned; consumed IDs are not reused. Expiry reconciliation returns the
@@ -77,24 +81,50 @@ test; use `source-derived`, `inferred`, `proposed`, or `unverified` precisely.
 
 ## Runtime adapter row
 
+The independently merged [ADR 0011](decisions/0011-attached-runtime-hardening.md) baseline is retained:
+configured loopback ports must be nonzero, allocation uses a closed typed body (missing/unknown/
+duplicate fields return400), and same-process reallocation after release returns409
+`lease_context_revoked`. Component additions in ADRs 0007–0010 remain implemented; merging the
+baseline does not replace concrete v2 forwarding with its earlier unconfigured adapter.
+
+Endpoint configuration now enforces numeric loopback socket addresses (`127.0.0.1:port` or
+`[::1]:port`). Previously accepted DNS names, wildcard binds, and remote addresses must be migrated
+to an explicit numeric loopback endpoint; this enforces the documented local-only trust boundary.
+Attached action and receipt routes restrict operation IDs to 1–128 ASCII letters/digits or `-_.:`,
+without `..`. Slash-containing operation IDs allowed by the neutral contract cannot occupy one
+fixed route segment, so action admission rejects them before dispatch. This matches MCP PR #7's
+route profile without changing frozen Runtime-v2 schema bytes or generic ledger identity rules.
+Release/shutdown now permanently revoke the attached configured lease for that process lifetime.
+Clients cannot allocate the same context again to undo revocation; a coordinator must provide a
+fresh session/lease/epoch for replacement ownership. This does not implement durable restart fencing.
+The independent Runtime-v2 split preserves the frozen artifact and fixed v2 routes. The Exo
+Runtime-v3 profile is integrated separately after its protocol dependency is accepted.
+
 | Adapter | Downstream | Current evidence | Result |
 | --- | --- | --- | --- |
 | `sts2-gateway-runtime` | Attached loopback runtime-v1 listener | Rust gates, synthetic TCP lane, and authorized exact-host trace | Attached forwarding and lease path confirmed for STS2 v0.107.1 Windows x86-64; general lifecycle and gameplay unverified |
-| Runtime-v2 ledger | Owner-local deterministic forwarding fake | Rust gates, byte-level artifact verification, and deterministic fake tests | Source/ledger behavior confirmed; fixed state route is explicitly unavailable without a host adapter; live downstream action settlement, restart retention, and host compatibility unverified |
+| Runtime-v2 ledger and attached adapter | Owner-local ledger plus fixed synthetic TCP downstream | Rust gates, byte-level artifact verification, deterministic fault tests, and isolated component restart trace | Fixed state/action/operation forwarding, bounded optional journal recovery with exclusive path ownership, exact bearer check, and synthetic route behavior confirmed; live downstream action settlement, lease-epoch rotation, multi-instance isolation, and host compatibility unverified |
 
 The adapters' fixed configurations are sprint boundaries, not general lifecycle support claims. The
-Runtime-v2 ledger retains entries only in memory until capacity is reached; it does not evict entries
-or persist them. A restart loses retained receipts and must establish a new lease epoch before any
-new work. Clients must not retry an unknown action after restart; they need an externally retained
-receipt before deciding whether any further mutation is safe. A new operation identity must not
-be used to repeat an unresolved action. A future compatibility
-promotion must add exact process ownership, readiness, shutdown, restart, multi-instance, and
-disposable-host evidence.
+attached Runtime-v2 process accepts an optional bounded version-1 journal and a retained-operation
+capacity of 1 through 64. The service owns an exclusive stable lock sibling for the configured
+journal path and fails closed when another process already holds it; each instance must use a distinct
+path. A journal identity or lease-epoch mismatch fails closed; an in-flight or
+accepted operation restored after restart becomes explicit `unknown` and is reconciled read-only.
+Clients must not blindly resend an unknown action. A future compatibility promotion must add exact
+process ownership, readiness, lease-epoch rotation, multi-instance, downstream crash, and
+disposable-host evidence. The attached process also accepts a bounded FIFO queue-capacity setting
+from 1 through 64, exposes sanitized metrics, and supports a lease-fenced shutdown route. These
+additions are component lifecycle controls; they do not establish process ownership, signal
+handling, global scheduling, or host compatibility. `STS2_MCP_SESSION_ID` defaults to the gateway
+session and may be set independently; every lease-protected request must then carry the matching
+`x-mcp-session-id` value.
 
 ## Attached runtime hardening compatibility
 
 [ADR 0011](decisions/0011-attached-runtime-hardening.md) corrects the existing unpublished attached
-adapter without adding a gameplay profile, journal, queue, or restart issuer. Both configured
+baseline without adding a gameplay profile, journal, queue, or restart issuer. The component
+ADRs add the v2 journal and queue above this baseline. Both configured
 addresses must now be literal loopback addresses with nonzero ports. Clients using DNS names or
 non-loopback endpoints must change configuration. Incoming reads and reply writes each expire
 after five seconds; the whole downstream connect/write/read exchange shares five seconds. An

@@ -40,3 +40,8 @@ qualifies. Do not add a policy exception to hide product behavior or a missing c
 The checker is intentionally target-local so this repository remains reproducible when sibling
 targets evolve. It does not inspect sibling trees, planning material, game files, process state,
 provider state, or deployment systems.
+
+The former directory-name ignore for `bin` also skipped `crates/gateway/src/bin`, including the
+attached runtime's source. That ignore is removed: runtime source and its concern-specific test
+modules now receive the unchanged size, license, and language checks. A regression test loads this
+repository's actual policy and verifies the runtime entrypoint, service, and HTTP parser are scanned.

@@ -1,133 +1,7 @@
 // SPDX-License-Identifier: MIT
 
-use std::collections::BTreeMap;
-
-use serde_json::Value;
-use sts2_gateway::{
-    RuntimeV2Binding, RuntimeV2CombatPhase, RuntimeV2Ledger, RuntimeV2LedgerConfig,
-    RuntimeV2Observation,
-};
-
-use super::{HttpRequest, RuntimeConfig, RuntimeService, UnconfiguredRuntimeV2Forwarder};
-
-fn test_service() -> Result<RuntimeService, String> {
-    let config = RuntimeConfig {
-        listen_address: String::from("127.0.0.1:15525"),
-        mod_address: String::from("127.0.0.1:15526"),
-        gateway_token: String::from("gateway-token"),
-        mod_token: String::from("mod-token"),
-        instance_id: String::from("instance-1"),
-        caller_id: String::from("harness"),
-        session_id: String::from("session-1"),
-        lease_id: String::from("lease-1"),
-        lease_epoch: 1,
-    };
-    let binding = RuntimeV2Binding::new(
-        &config.instance_id,
-        &config.session_id,
-        &config.lease_id,
-        config.lease_epoch,
-        RuntimeV2Observation::new(RuntimeV2CombatPhase::OutsideCombat, 0, false, 0),
-    )
-    .map_err(|error| error.to_string())?;
-    let runtime_v2 = RuntimeV2Ledger::new(
-        RuntimeV2LedgerConfig::new(8),
-        binding,
-        UnconfiguredRuntimeV2Forwarder,
-    )
-    .map_err(|error| error.to_string())?;
-    Ok(RuntimeService {
-        config,
-        lease_active: true,
-        lease_released: false,
-        runtime_v2,
-    })
-}
-
-fn authenticated_request(path: &str) -> HttpRequest {
-    let mut headers = BTreeMap::new();
-    headers.insert(
-        String::from("authorization"),
-        String::from("Bearer gateway-token"),
-    );
-    headers.insert(
-        String::from("x-sts2-instance-id"),
-        String::from("instance-1"),
-    );
-    headers.insert(String::from("x-sts2-caller-id"), String::from("harness"));
-    headers.insert(String::from("x-sts2-session-id"), String::from("session-1"));
-    headers.insert(String::from("x-sts2-lease-id"), String::from("lease-1"));
-    headers.insert(String::from("x-sts2-lease-epoch"), String::from("1"));
-    headers.insert(
-        String::from("x-sts2-correlation-id"),
-        String::from("corr-state"),
-    );
-    HttpRequest {
-        method: String::from("GET"),
-        path: path.to_owned(),
-        headers,
-        body: Vec::new(),
-    }
-}
-
-#[test]
-fn state_route_returns_typed_request_and_explicit_unavailable_fallback() -> Result<(), String> {
-    let mut service = test_service()?;
-    let request = authenticated_request("/v2/instances/instance-1/state");
-    let (status, body) = service.handle_request(&request);
-    assert_eq!(status, 503);
-    let value = serde_json::from_slice::<Value>(&body).map_err(|error| error.to_string())?;
-    assert_eq!(value["status"], "unavailable");
-    assert_eq!(value["error_code"], "sts2.runtime/state_unavailable");
-    assert_eq!(value["reason"], "unconfigured_runtime_v2_forwarder");
-    assert_eq!(value["request"]["kind"], "state_request");
-    assert_eq!(value["request"]["instance_id"], "instance-1");
-    assert_eq!(value["request"]["correlation_id"], "corr-state");
-    Ok(())
-}
-
-#[test]
-fn v2_gets_are_not_arbitrary_proxy_routes() -> Result<(), String> {
-    let mut service = test_service()?;
-    for path in [
-        "/v2/instances/instance-1/state/extra",
-        "/v2/instances/instance-1/not-a-proxy",
-    ] {
-        let (status, _) = service.handle_request(&authenticated_request(path));
-        assert_eq!(status, 404, "unexpected route match for {path}");
-    }
-    Ok(())
-}
-
-#[test]
-fn runtime_addresses_are_literal_loopback_only() {
-    for address in ["127.0.0.1:15525", "[::1]:15526"] {
-        assert!(super::service_config::validate_loopback_address(address).is_ok());
-    }
-    for address in [
-        "0.0.0.0:15525",
-        "[::]:15525",
-        "192.0.2.1:15526",
-        "localhost:15525",
-        "example.com:15526",
-        "127.0.0.1:0",
-    ] {
-        assert!(super::service_config::validate_loopback_address(address).is_err());
-    }
-}
-
-#[test]
-fn released_context_cannot_be_reactivated() -> Result<(), String> {
-    let mut service = test_service()?;
-    let mut release = authenticated_request("/v1/instances/instance-1/release");
-    release.method = "POST".to_owned();
-    assert_eq!(service.handle_request(&release).0, 200);
-    let allocation =
-        br#"{"instance_id":"instance-1","caller_id":"harness","session_id":"session-1"}"#;
-    assert_eq!(service.allocate(allocation).0, 409);
-    assert!(service.check_lease(&release).is_err());
-    Ok(())
-}
+use super::test_support::*;
+use super::*;
 
 #[test]
 fn allocation_rejects_duplicate_unknown_and_missing_members() -> Result<(), String> {
@@ -159,5 +33,98 @@ fn allocation_rejects_duplicate_unknown_and_missing_members() -> Result<(), Stri
         200
     );
     assert!(service.lease_active);
+    Ok(())
+}
+
+#[test]
+fn v1_fixed_forwarding_preserves_paths_credentials_and_identity() -> Result<(), String> {
+    let listener = TcpListener::bind("127.0.0.1:0").map_err(|e| e.to_string())?;
+    listener.set_nonblocking(true).map_err(|e| e.to_string())?;
+    let address = listener.local_addr().map_err(|e| e.to_string())?;
+    let (sender, receiver) = std::sync::mpsc::sync_channel(3);
+    let worker = thread::spawn(move || -> Result<(), String> {
+        for _ in 0..3 {
+            let expires = Instant::now() + Duration::from_secs(2);
+            let mut stream = loop {
+                match listener.accept() {
+                    Ok((stream, _)) => break stream,
+                    Err(error)
+                        if error.kind() == std::io::ErrorKind::WouldBlock
+                            && Instant::now() < expires =>
+                    {
+                        thread::sleep(Duration::from_millis(1))
+                    }
+                    Err(error) => return Err(error.to_string()),
+                }
+            };
+            let request = read_request(&mut stream).map_err(|e| e.to_string())?;
+            sender.send(request).map_err(|e| e.to_string())?;
+            write_response(&mut stream, 200, br#"{"synthetic":true}"#)
+                .map_err(|e| e.to_string())?;
+        }
+        Ok(())
+    });
+    let mut service = test_service()?;
+    service.config.mod_address = address.to_string();
+    for (method, public_path, downstream_path, body) in [
+        ("GET", "/health/ready", "/health/ready", b"".as_slice()),
+        (
+            "GET",
+            "/v1/instances/instance-1/state",
+            "/api/v1/runtime/state",
+            b"",
+        ),
+        (
+            "POST",
+            "/v1/instances/instance-1/action",
+            "/api/v1/runtime/action",
+            br#"{"action":"synthetic"}"#,
+        ),
+    ] {
+        let mut request = authenticated_request(public_path);
+        request.method = method.to_owned();
+        request.body = body.to_vec();
+        if !body.is_empty() {
+            request
+                .headers
+                .insert("content-type".to_owned(), "application/json".to_owned());
+        }
+        let (status, response) = service.handle_request(&request);
+        assert_eq!(status, 200);
+        if public_path != "/health/ready" {
+            assert_eq!(response, br#"{"synthetic":true}"#);
+        }
+        let forwarded = receiver
+            .recv_timeout(Duration::from_secs(2))
+            .map_err(|e| e.to_string())?;
+        assert_eq!(forwarded.method, method);
+        assert_eq!(forwarded.path, downstream_path);
+        assert_eq!(forwarded.body, body);
+        assert_eq!(
+            forwarded.headers.get("authorization").map(String::as_str),
+            Some("Bearer mod-token")
+        );
+        assert!(!forwarded.headers.contains_key("x-mcp-session-id"));
+        if public_path == "/health/ready" {
+            assert!(!forwarded.headers.contains_key("x-sts2-correlation-id"));
+        } else {
+            for (name, expected) in [
+                ("x-sts2-instance-id", "instance-1"),
+                ("x-sts2-caller-id", "harness"),
+                ("x-sts2-session-id", "session-1"),
+                ("x-sts2-lease-id", "lease-1"),
+                ("x-sts2-lease-epoch", "1"),
+                ("x-sts2-correlation-id", "corr-state"),
+            ] {
+                assert_eq!(
+                    forwarded.headers.get(name).map(String::as_str),
+                    Some(expected)
+                );
+            }
+        }
+    }
+    worker
+        .join()
+        .map_err(|_| String::from("synthetic downstream panicked"))??;
     Ok(())
 }

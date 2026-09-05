@@ -5,6 +5,14 @@ use std::io::Write;
 use std::net::{TcpListener, TcpStream};
 use std::time::{Duration, Instant};
 
+#[test]
+fn overload_responses_include_bounded_retry_guidance() {
+    let header = super::response_header(429, 17);
+    assert!(header.contains("Retry-After: 1\r\n"));
+    assert!(header.contains("Content-Length: 17\r\n"));
+    assert!(!super::response_header(503, 17).contains("Retry-After:"));
+}
+
 fn pair() -> std::io::Result<(TcpStream, TcpStream)> {
     let listener = TcpListener::bind("127.0.0.1:0")?;
     let client = TcpStream::connect(listener.local_addr()?)?;
