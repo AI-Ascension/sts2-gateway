@@ -4,6 +4,24 @@ use super::test_support::*;
 use super::*;
 
 #[test]
+fn v3_envelope_is_validated_before_any_downstream_connection() -> Result<(), String> {
+    let mut service = test_service()?;
+    let mut request = authenticated_request("/v3/instances/instance-1/action");
+    request.method = "POST".to_owned();
+    request
+        .headers
+        .insert("content-type".to_owned(), "application/json".to_owned());
+    request.body = b"{}".to_vec();
+    let (status, body) = service.handle_request(&request);
+    assert_eq!(status, 400);
+    assert_eq!(
+        serde_json::from_slice::<Value>(&body).map_err(|error| error.to_string())?["error_code"],
+        "runtime_v3_request_invalid"
+    );
+    Ok(())
+}
+
+#[test]
 fn allocation_rejects_duplicate_unknown_and_missing_members() -> Result<(), String> {
     for body in [
         br#"{"instance_id":"wrong","instance_id":"instance-1","caller_id":"harness","session_id":"session-1"}"#.as_slice(),

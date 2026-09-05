@@ -19,11 +19,15 @@ use sts2_gateway::{
 use super::auth::{AuthFailure, AuthPolicy, AuthScope};
 use super::forwarder::HttpRuntimeV2Forwarder;
 use super::http::{
-    HttpRequest, HttpResponse, MAX_BODY_BYTES, ReadError, read_request, read_response,
-    write_request, write_response,
+    HttpRequest, HttpResponse, MAX_BODY_BYTES, MAX_RESPONSE_BYTES, ReadError, read_request,
+    read_response, write_request, write_response,
 };
 use super::journal;
 use super::metrics::RuntimeMetrics;
+use super::runtime_v3_gameplay::RuntimeV3GameplayRoute;
+use super::runtime_v3_gameplay_forwarder::{
+    RuntimeV3GameplayForwardError, RuntimeV3GameplayForwarder,
+};
 
 const DEFAULT_LISTEN_ADDRESS: &str = "127.0.0.1:15525";
 const DEFAULT_MOD_ADDRESS: &str = "127.0.0.1:15526";
@@ -40,6 +44,7 @@ pub(crate) struct RuntimeService {
     lease_revoked: bool,
     shutdown_requested: bool,
     runtime_v2: RuntimeV2Ledger<HttpRuntimeV2Forwarder>,
+    runtime_v3: RuntimeV3GameplayForwarder,
     journal_path: Option<PathBuf>,
     _journal_lock: Option<journal::JournalLock>,
     metrics: RuntimeMetrics,
@@ -78,6 +83,8 @@ mod lease;
 mod routes;
 #[path = "service_v2.rs"]
 mod v2;
+#[path = "service_v3.rs"]
+mod v3;
 
 use admission::{accept_requests, run_worker};
 use authorization::request_rejection;
@@ -129,6 +136,7 @@ impl RuntimeService {
             lease_revoked: false,
             shutdown_requested: false,
             runtime_v2,
+            runtime_v3: RuntimeV3GameplayForwarder::new(MAX_BODY_BYTES, MAX_RESPONSE_BYTES),
             metrics: RuntimeMetrics::default(),
         })
     }

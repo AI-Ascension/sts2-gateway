@@ -20,6 +20,7 @@ cargo test --workspace --all-targets --all-features --locked
 (cd protocol-artifact/poc-v1 && sha256sum -c SHA256SUMS)
 (cd protocol-artifact/runtime-v1 && sha256sum -c SHA256SUMS)
 (cd protocol-artifact/runtime-v2 && sha256sum -c SHA256SUMS)
+(cd protocol-artifact/runtime-v3-gameplay && sha256sum -c SHA256SUMS)
 ```
 
 The policy command comes first in the normal local sequence. CI runs the same commands with bounded
@@ -52,6 +53,10 @@ secret-management system. The attached runtime also tests that a mismatched conf
 header fails at the lease fence before downstream forwarding.
 The control-plane fakes do not represent real processes or game hosts. Ephemeral TCP tests exercise
 actual socket framing, timeouts, and forwarding only against synthetic peers.
+
+The process-supervisor fixture proves that restart replaces ownership only after the old handle
+is force-stopped. Live restart/recovery remains unverified. HTTP tests additionally cover absolute
+deadlines, stalled writes, header bounds, and ambiguous framing.
 
 Late retained settlement is checked after a newer authoritative observation: the historical receipt
 remains replayable, but cannot rewind admission generation. Both accepted and unknown operations
@@ -117,12 +122,26 @@ lease fencing, a Godot main-thread callback, the bounded STS2 host effect, and r
 profile cleanup. Process supervision/restart, concurrency isolation, and gameplay mutation remain
 `unverified`.
 
+## Runtime-v3 and co-op checks
+
+The source lane tests the six fixed Runtime-v3 route/method pairs, bounded request/response JSON,
+and rejection of arbitrary paths. Co-op tests cover peer capacity, duplicate/local-role rejection,
+generation disagreement, disconnect, missing local identity, and mutation suspension. Process
+supervisor tests cover capacity, ownership, inspection, graceful/forced stop seams, and release of
+owned handles. These tests do not replace an authorized live process or target-host trace.
+
 ## Runtime-v2 wire closure
 
 `crates/gateway/tests/runtime_v2_wire_closure.rs` round-trips every copied golden message, removes
 each of the six nullable envelope members individually, and verifies decoding rejection. It also
 checks unknown envelope member rejection. This deterministic decoder evidence does not establish
 host or downstream runtime compatibility.
+
+## Exo component integration
+
+The combined Exo/component adapter tests every v3 route with read, mutate and control credentials
+and verifies the MCP-session fence on all six routes before request-body decoding. Existing
+Runtime-v2 journal, queue, authentication and lease regressions remain in the same full suite.
 
 ## MCP-session configuration
 

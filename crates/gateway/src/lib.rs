@@ -1,18 +1,21 @@
 // SPDX-License-Identifier: MIT
 
 mod control;
+mod coop_session;
 mod fencing;
 mod forwarding;
 mod identity;
 mod lifecycle;
 mod maintenance;
 mod ports;
+mod process_supervisor;
 mod protocol_artifact;
 mod runtime_v2;
 mod runtime_v2_artifact;
 
 use std::fmt;
 
+pub use coop_session::{CoopPeerRole, CoopSession, CoopSessionError, CoopSynchronizationSnapshot};
 pub use identity::{
     CallerId, FenceFailure, InstanceId, Lease, LeaseEpoch, LeaseId, LeaseProof, OperationId,
     SessionId, Tick, evaluate_fence,
@@ -22,6 +25,10 @@ pub use ports::{
     Clock, DeterministicLeaseDecision, FixedRoute, HealthFault, LaunchSpec, LeaseDecisionPort,
     ProcessFault, ProcessHandle, ProcessPort, ProcessState, Readiness, ReadinessPort, StopMode,
     TransportFault, TransportPort, TransportRequest, TransportResponse,
+};
+pub use process_supervisor::{
+    ProcessSupervisor, ProcessSupervisorConfig, ProcessSupervisorConfigError,
+    ProcessSupervisorError,
 };
 pub use protocol_artifact::{
     ArtifactError, POC_ARTIFACT, POC_GENERATOR, POC_MAX_SETTLED_EFFECTS, POC_MAX_UNITS,

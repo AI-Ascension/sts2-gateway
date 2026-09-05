@@ -167,6 +167,39 @@ authenticated `GET /v2/instances/{instance_id}/metrics` route and the lease-fenc
 bounded FIFO worker queue; queue overflow and shutdown cancellation are explicit and do not retry
 mutation-bearing work.
 
+## Runtime-v3 and co-op extension
+
+ADR 0012 keeps Runtime-v3 routing semantic but narrow: state, legal actions, dispatch, wait,
+reobserve, and recovery are the only fixed route classes. The forwarder bounds JSON and delegates
+profile meaning to the game-mod host boundary. The gateway never creates a legal action or infers an
+effect from acceptance.
+
+`CoopSession` is an additive peer ledger with two-to-four bounded peers, one local role, generation
+matching, and explicit disconnected/missing-peer and disagreement state. Mutation authorization is
+available only while synchronized. The process supervisor similarly owns only injected process
+handles; its bounded restart seam stops the old owned handle before starting one replacement and
+fails closed if replacement start fails. Concrete executable, profile, credential, and cleanup
+adapters remain deployment inputs and require runtime evidence.
+
+The semantic gameplay adapter now enforces the canonical copied schema, its exact digest,
+authenticated header/body identity agreement, expected route kinds, operation/correlation binding,
+and neutral field relationships. This does not authorize a game effect or fabricate a receipt.
+The fixed five-second HTTP deadlines include partial traffic, and address configuration rejects
+non-loopback addresses and DNS names. See [ADR 0014](decisions/0014-runtime-v3-framing-and-fencing.md).
+
+Co-op mutation snapshots require a local peer as well as at least two connected peers. The
+session generation advances only when every registered peer is connected and reports the same
+generation at or above the current baseline. Partial agreement, missing peers, and rollback keep
+mutation suspended. This is synchronization bookkeeping, not host or multiplayer evidence.
+
+The attached adapter enforces absolute HTTP deadlines, strict framing, literal-loopback address
+configuration and terminal in-process release admission. Runtime-v2 exact receipt replay is
+separate from new-action generation admission; read-only reconciliation polls accepted or unknown
+work without redispatch, and historical receipts cannot rewind current observation. See
+[ADR 0011](decisions/0011-attached-runtime-hardening.md). The queued executable includes Runtime-v2 journal recovery, but still has no timed lease renewal,
+durable boot epoch, or concrete process supervisor; the co-op and supervisor library seams are
+local prototypes and are not connected to runtime admission or co-op wire serialization.
+
 Both gateway and mod endpoint settings require numeric loopback `IP:port` socket addresses;
 wildcard/non-loopback addresses and DNS hostnames fail configuration. This plaintext attached lane
 does not expose a remote mode. HTTP frames and downstream exchanges use absolute deadlines.
@@ -184,3 +217,10 @@ The gateway decoder requires every frozen envelope member, including nullable me
 present. Explicit null is accepted where the message kind permits it; omission or unknown members
 fail before ledger admission and forwarding. The gateway owns this decoding boundary; host
 mutation authority and protocol artifact bytes are unchanged.
+
+## Exo component integration
+
+The six Exo routes share the bounded worker queue and full configured MCP-session lease fence.
+State, legal-actions, wait and reobserve require read scope; dispatch requires mutate scope;
+recover requires control scope. Authentication and scope rejection precede admission. The
+Runtime-v2 journal retains only Runtime-v2 operations; it does not persist Exo gameplay requests.

@@ -120,6 +120,33 @@ handling, global scheduling, or host compatibility. `STS2_MCP_SESSION_ID` defaul
 session remains `session-1` by default and may be set independently; every lease-protected request must then carry the matching
 `x-mcp-session-id` value.
 
+## Runtime-v3 and co-op row
+
+| Surface | Current evidence | Result |
+| --- | --- | --- |
+| `runtime-v3-gameplay` fixed routes and forwarder | Source validation and route allowlist tests | Source-derived; live gateway/host settlement unverified |
+| Co-op synchronization and process supervisor | Bounded deterministic fakes and identity/failure tests | Source-derived; live restart, cleanup, isolation, and multiplayer unverified |
+
+These surfaces are additive to Runtime-v2 and do not inherit its runtime evidence.
+
+The gameplay envelope is pinned to protocol PR #8 commit
+`82507361890c1bdce6cffeaf7e616d93e53a7d99`, schema digest
+`b37c80f583aeaf4f81ede2083bcfb4129196baf5eb092470e8738173c4b7226c`.
+The complete copied artifact and its source/conformance companions are checked by CI. Runtime
+validation additionally enforces duplicate-field rejection, schema shape, byte bounds, correlated
+identities/operations, and observation/witness relationships. This is the semantic gameplay
+profile, not the incompatible earlier bounded-card profile used by gateway PR #6. The same
+profile name does not establish compatibility; the exact digest is required and mixed digests
+are rejected. See [ADR 0014](decisions/0014-runtime-v3-framing-and-fencing.md).
+
+The attached executable has a boolean active lease, **not** a timed/renewable lease. It has no
+durable boot-epoch rotation. Starting another process with the same configured identity/token/
+epoch and allocating it can admit proofs from the earlier process; this remains an unresolved
+deployment blocker. Release cannot reactivate the context within one process, but its revocation
+is not durable. The injected process supervisor and generic clock-based core do not change these
+executable semantics. A compatible design must separate historical read-only receipts from a
+fresh active boot context across gateway, mod, MCP, and harness before restart can be safe.
+
 ## Attached runtime hardening compatibility
 
 [ADR 0011](decisions/0011-attached-runtime-hardening.md) corrects the existing unpublished attached
@@ -130,6 +157,11 @@ non-loopback endpoints must change configuration. Incoming reads and reply write
 after five seconds; the whole downstream connect/write/read exchange shares five seconds. An
 incomplete inbound request expires with HTTP408; an uncertain downstream mutation is not retried.
 The existing body/response limits and frozen Runtime-v2 artifact are unchanged.
+
+That statement describes the inherited v1/v2 hardening. The separate semantic Runtime-v3
+extension uses a128KiB parsed-response limit for larger player-visible observations; its regression
+checks that bound. The legacy v1 relay still imposes its16KiB returned-body limit. Neither bound
+permits unbounded host payloads or changes the frozen Runtime-v2 artifact.
 
 Allocation uses a closed typed body: malformed, duplicate, missing or unknown fields return400;
 well-formed requests naming the wrong configured identity return409. No partial allocation occurs.
@@ -147,3 +179,16 @@ still requires the original identity/epoch and canonical payload; fresh mutation
 This patch enforces the existing frozen Runtime-v2 schema: nullable members must be present, even
 when their value is null. Clients omitting a member must send an explicit null instead. No route,
 field, digest, artifact byte, or valid serialized message changes.
+
+## Exo component integration
+
+Runtime-v3 inherits the component adapter authentication settings and configured MCP session
+header. Read scope authorizes state, legal actions, wait, and reobserve; mutate scope is required
+for dispatch, and control scope for recovery. A read credential cannot dispatch or recover.
+Co-op and process-supervisor APIs remain local prototypes: the attached runtime does not consume
+co-op wire messages or use peer synchronization to authorize forwarding.
+
+Recovery uses route-level control scope because the canonical request kinds include release-lease
+and stop-episode as well as reobserve and reconcile. The current mod rejects those lifecycle
+kinds as unsupported, but the gateway does not weaken their future authority. Read-only clients
+can use the dedicated reobserve and wait routes for state and retained receipt observation.

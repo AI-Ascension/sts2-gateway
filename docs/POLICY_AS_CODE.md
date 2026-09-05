@@ -14,11 +14,10 @@ action must be pinned to an immutable commit or digest. The target has no policy
 
 ## Local entrypoint
 
-Executable Rust sources under `crates/gateway/src/bin/` are included in these checks. The old
-basename-wide `bin` exclusion has been removed; attached service configuration, control, transport,
-v2 handling and tests are partitioned under the same file budgets. A regression loads the actual
-policy and asserts that the runtime entry point, service and HTTP sources are collected. There is
-no new exemption or broader output-directory exclusion.
+Rust executable sources under `crates/gateway/src/bin/` are included in policy checks. The old
+basename-wide `bin` exclusion and oversized service exemption have been removed; the attached
+service is split into configuration, control, downstream, v2, v3, and test modules under the same
+existing budgets. No new exception replaces that coverage.
 
 Run from `sts2-gateway`:
 

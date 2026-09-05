@@ -117,12 +117,12 @@ fn state_route_accepts_the_typed_mcp_request_body() -> Result<(), String> {
 }
 
 #[test]
-fn independent_v2_adapter_does_not_admit_gameplay_routes() -> Result<(), String> {
+fn semantic_adapter_rejects_bounded_gameplay_receipt_routes() -> Result<(), String> {
     let mut service = test_service()?;
     for (method, suffix) in [
-        ("GET", "state"),
-        ("POST", "action"),
         ("GET", "operations/op-1"),
+        ("POST", "play-card"),
+        ("GET", "state/extra"),
     ] {
         let mut request = authenticated_request(&format!("/v3/instances/instance-1/{suffix}"));
         request.method = method.to_owned();

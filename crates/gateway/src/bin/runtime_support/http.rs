@@ -9,7 +9,7 @@ mod deadline;
 
 pub(crate) const MAX_HEADER_BYTES: usize = 8 * 1024;
 pub(crate) const MAX_BODY_BYTES: usize = 16 * 1024;
-pub(crate) const MAX_RESPONSE_BYTES: usize = 64 * 1024;
+pub(crate) const MAX_RESPONSE_BYTES: usize = 128 * 1024;
 
 pub(crate) struct HttpRequest {
     pub(crate) method: String,

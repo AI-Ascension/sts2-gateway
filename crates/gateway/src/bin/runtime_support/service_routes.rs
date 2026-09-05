@@ -9,6 +9,11 @@ impl RuntimeService {
         {
             return rejection;
         }
+        if let Some(route) =
+            RuntimeV3GameplayRoute::parse(&request.method, &request.path, &self.config.instance_id)
+        {
+            return self.runtime_v3_request(request, route);
+        }
         match (request.method.as_str(), request.path.as_str()) {
             ("GET", "/health/ready") if request.body.is_empty() => self.health(),
             ("POST", "/v1/sessions/allocate")

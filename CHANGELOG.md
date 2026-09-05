@@ -10,6 +10,12 @@ runtime or downstream wire contract.
 - Default MCP transport identity independently to `mcp-session-1` to match MCP and harness
   configuration; retain validated explicit overrides and the complete session fence.
 
+- Integrate Exo routes with Runtime-v2 component queue, journal, scoped authentication and MCP
+  session fences; require mutate scope for dispatch and control scope for recovery.
+
+- Preserve narrowly validated legal-catalog refusal errors (stale generation/unavailable host)
+  as HTTP409/503 with an explicit reobserve hint; never treat them as a successful catalog.
+
 - Split the independent Runtime-v2 component wiring from PR #6 at
   `3cf7f08f36daf31ca2d9cc3e455a622db78d68af`; retain its original branch and commits for review.
   The separate Exo gameplay lane owns Runtime-v3 integration.
@@ -48,9 +54,28 @@ runtime or downstream wire contract.
   and lease identities remain unique. Clarified the process port's partial-start cleanup ownership.
 - Expiry reconciliation reports forced-stop failures instead of claiming successful expiration,
   preserving the process handle and revoked lease for explicit cleanup retry.
+- Correct co-op snapshot authorization without a local peer and permit synchronization to recover
+  after every connected peer reaches a common newer generation, without lowering the baseline.
+- Retain exact Runtime-v2 operation replays across generation changes, reconcile accepted work,
+  and preserve newer observations when historical completion receipts arrive late.
+
+- Bound incoming HTTP reads and outgoing writes by absolute five-second deadlines; slow-drip
+  clients cannot extend the deadline. The downstream connect/write/read exchange shares one
+  five-second budget. Reject oversized terminated headers and ambiguous transfer framing.
+- Require literal loopback addresses and nonzero ports for both listeners and downstreams;
+  released attached lease contexts cannot be allocated again during the same process lifetime.
+- Validate Runtime-v3 requests and responses against the copied canonical gameplay schema,
+  matching route kinds, authenticated envelope identities, correlations, operations, metadata,
+  and neutral semantic relationships. Duplicate JSON fields and undeclared fields are rejected.
+  These corrections do not implement durable restart epochs, lease TTL/renewal, or a real host.
 
 ### Added
 
+- The bounded Runtime-v3 gameplay route allowlist and forwarder, gateway-owned co-op peer
+  synchronization, and an injected process supervisor. Live launch, host settlement, and
+  multiplayer traces remain unverified.
+- A bounded injected-process restart seam that removes the old owned handle before replacement
+  start and fails closed when replacement start fails.
 - The frozen Runtime-v2 gateway operation ledger and fixed forwarding seam: full envelope and lease
   validation, bounded operation keys, canonical duplicate/conflict checks, exactly-once dispatch,
   retained-receipt reconciliation, explicit unknown/cancelled outcomes, capacity fencing, and the
