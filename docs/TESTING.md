@@ -123,3 +123,8 @@ profile cleanup. Process supervision/restart, concurrency isolation, and gamepla
 each of the six nullable envelope members individually, and verifies decoding rejection. It also
 checks unknown envelope member rejection. This deterministic decoder evidence does not establish
 host or downstream runtime compatibility.
+
+## MCP-session configuration
+
+A pure MCP-session configuration test covers the independent default, explicit override and invalid
+values without changing process environment. Cross-process identity issuance remains unverified.

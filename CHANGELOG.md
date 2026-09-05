@@ -7,6 +7,9 @@ runtime or downstream wire contract.
 
 ### Fixed
 
+- Default MCP transport identity independently to `mcp-session-1` to match MCP and harness
+  configuration; retain validated explicit overrides and the complete session fence.
+
 - Split the independent Runtime-v2 component wiring from PR #6 at
   `3cf7f08f36daf31ca2d9cc3e455a622db78d68af`; retain its original branch and commits for review.
   The separate Exo gameplay lane owns Runtime-v3 integration.

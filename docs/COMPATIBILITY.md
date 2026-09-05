@@ -116,8 +116,8 @@ process ownership, readiness, lease-epoch rotation, multi-instance, downstream c
 disposable-host evidence. The attached process also accepts a bounded FIFO queue-capacity setting
 from 1 through 64, exposes sanitized metrics, and supports a lease-fenced shutdown route. These
 additions are component lifecycle controls; they do not establish process ownership, signal
-handling, global scheduling, or host compatibility. `STS2_MCP_SESSION_ID` defaults to the gateway
-session and may be set independently; every lease-protected request must then carry the matching
+handling, global scheduling, or host compatibility. `STS2_MCP_SESSION_ID` defaults independently to `mcp-session-1`, matching MCP and harness; the gateway
+session remains `session-1` by default and may be set independently; every lease-protected request must then carry the matching
 `x-mcp-session-id` value.
 
 ## Attached runtime hardening compatibility
