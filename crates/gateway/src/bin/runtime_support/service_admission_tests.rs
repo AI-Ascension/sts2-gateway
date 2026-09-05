@@ -192,3 +192,26 @@ fn shutdown_drains_requests_until_admission_producer_exits() -> Result<(), Strin
     assert_eq!(metrics.snapshot("instance-1", 2)["queue_depth"], 0);
     Ok(())
 }
+
+#[test]
+fn mcp_session_configuration_has_its_own_default_and_validates_overrides() -> Result<(), String> {
+    use super::configuration::configured_mcp_session;
+    assert_eq!(
+        configured_mcp_session(Err(std::env::VarError::NotPresent))?,
+        "mcp-session-1"
+    );
+    assert_eq!(
+        configured_mcp_session(Ok("mcp-explicit".to_owned()))?,
+        "mcp-explicit"
+    );
+    for value in [String::new(), "invalid session".to_owned(), "x".repeat(129)] {
+        assert!(configured_mcp_session(Ok(value)).is_err());
+    }
+    assert!(
+        configured_mcp_session(Err(std::env::VarError::NotUnicode(
+            std::ffi::OsString::from("non-unicode-error-fixture")
+        )))
+        .is_err()
+    );
+    Ok(())
+}

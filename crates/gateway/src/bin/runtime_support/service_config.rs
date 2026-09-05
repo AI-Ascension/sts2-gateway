@@ -13,7 +13,7 @@ impl RuntimeConfig {
         let instance_id = env_or_default("STS2_INSTANCE_ID", "instance-1")?;
         let caller_id = env_or_default("STS2_CALLER_ID", "harness")?;
         let session_id = env_or_default("STS2_SESSION_ID", "session-1")?;
-        let mcp_session_id = env_or_default("STS2_MCP_SESSION_ID", &session_id)?;
+        let mcp_session_id = configured_mcp_session(std::env::var("STS2_MCP_SESSION_ID"))?;
         let lease_id = env_or_default("STS2_LEASE_ID", "lease-1")?;
         let lease_epoch = env_or_default("STS2_LEASE_EPOCH", "1")?
             .parse::<u64>()
@@ -120,4 +120,22 @@ pub(super) fn parse_queue_capacity(value: &str) -> Result<usize, String> {
         ));
     }
     Ok(capacity)
+}
+
+pub(super) fn configured_mcp_session(
+    value: Result<String, std::env::VarError>,
+) -> Result<String, String> {
+    let session = match value {
+        Ok(value) => value,
+        Err(std::env::VarError::NotPresent) => String::from("mcp-session-1"),
+        Err(std::env::VarError::NotUnicode(_)) => {
+            return Err(String::from("STS2_MCP_SESSION_ID is not valid UTF-8"));
+        }
+    };
+    if !safe_identity(&session) {
+        return Err(String::from(
+            "STS2_MCP_SESSION_ID is empty, unsafe, or oversized",
+        ));
+    }
+    Ok(session)
 }
