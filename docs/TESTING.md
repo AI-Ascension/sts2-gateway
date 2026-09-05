@@ -100,3 +100,10 @@ The authorized exact-host lane now confirms the managed mod listener, downstream
 lease fencing, a Godot main-thread callback, the bounded STS2 host effect, and reversible disposable
 profile cleanup. Process supervision/restart, concurrency isolation, and gameplay mutation remain
 `unverified`.
+
+## Runtime-v2 wire closure
+
+`crates/gateway/tests/runtime_v2_wire_closure.rs` round-trips every copied golden message, removes
+each of the six nullable envelope members individually, and verifies decoding rejection. It also
+checks unknown envelope member rejection. This deterministic decoder evidence does not establish
+host or downstream runtime compatibility.

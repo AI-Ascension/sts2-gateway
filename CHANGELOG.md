@@ -9,6 +9,8 @@ runtime or downstream wire contract.
 
 - Complete the inert Runtime-v1 protocol copy and check frozen v1/v2 inventories in CI; preserve
   existing schema/manifest bytes and distinguish attached adapters in the repository layout.
+- Reject omitted required nullable Runtime-v2 envelope members during decoding while preserving
+  explicit null values and the frozen artifact bytes.
 
 - Bound attached HTTP request/reply and downstream exchange lifetimes with absolute five-second
   deadlines, and reject oversized or ambiguous header framing. Require literal loopback endpoints

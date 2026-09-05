@@ -152,3 +152,10 @@ work without redispatch, and historical receipts cannot rewind current observati
 [ADR 0011](decisions/0011-attached-runtime-hardening.md). The sequential executable still has no
 timed lease renewal, durable boot epoch, journal or concrete process supervisor; these bounded
 corrections do not imply those capabilities.
+
+## Runtime-v2 wire closure
+
+The gateway decoder requires every frozen envelope member, including nullable members, to be
+present. Explicit null is accepted where the message kind permits it; omission or unknown members
+fail before ledger admission and forwarding. The gateway owns this decoding boundary; host
+mutation authority and protocol artifact bytes are unchanged.

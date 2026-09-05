@@ -111,3 +111,9 @@ durable boot epoch, or persisted revocation. Restarting with the same config and
 still admit earlier proofs; no restart-ready or autonomous-gameplay claim follows from these fixes.
 Runtime-v2 exact receipt replay is read-only and need not match current state generation, but it
 still requires the original identity/epoch and canonical payload; fresh mutations remain fenced.
+
+## Runtime-v2 required nullable members
+
+This patch enforces the existing frozen Runtime-v2 schema: nullable members must be present, even
+when their value is null. Clients omitting a member must send an explicit null instead. No route,
+field, digest, artifact byte, or valid serialized message changes.
