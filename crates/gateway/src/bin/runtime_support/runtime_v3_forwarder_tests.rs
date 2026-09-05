@@ -29,6 +29,23 @@ fn headers(value: &Value) -> BTreeMap<String, String> {
     headers
 }
 
+/// ADR 0015: the validator is built once in a `OnceLock<Option<_>>`; a schema that failed to
+/// compile would silently reject every Runtime-v3 envelope. Surface that failure here.
+#[test]
+fn embedded_runtime_v3_schema_compiles_and_admits_golden_request()
+-> Result<(), Box<dyn std::error::Error>> {
+    let schema: Value = serde_json::from_str(SCHEMA)?;
+    let validator = jsonschema::validator_for(&schema)
+        .map_err(|error| format!("embedded runtime-v3 schema failed to compile: {error}"))?;
+    let golden = fixture("state-request.json")?;
+    assert!(validator.is_valid(&golden));
+    assert!(
+        validate_envelope(&serde_json::to_vec(&golden)?).is_some(),
+        "the once-built validator must admit a golden request"
+    );
+    Ok(())
+}
+
 #[test]
 fn requests_require_route_kind_and_authenticated_envelope() -> Result<(), Box<dyn std::error::Error>>
 {

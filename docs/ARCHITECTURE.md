@@ -186,6 +186,9 @@ authenticated header/body identity agreement, expected route kinds, operation/co
 and neutral field relationships. This does not authorize a game effect or fabricate a receipt.
 The fixed five-second HTTP deadlines include partial traffic, and address configuration rejects
 non-loopback addresses and DNS names. See [ADR 0014](decisions/0014-runtime-v3-framing-and-fencing.md).
+Schema validation uses the pinned `jsonschema` crate (`=0.52.1`, default features off), the
+gateway's only product dependency beyond `serde`; `unsafe_code = "forbid"` still applies to every
+workspace crate. See [ADR 0015](decisions/0015-jsonschema-dependency-acceptance.md).
 
 Co-op mutation snapshots require a local peer as well as at least two connected peers. The
 session generation advances only when every registered peer is connected and reports the same

@@ -71,6 +71,9 @@ runtime or downstream wire contract.
 
 ### Added
 
+- Record the owner-accepted `jsonschema` product dependency and its conditions in ADR 0015;
+  add a self-check test that the embedded Runtime-v3 schema compiles and admits a golden request.
+
 - The bounded Runtime-v3 gameplay route allowlist and forwarder, gateway-owned co-op peer
   synchronization, and an injected process supervisor. Live launch, host settlement, and
   multiplayer traces remain unverified.
