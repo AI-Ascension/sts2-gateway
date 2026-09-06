@@ -227,3 +227,13 @@ The six Exo routes share the bounded worker queue and full configured MCP-sessio
 State, legal-actions, wait and reobserve require read scope; dispatch requires mutate scope;
 recover requires control scope. Authentication and scope rejection precede admission. The
 Runtime-v2 journal retains only Runtime-v2 operations; it does not persist Exo gameplay requests.
+
+## Coordinator-report synchronization
+
+The attached runtime's `coop_reports` module owns a bounded roster of string peer IDs and
+recent reports. `service_coop` exposes the fixed read/report routes under existing admission,
+scope, lease, and queue controls. It serializes the complete `coop-synchronization-v1`
+artifact for MCP without linking protocol Rust implementation. It neither calls the game nor
+consults reported agreement for gameplay forwarding authority. Source labels remain explicit.
+The older numeric-ID `CoopSession` prototype is separate and is not wire-consumer evidence.
+ADR 0015 records trust, freshness, identity lifetime and deterministic verification.

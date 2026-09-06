@@ -112,3 +112,11 @@ on six fixed routes. Its injected process supervisor and co-op ledger are separa
 components, not executable wiring to a real game or multiplayer host. The attached binary still
 has no lease TTL/renewal or durable boot-epoch rotation; see the explicit restart limitation in
 [COMPATIBILITY.md](docs/COMPATIBILITY.md). It cannot establish a reliable autonomous run by itself.
+
+For opt-in coordinator-reported synchronization, supply `STS2_COOP_ROSTER` as a JSON array,
+for example `[{"peer_id":"local-1","role":"local"},{"peer_id":"ally-1","role":"ally"}]`.
+The configured coordinator submits bounded peer reports under control scope; the separate
+MCP `coop-synchronization-v1` profile reads agreement under read scope. All peers initially
+appear missing, and connected reports expire after thirty seconds. This feature reports
+coordination metadata and never authorizes gameplay. See
+[the route and freshness contract](docs/COMPATIBILITY.md#opt-in-coordinator-reports).

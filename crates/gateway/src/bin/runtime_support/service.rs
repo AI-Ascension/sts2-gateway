@@ -17,6 +17,7 @@ use sts2_gateway::{
 };
 
 use super::auth::{AuthFailure, AuthPolicy, AuthScope};
+use super::coop_reports::CoopReports;
 use super::forwarder::HttpRuntimeV2Forwarder;
 use super::http::{
     HttpRequest, HttpResponse, MAX_BODY_BYTES, MAX_RESPONSE_BYTES, ReadError, read_request,
@@ -48,6 +49,7 @@ pub(crate) struct RuntimeService {
     journal_path: Option<PathBuf>,
     _journal_lock: Option<journal::JournalLock>,
     metrics: RuntimeMetrics,
+    coop_reports: Option<CoopReports>,
 }
 
 struct RuntimeConfig {
@@ -77,6 +79,8 @@ mod admission;
 mod authorization;
 #[path = "service_config.rs"]
 mod configuration;
+#[path = "service_coop.rs"]
+mod coop;
 #[path = "service_lease.rs"]
 mod lease;
 #[path = "service_routes.rs"]
@@ -92,6 +96,10 @@ use authorization::request_rejection;
 impl RuntimeService {
     pub(crate) fn from_environment() -> Result<Self, String> {
         let config = RuntimeConfig::from_environment()?;
+        let coop_reports = configuration::coop_reports_from_environment()?;
+        if coop_reports.is_some() && config.lease_epoch > 9_007_199_254_740_991 {
+            return Err("co-op lease epoch exceeds the wire bound".to_owned());
+        }
         let journal_lock = config
             .journal_path
             .as_deref()
@@ -138,6 +146,7 @@ impl RuntimeService {
             runtime_v2,
             runtime_v3: RuntimeV3GameplayForwarder::new(MAX_BODY_BYTES, MAX_RESPONSE_BYTES),
             metrics: RuntimeMetrics::default(),
+            coop_reports,
         })
     }
 
@@ -232,3 +241,7 @@ mod routes_tests;
 #[cfg(test)]
 #[path = "service_support_tests.rs"]
 mod test_support;
+
+#[cfg(test)]
+#[path = "service_coop_tests.rs"]
+mod coop_tests;

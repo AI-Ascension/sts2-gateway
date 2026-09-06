@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sts2-coop-synchronization-v1",
+  "title": "STS2 coordinator-reported peer synchronization",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["protocol_version", "schema_digest", "provenance", "correlation_id", "instance_id", "session_id", "lease_id", "lease_epoch", "generation", "kind", "source", "players", "synchronization"],
+  "properties": {
+    "protocol_version": {"const": "coop-synchronization-v1"},
+    "schema_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "provenance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["artifact", "source", "generator"],
+      "properties": {
+        "artifact": {"const": "sts2-protocol/coop-synchronization-v1"},
+        "source": {"const": "schemas/coop-synchronization-v1.schema.json"},
+        "generator": {"const": "hand-authored"}
+      }
+    },
+    "correlation_id": {"$ref": "#/$defs/identity"},
+    "instance_id": {"$ref": "#/$defs/identity"},
+    "session_id": {"$ref": "#/$defs/identity"},
+    "lease_id": {"$ref": "#/$defs/identity"},
+    "lease_epoch": {"$ref": "#/$defs/generation"},
+    "generation": {"$ref": "#/$defs/generation"},
+    "kind": {"const": "synchronization_response"},
+    "source": {"const": "gateway_peer_reports"},
+    "players": {
+      "type": "array", "minItems": 2, "maxItems": 4, "uniqueItems": true,
+      "items": {"$ref": "#/$defs/player"},
+      "contains": {"properties": {"role": {"const": "local"}}},
+      "minContains": 1, "maxContains": 1
+    },
+    "synchronization": {"$ref": "#/$defs/synchronization"}
+  },
+  "$comment": "Semantic validation additionally requires the exact schema digest, unique peer IDs across roles, peer_count equal to roster size, synchronization generation equal to envelope generation, and missing IDs drawn from that roster. Synchronized describes recent coordinator reports only, not authenticated remote peers or host authority. Canonical wire numbers are integer tokens, and object members may not be duplicated.",
+  "$defs": {
+    "identity": {"type": "string", "pattern": "^[A-Za-z0-9_.:/-]{1,128}$"},
+    "generation": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+    "player": {
+      "type": "object", "additionalProperties": false,
+      "required": ["peer_id", "role"],
+      "properties": {"peer_id": {"$ref": "#/$defs/identity"}, "role": {"enum": ["local", "ally"]}}
+    },
+    "synchronization": {
+      "type": "object", "additionalProperties": false,
+      "required": ["status", "generation", "peer_count", "missing_peers"],
+      "properties": {
+        "status": {"enum": ["synchronized", "disagreement", "disconnected"]},
+        "generation": {"$ref": "#/$defs/generation"},
+        "peer_count": {"type": "integer", "minimum": 2, "maximum": 4},
+        "missing_peers": {"type": "array", "maxItems": 4, "uniqueItems": true, "items": {"$ref": "#/$defs/identity"}}
+      },
+      "if": {"properties": {"status": {"const": "disconnected"}}},
+      "then": {"properties": {"missing_peers": {"minItems": 1}}},
+      "else": {"properties": {"missing_peers": {"maxItems": 0}}}
+    }
+  }
+}

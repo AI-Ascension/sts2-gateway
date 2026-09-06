@@ -20,6 +20,12 @@ listener exposure, remote bind inheritance, arbitrary path/header forwarding, cr
 selection, stale lease or epoch acceptance, replay after timeout, queue loss, crash recovery,
 credential leakage, profile/save mixing, and shutdown races as security issues.
 
+Co-op synchronization describes reports from the configured coordinator credential, which
+can report every member of the configured roster under control scope. It does not authenticate
+each remote peer or authorize any game mutation. Read responses retain that evidence-source
+label. Roster IDs are bounded opaque lease-local references; expired reports become missing,
+and lease release prevents further report ingestion or reads. A read credential cannot report.
+
 Network reachability is never an authorization decision. A request must be bound to an authenticated
 caller, session, instance, lease, epoch, fixed route, and bounded payload before forwarding. The
 gateway terminates caller credentials and emits only explicitly approved downstream identity data.

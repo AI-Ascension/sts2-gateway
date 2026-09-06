@@ -1,9 +1,14 @@
 # Changelog
 
-All notable changes to `sts2-gateway` are recorded here. This target does not publish a concrete
-runtime or downstream wire contract.
+All notable changes to `sts2-gateway` are recorded here. Component evidence is separate from
+host compatibility and release publication.
 
 ## [Unreleased]
+
+- Add opt-in coordinator-reported co-op synchronization: configured roster, control-scoped
+  fenced reports, monotonic convergence and expiry, and a read-only response consumed by
+  the executable MCP profile. Both routes avoid downstream game access. The copied protocol
+  artifact, deterministic ledger tests and real gateway/MCP transport gate are included.
 
 - Consume the coordinated Runtime-v3 continuation schema with argument-free proceed,
   confirm-selection and cancel-selection actions; reject mixed revisions and extra arguments.

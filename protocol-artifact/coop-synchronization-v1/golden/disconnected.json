@@ -1,0 +1,35 @@
+{
+  "protocol_version": "coop-synchronization-v1",
+  "schema_digest": "d410858cabbd38612345120c2196423130c7b21d788fd2b0d775cd82887087ec",
+  "provenance": {
+    "artifact": "sts2-protocol/coop-synchronization-v1",
+    "source": "schemas/coop-synchronization-v1.schema.json",
+    "generator": "hand-authored"
+  },
+  "correlation_id": "1",
+  "instance_id": "instance-1",
+  "session_id": "session-1",
+  "lease_id": "lease-1",
+  "lease_epoch": 1,
+  "generation": 4,
+  "kind": "synchronization_response",
+  "source": "gateway_peer_reports",
+  "players": [
+    {
+      "peer_id": "local-1",
+      "role": "local"
+    },
+    {
+      "peer_id": "ally-1",
+      "role": "ally"
+    }
+  ],
+  "synchronization": {
+    "status": "disconnected",
+    "generation": 4,
+    "peer_count": 2,
+    "missing_peers": [
+      "ally-1"
+    ]
+  }
+}

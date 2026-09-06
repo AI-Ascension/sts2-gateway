@@ -43,10 +43,12 @@ pub(super) fn required_scope(request: &HttpRequest, instance_id: &str) -> AuthSc
     let allocate_path = "/v1/sessions/allocate";
     let release_path = format!("/v1/instances/{instance_id}/release");
     let shutdown_path = format!("/v2/instances/{instance_id}/shutdown");
+    let coop_report_path = format!("/v1/instances/{instance_id}/coop/peer-report");
     if request.method == "POST"
         && (request.path == allocate_path
             || request.path == release_path
-            || request.path == shutdown_path)
+            || request.path == shutdown_path
+            || request.path == coop_report_path)
     {
         return AuthScope::Control;
     }
