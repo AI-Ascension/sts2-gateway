@@ -1,0 +1,67 @@
+{
+  "protocol_version": "runtime-v4-expert",
+  "schema_digest": "f0786b039396043a441323447ac44f7cc4c218071bc477722f3ec992ab295a8a",
+  "provenance": {
+    "artifact": "sts2-protocol/runtime-v4-expert",
+    "source": "schemas/runtime-v4-expert.schema.json",
+    "generator": "hand-authored"
+  },
+  "profile": "expert-state",
+  "state_id": "live:7",
+  "generation": 7,
+  "visible_seed": "synthetic-visible-seed",
+  "run": {
+    "character_id": "ironclad",
+    "act": 1,
+    "location": "map:1:4:2"
+  },
+  "player": {
+    "hp": 64,
+    "max_hp": 80,
+    "block": 6,
+    "energy": 3,
+    "gold": 99,
+    "hand": [
+      {
+        "card_id": "card:1",
+        "name": "Strike",
+        "cost": 1,
+        "upgraded": false,
+        "type": "attack",
+        "rarity": "basic",
+        "target": "any_enemy",
+        "description": "Deal damage."
+      }
+    ],
+    "deck": [],
+    "discard": [],
+    "exhaust": [],
+    "powers": [],
+    "statuses": [],
+    "relics": [{ "relic_id": "relic:burning-blood", "name": "Burning Blood" }],
+    "potions": [{ "potion_id": "potion:fire", "name": "Fire Potion", "slot": 0, "usable": true, "target_mode": "any_enemy" }],
+    "potion_slots": 1,
+    "max_potion_slots": 3
+  },
+  "state": {
+    "state": "combat",
+    "turn_index": 2,
+    "enemies": [
+      {
+        "enemy_id": "enemy:1",
+        "name": "Jaw Worm",
+        "hp": 32,
+        "max_hp": 44,
+        "block": 0,
+        "powers": [],
+        "statuses": [],
+        "intent": { "kind": "attack", "damage": 11, "hits": 1, "target_ids": ["player:local"] }
+      }
+    ]
+  },
+  "legal_actions": [
+    { "action_id": "play:7:card:1:enemy:1", "action": { "kind": "play_card", "card_id": "card:1", "target_id": "enemy:1" } },
+    { "action_id": "potion:7:potion:fire:enemy:1", "action": { "kind": "use_potion", "potion_id": "potion:fire", "target_id": "enemy:1" } },
+    { "action_id": "end:7", "action": { "kind": "end_turn" } }
+  ]
+}

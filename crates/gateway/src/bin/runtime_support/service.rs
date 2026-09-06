@@ -29,6 +29,8 @@ use super::runtime_v3_gameplay::RuntimeV3GameplayRoute;
 use super::runtime_v3_gameplay_forwarder::{
     RuntimeV3GameplayForwardError, RuntimeV3GameplayForwarder,
 };
+use super::runtime_v4_expert::RuntimeV4ExpertRoute;
+use super::runtime_v4_expert_forwarder::RuntimeV4ExpertForwarder;
 
 const DEFAULT_LISTEN_ADDRESS: &str = "127.0.0.1:15525";
 const DEFAULT_MOD_ADDRESS: &str = "127.0.0.1:15526";
@@ -46,6 +48,7 @@ pub(crate) struct RuntimeService {
     shutdown_requested: bool,
     runtime_v2: RuntimeV2Ledger<HttpRuntimeV2Forwarder>,
     runtime_v3: RuntimeV3GameplayForwarder,
+    runtime_v4_expert: RuntimeV4ExpertForwarder,
     journal_path: Option<PathBuf>,
     _journal_lock: Option<journal::JournalLock>,
     metrics: RuntimeMetrics,
@@ -89,6 +92,8 @@ mod routes;
 mod v2;
 #[path = "service_v3.rs"]
 mod v3;
+#[path = "service_v4_expert.rs"]
+mod v4_expert;
 
 use admission::{accept_requests, run_worker};
 use authorization::request_rejection;
@@ -145,6 +150,7 @@ impl RuntimeService {
             shutdown_requested: false,
             runtime_v2,
             runtime_v3: RuntimeV3GameplayForwarder::new(MAX_BODY_BYTES, MAX_RESPONSE_BYTES),
+            runtime_v4_expert: RuntimeV4ExpertForwarder::new(MAX_BODY_BYTES, MAX_RESPONSE_BYTES),
             metrics: RuntimeMetrics::default(),
             coop_reports,
         })

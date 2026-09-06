@@ -1,0 +1,281 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sts2-runtime-v4-expert",
+  "title": "STS2 bounded expert-state gameplay profile",
+  "description": "An additive fair-play profile for ordinary player-visible run context. Null means unavailable; an empty array means observed and empty.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["protocol_version", "schema_digest", "provenance", "profile", "state_id", "generation", "visible_seed", "run", "player", "state", "legal_actions"],
+  "properties": {
+    "protocol_version": { "const": "runtime-v4-expert" },
+    "schema_digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "provenance": { "$ref": "#/$defs/provenance" },
+    "profile": { "const": "expert-state" },
+    "state_id": { "$ref": "#/$defs/identity" },
+    "generation": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+    "visible_seed": { "anyOf": [{ "$ref": "#/$defs/text" }, { "type": "null" }] },
+    "run": { "$ref": "#/$defs/run" },
+    "player": { "$ref": "#/$defs/player" },
+    "state": { "$ref": "#/$defs/state" },
+    "legal_actions": { "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/legal_action" } }
+  },
+  "$defs": {
+    "identity": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^[A-Za-z0-9_.:/-]+$"
+    },
+    "text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F]*$"
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact", "source", "generator"],
+      "properties": {
+        "artifact": { "const": "sts2-protocol/runtime-v4-expert" },
+        "source": { "const": "schemas/runtime-v4-expert.schema.json" },
+        "generator": { "const": "hand-authored" }
+      }
+    },
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["character_id", "act", "location"],
+      "properties": {
+        "character_id": { "anyOf": [{ "$ref": "#/$defs/identity" }, { "type": "null" }] },
+        "act": { "anyOf": [{ "type": "integer", "minimum": 0, "maximum": 255 }, { "type": "null" }] },
+        "location": { "anyOf": [{ "$ref": "#/$defs/identity" }, { "type": "null" }] }
+      }
+    },
+    "amount": { "anyOf": [{ "type": "integer", "minimum": -65535, "maximum": 65535 }, { "type": "null" }] },
+    "status": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status_id", "name", "amount"],
+      "properties": {
+        "status_id": { "$ref": "#/$defs/identity" },
+        "name": { "$ref": "#/$defs/text" },
+        "amount": { "$ref": "#/$defs/amount" }
+      }
+    },
+    "relic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["relic_id", "name"],
+      "properties": {
+        "relic_id": { "$ref": "#/$defs/identity" },
+        "name": { "$ref": "#/$defs/text" }
+      }
+    },
+    "potion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["potion_id", "name", "slot", "usable", "target_mode"],
+      "properties": {
+        "potion_id": { "$ref": "#/$defs/identity" },
+        "name": { "$ref": "#/$defs/text" },
+        "slot": { "anyOf": [{ "type": "integer", "minimum": 0, "maximum": 255 }, { "type": "null" }] },
+        "usable": { "anyOf": [{ "type": "boolean" }, { "type": "null" }] },
+        "target_mode": { "enum": ["self", "any_enemy", "all_enemies", "none", "unknown"] }
+      }
+    },
+    "card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["card_id", "name", "cost", "upgraded", "type", "rarity", "target", "description"],
+      "properties": {
+        "card_id": { "$ref": "#/$defs/identity" },
+        "name": { "$ref": "#/$defs/text" },
+        "cost": { "anyOf": [{ "type": "integer", "minimum": 0, "maximum": 255 }, { "type": "null" }] },
+        "upgraded": { "type": "boolean" },
+        "type": { "anyOf": [{ "$ref": "#/$defs/identity" }, { "type": "null" }] },
+        "rarity": { "anyOf": [{ "$ref": "#/$defs/identity" }, { "type": "null" }] },
+        "target": { "anyOf": [{ "$ref": "#/$defs/identity" }, { "type": "null" }] },
+        "description": { "anyOf": [{ "$ref": "#/$defs/text" }, { "type": "null" }] }
+      }
+    },
+    "player": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hp", "max_hp", "block", "energy", "gold", "hand", "deck", "discard", "exhaust", "powers", "statuses", "relics", "potions", "potion_slots", "max_potion_slots"],
+      "properties": {
+        "hp": { "type": "integer", "minimum": 0, "maximum": 65535 },
+        "max_hp": { "type": "integer", "minimum": 0, "maximum": 65535 },
+        "block": { "anyOf": [{ "type": "integer", "minimum": 0, "maximum": 65535 }, { "type": "null" }] },
+        "energy": { "type": "integer", "minimum": 0, "maximum": 255 },
+        "gold": { "type": "integer", "minimum": 0, "maximum": 4294967295 },
+        "hand": { "anyOf": [{ "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/card" } }, { "type": "null" }] },
+        "deck": { "anyOf": [{ "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/card" } }, { "type": "null" }] },
+        "discard": { "anyOf": [{ "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/card" } }, { "type": "null" }] },
+        "exhaust": { "anyOf": [{ "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/card" } }, { "type": "null" }] },
+        "powers": { "anyOf": [{ "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/status" } }, { "type": "null" }] },
+        "statuses": { "anyOf": [{ "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/status" } }, { "type": "null" }] },
+        "relics": { "anyOf": [{ "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/relic" } }, { "type": "null" }] },
+        "potions": { "anyOf": [{ "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/potion" } }, { "type": "null" }] },
+        "potion_slots": { "anyOf": [{ "type": "integer", "minimum": 0, "maximum": 255 }, { "type": "null" }] },
+        "max_potion_slots": { "anyOf": [{ "type": "integer", "minimum": 0, "maximum": 255 }, { "type": "null" }] }
+      }
+    },
+    "enemy_intent": {
+      "oneOf": [
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["kind", "damage", "hits", "target_ids"],
+          "properties": {
+            "kind": { "const": "attack" },
+            "damage": { "type": "integer", "minimum": 0, "maximum": 65535 },
+            "hits": { "type": "integer", "minimum": 1, "maximum": 255 },
+            "target_ids": { "anyOf": [{ "type": "array", "maxItems": 16, "items": { "$ref": "#/$defs/identity" } }, { "type": "null" }] }
+          }
+        },
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["kind", "target_ids"],
+          "properties": {
+            "kind": { "enum": ["defend", "buff", "debuff", "unknown"] },
+            "target_ids": { "anyOf": [{ "type": "array", "maxItems": 16, "items": { "$ref": "#/$defs/identity" } }, { "type": "null" }] }
+          }
+        }
+      ]
+    },
+    "enemy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enemy_id", "name", "hp", "max_hp", "block", "powers", "statuses", "intent"],
+      "properties": {
+        "enemy_id": { "$ref": "#/$defs/identity" },
+        "name": { "$ref": "#/$defs/text" },
+        "hp": { "type": "integer", "minimum": 0, "maximum": 65535 },
+        "max_hp": { "type": "integer", "minimum": 0, "maximum": 65535 },
+        "block": { "anyOf": [{ "type": "integer", "minimum": 0, "maximum": 65535 }, { "type": "null" }] },
+        "powers": { "anyOf": [{ "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/status" } }, { "type": "null" }] },
+        "statuses": { "anyOf": [{ "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/status" } }, { "type": "null" }] },
+        "intent": { "$ref": "#/$defs/enemy_intent" }
+      }
+    },
+    "map_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["node_id", "act", "row", "col", "kind", "reachable"],
+      "properties": {
+        "node_id": { "$ref": "#/$defs/identity" },
+        "act": { "type": "integer", "minimum": 0, "maximum": 255 },
+        "row": { "type": "integer", "minimum": 0, "maximum": 255 },
+        "col": { "type": "integer", "minimum": 0, "maximum": 255 },
+        "kind": { "$ref": "#/$defs/identity" },
+        "reachable": { "type": "boolean" }
+      }
+    },
+    "map_edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "to"],
+      "properties": {
+        "from": { "$ref": "#/$defs/identity" },
+        "to": { "$ref": "#/$defs/identity" }
+      }
+    },
+    "choice": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["choice_id", "label", "kind", "domain"],
+      "properties": {
+        "choice_id": { "$ref": "#/$defs/identity" },
+        "label": { "$ref": "#/$defs/text" },
+        "kind": { "$ref": "#/$defs/identity" },
+        "domain": { "anyOf": [{ "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/identity" } }, { "type": "null" }] }
+      }
+    },
+    "shop_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["item_id", "name", "kind", "price"],
+      "properties": {
+        "item_id": { "$ref": "#/$defs/identity" },
+        "name": { "$ref": "#/$defs/text" },
+        "kind": { "$ref": "#/$defs/identity" },
+        "price": { "type": "integer", "minimum": 0, "maximum": 4294967295 }
+      }
+    },
+    "state": {
+      "oneOf": [
+        {
+          "type": "object", "additionalProperties": false, "required": ["state", "characters"],
+          "properties": { "state": { "const": "setup" }, "characters": { "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/identity" } } }
+        },
+        {
+          "type": "object", "additionalProperties": false, "required": ["state", "current_node_id", "nodes", "edges", "options"],
+          "properties": {
+            "state": { "const": "map" },
+            "current_node_id": { "anyOf": [{ "$ref": "#/$defs/identity" }, { "type": "null" }] },
+            "nodes": { "anyOf": [{ "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/map_node" } }, { "type": "null" }] },
+            "edges": { "anyOf": [{ "type": "array", "maxItems": 512, "items": { "$ref": "#/$defs/map_edge" } }, { "type": "null" }] },
+            "options": { "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/identity" } }
+          }
+        },
+        {
+          "type": "object", "additionalProperties": false, "required": ["state", "turn_index", "enemies"],
+          "properties": {
+            "state": { "const": "combat" },
+            "turn_index": { "type": "integer", "minimum": 0, "maximum": 65535 },
+            "enemies": { "anyOf": [{ "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/enemy" } }, { "type": "null" }] }
+          }
+        },
+        {
+          "type": "object", "additionalProperties": false, "required": ["state", "choices"],
+          "properties": {
+            "state": { "enum": ["reward", "event", "rest", "selection"] },
+            "choices": { "anyOf": [{ "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/choice" } }, { "type": "null" }] }
+          }
+        },
+        {
+          "type": "object", "additionalProperties": false, "required": ["state", "items"],
+          "properties": {
+            "state": { "const": "shop" },
+            "items": { "anyOf": [{ "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/shop_item" } }, { "type": "null" }] }
+          }
+        },
+        { "type": "object", "additionalProperties": false, "required": ["state"], "properties": { "state": { "const": "victory" } } },
+        {
+          "type": "object", "additionalProperties": false, "required": ["state", "reason"],
+          "properties": { "state": { "const": "defeat" }, "reason": { "anyOf": [{ "$ref": "#/$defs/text" }, { "type": "null" }] } }
+        },
+        {
+          "type": "object", "additionalProperties": false, "required": ["state", "code"],
+          "properties": { "state": { "const": "recovery" }, "code": { "$ref": "#/$defs/identity" } }
+        }
+      ]
+    },
+    "action": {
+      "oneOf": [
+        { "type": "object", "additionalProperties": false, "required": ["kind", "character_id"], "properties": { "kind": { "const": "start_run" }, "character_id": { "$ref": "#/$defs/identity" } } },
+        { "type": "object", "additionalProperties": false, "required": ["kind", "character_id"], "properties": { "kind": { "const": "select_character" }, "character_id": { "$ref": "#/$defs/identity" } } },
+        { "type": "object", "additionalProperties": false, "required": ["kind", "node_id"], "properties": { "kind": { "const": "select_map_node" }, "node_id": { "$ref": "#/$defs/identity" } } },
+        { "type": "object", "additionalProperties": false, "required": ["kind", "card_id", "target_id"], "properties": { "kind": { "const": "play_card" }, "card_id": { "$ref": "#/$defs/identity" }, "target_id": { "anyOf": [{ "$ref": "#/$defs/identity" }, { "type": "null" }] } } },
+        { "type": "object", "additionalProperties": false, "required": ["kind", "potion_id", "target_id"], "properties": { "kind": { "const": "use_potion" }, "potion_id": { "$ref": "#/$defs/identity" }, "target_id": { "anyOf": [{ "$ref": "#/$defs/identity" }, { "type": "null" }] } } },
+        { "type": "object", "additionalProperties": false, "required": ["kind"], "properties": { "kind": { "enum": ["end_turn", "skip_reward", "proceed", "rest", "confirm_victory", "save_quit"] } } },
+        { "type": "object", "additionalProperties": false, "required": ["kind", "rest_option_id"], "properties": { "kind": { "const": "rest_option" }, "rest_option_id": { "$ref": "#/$defs/identity" } } },
+        { "type": "object", "additionalProperties": false, "required": ["kind", "reward_id"], "properties": { "kind": { "const": "choose_reward" }, "reward_id": { "$ref": "#/$defs/identity" } } },
+        { "type": "object", "additionalProperties": false, "required": ["kind", "item_id"], "properties": { "kind": { "const": "shop_purchase" }, "item_id": { "$ref": "#/$defs/identity" } } },
+        { "type": "object", "additionalProperties": false, "required": ["kind", "card_id"], "properties": { "kind": { "enum": ["shop_remove", "smith"] }, "card_id": { "$ref": "#/$defs/identity" } } },
+        { "type": "object", "additionalProperties": false, "required": ["kind", "choice_id"], "properties": { "kind": { "const": "event_choice" }, "choice_id": { "$ref": "#/$defs/identity" } } },
+        { "type": "object", "additionalProperties": false, "required": ["kind", "selection_id", "card_id"], "properties": { "kind": { "const": "select_card" }, "selection_id": { "anyOf": [{ "$ref": "#/$defs/identity" }, { "type": "null" }] }, "card_id": { "$ref": "#/$defs/identity" } } },
+        { "type": "object", "additionalProperties": false, "required": ["kind", "selection_id"], "properties": { "kind": { "enum": ["confirm_selection", "cancel_selection"] }, "selection_id": { "anyOf": [{ "$ref": "#/$defs/identity" }, { "type": "null" }] } } }
+      ]
+    },
+    "legal_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action_id", "action"],
+      "properties": {
+        "action_id": { "$ref": "#/$defs/identity" },
+        "action": { "$ref": "#/$defs/action" }
+      }
+    }
+  }
+}
