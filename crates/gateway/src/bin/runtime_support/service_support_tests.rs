@@ -51,6 +51,7 @@ pub(super) fn test_service() -> Result<RuntimeService, String> {
         journal_path: None,
         _journal_lock: None,
         metrics: super::super::metrics::RuntimeMetrics::default(),
+        coop_reports: None,
     })
 }
 

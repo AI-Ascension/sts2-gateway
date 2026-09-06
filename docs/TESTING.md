@@ -147,3 +147,18 @@ Runtime-v2 journal, queue, authentication and lease regressions remain in the sa
 
 A pure MCP-session configuration test covers the independent default, explicit override and invalid
 values without changing process environment. Cross-process identity issuance remains unverified.
+
+## Co-op synchronization
+
+`coop_reports_tests` injects monotonic instants and proves startup missing state, convergence,
+disagreement, disconnect, expiry at the exact lifetime boundary, recovery, bounded roster,
+closed reports, and generation regression refusal. `service_coop_tests` exercises the actual
+fixed handlers with complete lease/scope checks, a pinned schema/golden response, malformed
+input and an unavailable downstream port. These routes must never access that port.
+
+Verify all eight entries under `protocol-artifact/coop-synchronization-v1/SHA256SUMS`.
+The coordinated MCP `coop_gateway_runtime` gate launches both real executables with separate
+read/control credentials, verifies the full report lifecycle and lease rejection, and asserts
+that a listening downstream trap received zero connections. It is run explicitly with this
+exact built gateway passed in `STS2_COOP_GATEWAY_BINARY`; see the MCP testing guide and
+the coordinated evidence record. It proves coordination transport, not native multiplayer.

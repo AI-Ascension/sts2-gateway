@@ -2,6 +2,14 @@
 
 use super::*;
 
+pub(super) fn coop_reports_from_environment() -> Result<Option<CoopReports>, String> {
+    match std::env::var("STS2_COOP_ROSTER") {
+        Ok(text) => CoopReports::from_roster(&text).map(Some),
+        Err(std::env::VarError::NotPresent) => Ok(None),
+        Err(std::env::VarError::NotUnicode(_)) => Err("STS2_COOP_ROSTER is not UTF-8".to_owned()),
+    }
+}
+
 impl RuntimeConfig {
     pub(super) fn from_environment() -> Result<Self, String> {
         let listen_address = env_or_default("STS2_GATEWAY_ADDR", DEFAULT_LISTEN_ADDRESS)?;

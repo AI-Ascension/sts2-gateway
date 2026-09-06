@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 
 mod auth;
+mod coop_reports;
 mod forwarder;
 mod http;
 mod journal;

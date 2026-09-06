@@ -1,0 +1,1047 @@
+{
+  "profile": "coop-synchronization-v1",
+  "cases": [
+    {
+      "name": "synchronized",
+      "valid": true,
+      "schema_valid": true,
+      "value": {
+        "protocol_version": "coop-synchronization-v1",
+        "schema_digest": "d410858cabbd38612345120c2196423130c7b21d788fd2b0d775cd82887087ec",
+        "provenance": {
+          "artifact": "sts2-protocol/coop-synchronization-v1",
+          "source": "schemas/coop-synchronization-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "correlation_id": "1",
+        "instance_id": "instance-1",
+        "session_id": "session-1",
+        "lease_id": "lease-1",
+        "lease_epoch": 1,
+        "generation": 4,
+        "kind": "synchronization_response",
+        "source": "gateway_peer_reports",
+        "players": [
+          {
+            "peer_id": "local-1",
+            "role": "local"
+          },
+          {
+            "peer_id": "ally-1",
+            "role": "ally"
+          }
+        ],
+        "synchronization": {
+          "status": "synchronized",
+          "generation": 4,
+          "peer_count": 2,
+          "missing_peers": []
+        }
+      }
+    },
+    {
+      "name": "disagreement",
+      "valid": true,
+      "schema_valid": true,
+      "value": {
+        "protocol_version": "coop-synchronization-v1",
+        "schema_digest": "d410858cabbd38612345120c2196423130c7b21d788fd2b0d775cd82887087ec",
+        "provenance": {
+          "artifact": "sts2-protocol/coop-synchronization-v1",
+          "source": "schemas/coop-synchronization-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "correlation_id": "1",
+        "instance_id": "instance-1",
+        "session_id": "session-1",
+        "lease_id": "lease-1",
+        "lease_epoch": 1,
+        "generation": 4,
+        "kind": "synchronization_response",
+        "source": "gateway_peer_reports",
+        "players": [
+          {
+            "peer_id": "local-1",
+            "role": "local"
+          },
+          {
+            "peer_id": "ally-1",
+            "role": "ally"
+          }
+        ],
+        "synchronization": {
+          "status": "disagreement",
+          "generation": 4,
+          "peer_count": 2,
+          "missing_peers": []
+        }
+      }
+    },
+    {
+      "name": "disconnected",
+      "valid": true,
+      "schema_valid": true,
+      "value": {
+        "protocol_version": "coop-synchronization-v1",
+        "schema_digest": "d410858cabbd38612345120c2196423130c7b21d788fd2b0d775cd82887087ec",
+        "provenance": {
+          "artifact": "sts2-protocol/coop-synchronization-v1",
+          "source": "schemas/coop-synchronization-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "correlation_id": "1",
+        "instance_id": "instance-1",
+        "session_id": "session-1",
+        "lease_id": "lease-1",
+        "lease_epoch": 1,
+        "generation": 4,
+        "kind": "synchronization_response",
+        "source": "gateway_peer_reports",
+        "players": [
+          {
+            "peer_id": "local-1",
+            "role": "local"
+          },
+          {
+            "peer_id": "ally-1",
+            "role": "ally"
+          }
+        ],
+        "synchronization": {
+          "status": "disconnected",
+          "generation": 4,
+          "peer_count": 2,
+          "missing_peers": [
+            "ally-1"
+          ]
+        }
+      }
+    },
+    {
+      "name": "retired_profile",
+      "valid": false,
+      "schema_valid": false,
+      "value": {
+        "protocol_version": "coop-gameplay-v1",
+        "schema_digest": "d410858cabbd38612345120c2196423130c7b21d788fd2b0d775cd82887087ec",
+        "provenance": {
+          "artifact": "sts2-protocol/coop-synchronization-v1",
+          "source": "schemas/coop-synchronization-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "correlation_id": "1",
+        "instance_id": "instance-1",
+        "session_id": "session-1",
+        "lease_id": "lease-1",
+        "lease_epoch": 1,
+        "generation": 4,
+        "kind": "synchronization_response",
+        "source": "gateway_peer_reports",
+        "players": [
+          {
+            "peer_id": "local-1",
+            "role": "local"
+          },
+          {
+            "peer_id": "ally-1",
+            "role": "ally"
+          }
+        ],
+        "synchronization": {
+          "status": "synchronized",
+          "generation": 4,
+          "peer_count": 2,
+          "missing_peers": []
+        }
+      }
+    },
+    {
+      "name": "wrong_digest",
+      "valid": false,
+      "schema_valid": true,
+      "value": {
+        "protocol_version": "coop-synchronization-v1",
+        "schema_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+        "provenance": {
+          "artifact": "sts2-protocol/coop-synchronization-v1",
+          "source": "schemas/coop-synchronization-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "correlation_id": "1",
+        "instance_id": "instance-1",
+        "session_id": "session-1",
+        "lease_id": "lease-1",
+        "lease_epoch": 1,
+        "generation": 4,
+        "kind": "synchronization_response",
+        "source": "gateway_peer_reports",
+        "players": [
+          {
+            "peer_id": "local-1",
+            "role": "local"
+          },
+          {
+            "peer_id": "ally-1",
+            "role": "ally"
+          }
+        ],
+        "synchronization": {
+          "status": "synchronized",
+          "generation": 4,
+          "peer_count": 2,
+          "missing_peers": []
+        }
+      }
+    },
+    {
+      "name": "unsupported_source",
+      "valid": false,
+      "schema_valid": false,
+      "value": {
+        "protocol_version": "coop-synchronization-v1",
+        "schema_digest": "d410858cabbd38612345120c2196423130c7b21d788fd2b0d775cd82887087ec",
+        "provenance": {
+          "artifact": "sts2-protocol/coop-synchronization-v1",
+          "source": "schemas/coop-synchronization-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "correlation_id": "1",
+        "instance_id": "instance-1",
+        "session_id": "session-1",
+        "lease_id": "lease-1",
+        "lease_epoch": 1,
+        "generation": 4,
+        "kind": "synchronization_response",
+        "source": "native_host",
+        "players": [
+          {
+            "peer_id": "local-1",
+            "role": "local"
+          },
+          {
+            "peer_id": "ally-1",
+            "role": "ally"
+          }
+        ],
+        "synchronization": {
+          "status": "synchronized",
+          "generation": 4,
+          "peer_count": 2,
+          "missing_peers": []
+        }
+      }
+    },
+    {
+      "name": "unknown_kind",
+      "valid": false,
+      "schema_valid": false,
+      "value": {
+        "protocol_version": "coop-synchronization-v1",
+        "schema_digest": "d410858cabbd38612345120c2196423130c7b21d788fd2b0d775cd82887087ec",
+        "provenance": {
+          "artifact": "sts2-protocol/coop-synchronization-v1",
+          "source": "schemas/coop-synchronization-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "correlation_id": "1",
+        "instance_id": "instance-1",
+        "session_id": "session-1",
+        "lease_id": "lease-1",
+        "lease_epoch": 1,
+        "generation": 4,
+        "kind": "local_action_request",
+        "source": "gateway_peer_reports",
+        "players": [
+          {
+            "peer_id": "local-1",
+            "role": "local"
+          },
+          {
+            "peer_id": "ally-1",
+            "role": "ally"
+          }
+        ],
+        "synchronization": {
+          "status": "synchronized",
+          "generation": 4,
+          "peer_count": 2,
+          "missing_peers": []
+        }
+      }
+    },
+    {
+      "name": "unexpected_mutation",
+      "valid": false,
+      "schema_valid": false,
+      "value": {
+        "protocol_version": "coop-synchronization-v1",
+        "schema_digest": "d410858cabbd38612345120c2196423130c7b21d788fd2b0d775cd82887087ec",
+        "provenance": {
+          "artifact": "sts2-protocol/coop-synchronization-v1",
+          "source": "schemas/coop-synchronization-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "correlation_id": "1",
+        "instance_id": "instance-1",
+        "session_id": "session-1",
+        "lease_id": "lease-1",
+        "lease_epoch": 1,
+        "generation": 4,
+        "kind": "synchronization_response",
+        "source": "gateway_peer_reports",
+        "players": [
+          {
+            "peer_id": "local-1",
+            "role": "local"
+          },
+          {
+            "peer_id": "ally-1",
+            "role": "ally"
+          }
+        ],
+        "synchronization": {
+          "status": "synchronized",
+          "generation": 4,
+          "peer_count": 2,
+          "missing_peers": []
+        },
+        "local_action": {
+          "action_id": "one",
+          "kind": "end_turn"
+        }
+      }
+    },
+    {
+      "name": "bad_provenance",
+      "valid": false,
+      "schema_valid": false,
+      "value": {
+        "protocol_version": "coop-synchronization-v1",
+        "schema_digest": "d410858cabbd38612345120c2196423130c7b21d788fd2b0d775cd82887087ec",
+        "provenance": {
+          "artifact": "other",
+          "source": "schemas/coop-synchronization-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "correlation_id": "1",
+        "instance_id": "instance-1",
+        "session_id": "session-1",
+        "lease_id": "lease-1",
+        "lease_epoch": 1,
+        "generation": 4,
+        "kind": "synchronization_response",
+        "source": "gateway_peer_reports",
+        "players": [
+          {
+            "peer_id": "local-1",
+            "role": "local"
+          },
+          {
+            "peer_id": "ally-1",
+            "role": "ally"
+          }
+        ],
+        "synchronization": {
+          "status": "synchronized",
+          "generation": 4,
+          "peer_count": 2,
+          "missing_peers": []
+        }
+      }
+    },
+    {
+      "name": "extra_provenance",
+      "valid": false,
+      "schema_valid": false,
+      "value": {
+        "protocol_version": "coop-synchronization-v1",
+        "schema_digest": "d410858cabbd38612345120c2196423130c7b21d788fd2b0d775cd82887087ec",
+        "provenance": {
+          "artifact": "sts2-protocol/coop-synchronization-v1",
+          "source": "schemas/coop-synchronization-v1.schema.json",
+          "generator": "hand-authored",
+          "extension": true
+        },
+        "correlation_id": "1",
+        "instance_id": "instance-1",
+        "session_id": "session-1",
+        "lease_id": "lease-1",
+        "lease_epoch": 1,
+        "generation": 4,
+        "kind": "synchronization_response",
+        "source": "gateway_peer_reports",
+        "players": [
+          {
+            "peer_id": "local-1",
+            "role": "local"
+          },
+          {
+            "peer_id": "ally-1",
+            "role": "ally"
+          }
+        ],
+        "synchronization": {
+          "status": "synchronized",
+          "generation": 4,
+          "peer_count": 2,
+          "missing_peers": []
+        }
+      }
+    },
+    {
+      "name": "oversized_identity",
+      "valid": false,
+      "schema_valid": false,
+      "value": {
+        "protocol_version": "coop-synchronization-v1",
+        "schema_digest": "d410858cabbd38612345120c2196423130c7b21d788fd2b0d775cd82887087ec",
+        "provenance": {
+          "artifact": "sts2-protocol/coop-synchronization-v1",
+          "source": "schemas/coop-synchronization-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "correlation_id": "1",
+        "instance_id": "instance-1",
+        "session_id": "session-1",
+        "lease_id": "lease-1",
+        "lease_epoch": 1,
+        "generation": 4,
+        "kind": "synchronization_response",
+        "source": "gateway_peer_reports",
+        "players": [
+          {
+            "peer_id": "ppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp",
+            "role": "local"
+          },
+          {
+            "peer_id": "ally-1",
+            "role": "ally"
+          }
+        ],
+        "synchronization": {
+          "status": "synchronized",
+          "generation": 4,
+          "peer_count": 2,
+          "missing_peers": []
+        }
+      }
+    },
+    {
+      "name": "unsafe_identity",
+      "valid": false,
+      "schema_valid": false,
+      "value": {
+        "protocol_version": "coop-synchronization-v1",
+        "schema_digest": "d410858cabbd38612345120c2196423130c7b21d788fd2b0d775cd82887087ec",
+        "provenance": {
+          "artifact": "sts2-protocol/coop-synchronization-v1",
+          "source": "schemas/coop-synchronization-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "correlation_id": "1",
+        "instance_id": "instance-1",
+        "session_id": "session-1",
+        "lease_id": "lease-1",
+        "lease_epoch": 1,
+        "generation": 4,
+        "kind": "synchronization_response",
+        "source": "gateway_peer_reports",
+        "players": [
+          {
+            "peer_id": "peer\n",
+            "role": "local"
+          },
+          {
+            "peer_id": "ally-1",
+            "role": "ally"
+          }
+        ],
+        "synchronization": {
+          "status": "synchronized",
+          "generation": 4,
+          "peer_count": 2,
+          "missing_peers": []
+        }
+      }
+    },
+    {
+      "name": "duplicate_peer_identity",
+      "valid": false,
+      "schema_valid": true,
+      "value": {
+        "protocol_version": "coop-synchronization-v1",
+        "schema_digest": "d410858cabbd38612345120c2196423130c7b21d788fd2b0d775cd82887087ec",
+        "provenance": {
+          "artifact": "sts2-protocol/coop-synchronization-v1",
+          "source": "schemas/coop-synchronization-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "correlation_id": "1",
+        "instance_id": "instance-1",
+        "session_id": "session-1",
+        "lease_id": "lease-1",
+        "lease_epoch": 1,
+        "generation": 4,
+        "kind": "synchronization_response",
+        "source": "gateway_peer_reports",
+        "players": [
+          {
+            "peer_id": "local-1",
+            "role": "local"
+          },
+          {
+            "peer_id": "local-1",
+            "role": "ally"
+          }
+        ],
+        "synchronization": {
+          "status": "synchronized",
+          "generation": 4,
+          "peer_count": 2,
+          "missing_peers": []
+        }
+      }
+    },
+    {
+      "name": "duplicate_local_role",
+      "valid": false,
+      "schema_valid": false,
+      "value": {
+        "protocol_version": "coop-synchronization-v1",
+        "schema_digest": "d410858cabbd38612345120c2196423130c7b21d788fd2b0d775cd82887087ec",
+        "provenance": {
+          "artifact": "sts2-protocol/coop-synchronization-v1",
+          "source": "schemas/coop-synchronization-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "correlation_id": "1",
+        "instance_id": "instance-1",
+        "session_id": "session-1",
+        "lease_id": "lease-1",
+        "lease_epoch": 1,
+        "generation": 4,
+        "kind": "synchronization_response",
+        "source": "gateway_peer_reports",
+        "players": [
+          {
+            "peer_id": "local-1",
+            "role": "local"
+          },
+          {
+            "peer_id": "ally-1",
+            "role": "local"
+          }
+        ],
+        "synchronization": {
+          "status": "synchronized",
+          "generation": 4,
+          "peer_count": 2,
+          "missing_peers": []
+        }
+      }
+    },
+    {
+      "name": "unknown_peer_role",
+      "valid": false,
+      "schema_valid": false,
+      "value": {
+        "protocol_version": "coop-synchronization-v1",
+        "schema_digest": "d410858cabbd38612345120c2196423130c7b21d788fd2b0d775cd82887087ec",
+        "provenance": {
+          "artifact": "sts2-protocol/coop-synchronization-v1",
+          "source": "schemas/coop-synchronization-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "correlation_id": "1",
+        "instance_id": "instance-1",
+        "session_id": "session-1",
+        "lease_id": "lease-1",
+        "lease_epoch": 1,
+        "generation": 4,
+        "kind": "synchronization_response",
+        "source": "gateway_peer_reports",
+        "players": [
+          {
+            "peer_id": "local-1",
+            "role": "local"
+          },
+          {
+            "peer_id": "ally-1",
+            "role": "spectator"
+          }
+        ],
+        "synchronization": {
+          "status": "synchronized",
+          "generation": 4,
+          "peer_count": 2,
+          "missing_peers": []
+        }
+      }
+    },
+    {
+      "name": "extra_peer_field",
+      "valid": false,
+      "schema_valid": false,
+      "value": {
+        "protocol_version": "coop-synchronization-v1",
+        "schema_digest": "d410858cabbd38612345120c2196423130c7b21d788fd2b0d775cd82887087ec",
+        "provenance": {
+          "artifact": "sts2-protocol/coop-synchronization-v1",
+          "source": "schemas/coop-synchronization-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "correlation_id": "1",
+        "instance_id": "instance-1",
+        "session_id": "session-1",
+        "lease_id": "lease-1",
+        "lease_epoch": 1,
+        "generation": 4,
+        "kind": "synchronization_response",
+        "source": "gateway_peer_reports",
+        "players": [
+          {
+            "peer_id": "local-1",
+            "role": "local"
+          },
+          {
+            "peer_id": "ally-1",
+            "role": "ally",
+            "extension": true
+          }
+        ],
+        "synchronization": {
+          "status": "synchronized",
+          "generation": 4,
+          "peer_count": 2,
+          "missing_peers": []
+        }
+      }
+    },
+    {
+      "name": "missing_local_role",
+      "valid": false,
+      "schema_valid": false,
+      "value": {
+        "protocol_version": "coop-synchronization-v1",
+        "schema_digest": "d410858cabbd38612345120c2196423130c7b21d788fd2b0d775cd82887087ec",
+        "provenance": {
+          "artifact": "sts2-protocol/coop-synchronization-v1",
+          "source": "schemas/coop-synchronization-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "correlation_id": "1",
+        "instance_id": "instance-1",
+        "session_id": "session-1",
+        "lease_id": "lease-1",
+        "lease_epoch": 1,
+        "generation": 4,
+        "kind": "synchronization_response",
+        "source": "gateway_peer_reports",
+        "players": [
+          {
+            "peer_id": "local-1",
+            "role": "ally"
+          },
+          {
+            "peer_id": "ally-1",
+            "role": "ally"
+          }
+        ],
+        "synchronization": {
+          "status": "synchronized",
+          "generation": 4,
+          "peer_count": 2,
+          "missing_peers": []
+        }
+      }
+    },
+    {
+      "name": "wrong_peer_count",
+      "valid": false,
+      "schema_valid": true,
+      "value": {
+        "protocol_version": "coop-synchronization-v1",
+        "schema_digest": "d410858cabbd38612345120c2196423130c7b21d788fd2b0d775cd82887087ec",
+        "provenance": {
+          "artifact": "sts2-protocol/coop-synchronization-v1",
+          "source": "schemas/coop-synchronization-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "correlation_id": "1",
+        "instance_id": "instance-1",
+        "session_id": "session-1",
+        "lease_id": "lease-1",
+        "lease_epoch": 1,
+        "generation": 4,
+        "kind": "synchronization_response",
+        "source": "gateway_peer_reports",
+        "players": [
+          {
+            "peer_id": "local-1",
+            "role": "local"
+          },
+          {
+            "peer_id": "ally-1",
+            "role": "ally"
+          }
+        ],
+        "synchronization": {
+          "status": "synchronized",
+          "generation": 4,
+          "peer_count": 3,
+          "missing_peers": []
+        }
+      }
+    },
+    {
+      "name": "generation_mismatch",
+      "valid": false,
+      "schema_valid": true,
+      "value": {
+        "protocol_version": "coop-synchronization-v1",
+        "schema_digest": "d410858cabbd38612345120c2196423130c7b21d788fd2b0d775cd82887087ec",
+        "provenance": {
+          "artifact": "sts2-protocol/coop-synchronization-v1",
+          "source": "schemas/coop-synchronization-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "correlation_id": "1",
+        "instance_id": "instance-1",
+        "session_id": "session-1",
+        "lease_id": "lease-1",
+        "lease_epoch": 1,
+        "generation": 4,
+        "kind": "synchronization_response",
+        "source": "gateway_peer_reports",
+        "players": [
+          {
+            "peer_id": "local-1",
+            "role": "local"
+          },
+          {
+            "peer_id": "ally-1",
+            "role": "ally"
+          }
+        ],
+        "synchronization": {
+          "status": "synchronized",
+          "generation": 5,
+          "peer_count": 2,
+          "missing_peers": []
+        }
+      }
+    },
+    {
+      "name": "unknown_status",
+      "valid": false,
+      "schema_valid": false,
+      "value": {
+        "protocol_version": "coop-synchronization-v1",
+        "schema_digest": "d410858cabbd38612345120c2196423130c7b21d788fd2b0d775cd82887087ec",
+        "provenance": {
+          "artifact": "sts2-protocol/coop-synchronization-v1",
+          "source": "schemas/coop-synchronization-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "correlation_id": "1",
+        "instance_id": "instance-1",
+        "session_id": "session-1",
+        "lease_id": "lease-1",
+        "lease_epoch": 1,
+        "generation": 4,
+        "kind": "synchronization_response",
+        "source": "gateway_peer_reports",
+        "players": [
+          {
+            "peer_id": "local-1",
+            "role": "local"
+          },
+          {
+            "peer_id": "ally-1",
+            "role": "ally"
+          }
+        ],
+        "synchronization": {
+          "status": "unknown",
+          "generation": 4,
+          "peer_count": 2,
+          "missing_peers": []
+        }
+      }
+    },
+    {
+      "name": "disconnected_without_missing",
+      "valid": false,
+      "schema_valid": false,
+      "value": {
+        "protocol_version": "coop-synchronization-v1",
+        "schema_digest": "d410858cabbd38612345120c2196423130c7b21d788fd2b0d775cd82887087ec",
+        "provenance": {
+          "artifact": "sts2-protocol/coop-synchronization-v1",
+          "source": "schemas/coop-synchronization-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "correlation_id": "1",
+        "instance_id": "instance-1",
+        "session_id": "session-1",
+        "lease_id": "lease-1",
+        "lease_epoch": 1,
+        "generation": 4,
+        "kind": "synchronization_response",
+        "source": "gateway_peer_reports",
+        "players": [
+          {
+            "peer_id": "local-1",
+            "role": "local"
+          },
+          {
+            "peer_id": "ally-1",
+            "role": "ally"
+          }
+        ],
+        "synchronization": {
+          "status": "disconnected",
+          "generation": 4,
+          "peer_count": 2,
+          "missing_peers": []
+        }
+      }
+    },
+    {
+      "name": "synchronized_with_missing",
+      "valid": false,
+      "schema_valid": false,
+      "value": {
+        "protocol_version": "coop-synchronization-v1",
+        "schema_digest": "d410858cabbd38612345120c2196423130c7b21d788fd2b0d775cd82887087ec",
+        "provenance": {
+          "artifact": "sts2-protocol/coop-synchronization-v1",
+          "source": "schemas/coop-synchronization-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "correlation_id": "1",
+        "instance_id": "instance-1",
+        "session_id": "session-1",
+        "lease_id": "lease-1",
+        "lease_epoch": 1,
+        "generation": 4,
+        "kind": "synchronization_response",
+        "source": "gateway_peer_reports",
+        "players": [
+          {
+            "peer_id": "local-1",
+            "role": "local"
+          },
+          {
+            "peer_id": "ally-1",
+            "role": "ally"
+          }
+        ],
+        "synchronization": {
+          "status": "synchronized",
+          "generation": 4,
+          "peer_count": 2,
+          "missing_peers": [
+            "ally-1"
+          ]
+        }
+      }
+    },
+    {
+      "name": "extra_sync_field",
+      "valid": false,
+      "schema_valid": false,
+      "value": {
+        "protocol_version": "coop-synchronization-v1",
+        "schema_digest": "d410858cabbd38612345120c2196423130c7b21d788fd2b0d775cd82887087ec",
+        "provenance": {
+          "artifact": "sts2-protocol/coop-synchronization-v1",
+          "source": "schemas/coop-synchronization-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "correlation_id": "1",
+        "instance_id": "instance-1",
+        "session_id": "session-1",
+        "lease_id": "lease-1",
+        "lease_epoch": 1,
+        "generation": 4,
+        "kind": "synchronization_response",
+        "source": "gateway_peer_reports",
+        "players": [
+          {
+            "peer_id": "local-1",
+            "role": "local"
+          },
+          {
+            "peer_id": "ally-1",
+            "role": "ally"
+          }
+        ],
+        "synchronization": {
+          "status": "synchronized",
+          "generation": 4,
+          "peer_count": 2,
+          "missing_peers": [],
+          "extension": true
+        }
+      }
+    },
+    {
+      "name": "unknown_missing_peer",
+      "valid": false,
+      "schema_valid": true,
+      "value": {
+        "protocol_version": "coop-synchronization-v1",
+        "schema_digest": "d410858cabbd38612345120c2196423130c7b21d788fd2b0d775cd82887087ec",
+        "provenance": {
+          "artifact": "sts2-protocol/coop-synchronization-v1",
+          "source": "schemas/coop-synchronization-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "correlation_id": "1",
+        "instance_id": "instance-1",
+        "session_id": "session-1",
+        "lease_id": "lease-1",
+        "lease_epoch": 1,
+        "generation": 4,
+        "kind": "synchronization_response",
+        "source": "gateway_peer_reports",
+        "players": [
+          {
+            "peer_id": "local-1",
+            "role": "local"
+          },
+          {
+            "peer_id": "ally-1",
+            "role": "ally"
+          }
+        ],
+        "synchronization": {
+          "status": "disconnected",
+          "generation": 4,
+          "peer_count": 2,
+          "missing_peers": [
+            "foreign"
+          ]
+        }
+      }
+    },
+    {
+      "name": "duplicate_missing_peer",
+      "valid": false,
+      "schema_valid": false,
+      "value": {
+        "protocol_version": "coop-synchronization-v1",
+        "schema_digest": "d410858cabbd38612345120c2196423130c7b21d788fd2b0d775cd82887087ec",
+        "provenance": {
+          "artifact": "sts2-protocol/coop-synchronization-v1",
+          "source": "schemas/coop-synchronization-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "correlation_id": "1",
+        "instance_id": "instance-1",
+        "session_id": "session-1",
+        "lease_id": "lease-1",
+        "lease_epoch": 1,
+        "generation": 4,
+        "kind": "synchronization_response",
+        "source": "gateway_peer_reports",
+        "players": [
+          {
+            "peer_id": "local-1",
+            "role": "local"
+          },
+          {
+            "peer_id": "ally-1",
+            "role": "ally"
+          }
+        ],
+        "synchronization": {
+          "status": "disconnected",
+          "generation": 4,
+          "peer_count": 2,
+          "missing_peers": [
+            "ally-1",
+            "ally-1"
+          ]
+        }
+      }
+    },
+    {
+      "name": "oversized_generation",
+      "valid": false,
+      "schema_valid": false,
+      "value": {
+        "protocol_version": "coop-synchronization-v1",
+        "schema_digest": "d410858cabbd38612345120c2196423130c7b21d788fd2b0d775cd82887087ec",
+        "provenance": {
+          "artifact": "sts2-protocol/coop-synchronization-v1",
+          "source": "schemas/coop-synchronization-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "correlation_id": "1",
+        "instance_id": "instance-1",
+        "session_id": "session-1",
+        "lease_id": "lease-1",
+        "lease_epoch": 1,
+        "generation": 9007199254740992,
+        "kind": "synchronization_response",
+        "source": "gateway_peer_reports",
+        "players": [
+          {
+            "peer_id": "local-1",
+            "role": "local"
+          },
+          {
+            "peer_id": "ally-1",
+            "role": "ally"
+          }
+        ],
+        "synchronization": {
+          "status": "synchronized",
+          "generation": 4,
+          "peer_count": 2,
+          "missing_peers": []
+        }
+      }
+    },
+    {
+      "name": "negative_epoch",
+      "valid": false,
+      "schema_valid": false,
+      "value": {
+        "protocol_version": "coop-synchronization-v1",
+        "schema_digest": "d410858cabbd38612345120c2196423130c7b21d788fd2b0d775cd82887087ec",
+        "provenance": {
+          "artifact": "sts2-protocol/coop-synchronization-v1",
+          "source": "schemas/coop-synchronization-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "correlation_id": "1",
+        "instance_id": "instance-1",
+        "session_id": "session-1",
+        "lease_id": "lease-1",
+        "lease_epoch": -1,
+        "generation": 4,
+        "kind": "synchronization_response",
+        "source": "gateway_peer_reports",
+        "players": [
+          {
+            "peer_id": "local-1",
+            "role": "local"
+          },
+          {
+            "peer_id": "ally-1",
+            "role": "ally"
+          }
+        ],
+        "synchronization": {
+          "status": "synchronized",
+          "generation": 4,
+          "peer_count": 2,
+          "missing_peers": []
+        }
+      }
+    }
+  ]
+}

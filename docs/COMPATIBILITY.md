@@ -125,7 +125,8 @@ session remains `session-1` by default and may be set independently; every lease
 | Surface | Current evidence | Result |
 | --- | --- | --- |
 | `runtime-v3-gameplay` fixed routes and forwarder | Source validation and route allowlist tests | Source-derived; live gateway/host settlement unverified |
-| Co-op synchronization and process supervisor | Bounded deterministic fakes and identity/failure tests | Source-derived; live restart, cleanup, isolation, and multiplayer unverified |
+| Older numeric-ID co-op and process-supervisor prototypes | Bounded deterministic fakes and identity/failure tests | Source-derived; live restart, cleanup, isolation, and multiplayer unverified |
+| Coordinator-reported synchronization | Real gateway/MCP executable exchange plus injected-time ledger tests | Confirmed coordination component; native multiplayer unverified |
 
 These surfaces are additive to Runtime-v2 and do not inherit its runtime evidence.
 
@@ -194,10 +195,33 @@ field, digest, artifact byte, or valid serialized message changes.
 Runtime-v3 inherits the component adapter authentication settings and configured MCP session
 header. Read scope authorizes state, legal actions, wait, and reobserve; mutate scope is required
 for dispatch, and control scope for recovery. A read credential cannot dispatch or recover.
-Co-op and process-supervisor APIs remain local prototypes: the attached runtime does not consume
-co-op wire messages or use peer synchronization to authorize forwarding.
+The process-supervisor and older numeric-ID co-op APIs remain local prototypes. The attached
+runtime separately produces the complete `coop-synchronization-v1` response from recent
+coordinator reports, with no use of peer synchronization to authorize gameplay forwarding.
 
 Recovery uses route-level control scope because the canonical request kinds include release-lease
 and stop-episode as well as reobserve and reconcile. The current mod rejects those lifecycle
 kinds as unsupported, but the gateway does not weaken their future authority. Read-only clients
 can use the dedicated reobserve and wait routes for state and retained receipt observation.
+
+## Opt-in coordinator reports
+
+With `STS2_COOP_ROSTER` configured, the exact attached instance gains two routes:
+
+| Method/path suffix under `/v1/instances/{id}` | Scope | Behavior |
+| --- | --- | --- |
+| `GET /coop/synchronization` | read | Empty body; pinned complete synchronization response |
+| `POST /coop/peer-report` | control | Closed `{peer_id, generation, connected}` report; no host call |
+
+Both require the normal active lease, caller, separate gateway/MCP sessions, epoch and
+correlation headers. Roster entries are closed `{peer_id, role}` objects, two to four peers,
+exactly one local. IDs are unique bounded ASCII; roles are `local` or `ally`. Missing config
+returns 503; malformed input 400; unknown peers, generation rollback or inactive/stale binding
+409; authentication/scope rejection remains 401/403. Lease release and shutdown fence both.
+
+All peers start missing. Connected reports expire at thirty seconds on the monotonic clock;
+the coordinator must refresh every peer before that deadline. Generation advances only when
+all recent connected reports agree, never backwards. These sequences belong to coordinator
+convergence, not independently allocated per-game observation counters. The wire source is
+always `gateway_peer_reports`; no independent peer authentication or native-host agreement is
+claimed. No state is persisted or restored as synchronized after process restart.

@@ -15,6 +15,10 @@ impl RuntimeService {
             return self.runtime_v3_request(request, route);
         }
         match (request.method.as_str(), request.path.as_str()) {
+            ("GET", path) if path == self.coop_synchronization_path() => {
+                self.coop_synchronization(request)
+            }
+            ("POST", path) if path == self.coop_report_path() => self.coop_peer_report(request),
             ("GET", "/health/ready") if request.body.is_empty() => self.health(),
             ("POST", "/v1/sessions/allocate")
                 if request.content_type_is_json() && !request.body.is_empty() =>

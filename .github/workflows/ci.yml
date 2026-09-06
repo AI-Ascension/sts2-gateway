@@ -49,6 +49,10 @@ jobs:
       - name: Check formatting
         run: cargo fmt --all --check
 
+      - name: Verify co-op synchronization artifact inventory
+        working-directory: protocol-artifact/coop-synchronization-v1
+        run: sha256sum -c SHA256SUMS
+
       - name: Run Clippy
         run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 
