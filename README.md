@@ -7,7 +7,7 @@
 
 > **AI-Ascension · tier 2: control plane · home of the public proof** — In-memory control plane for game-host instances: lifecycle, one lease per instance with epoch fencing, and fixed routes.
 >
-> **Status:** deterministic tests and one bounded attached-host runtime trace `confirmed` for STS2 v0.107.1 on Windows x86-64 · general lifecycle and broader compatibility `unverified`.
+> **Status:** deterministic tests, the bounded attached-host runtime trace, and the reviewed runtime-v3 Windows/Linux campaign path are `confirmed` for the recorded STS2 v0.107.1 evidence · general lifecycle, native multiplayer, and broader compatibility `unverified`.
 > **Proof:** [45-second browser replay](https://ai-ascension.github.io/proof.html) · [Evidence ledger](https://ai-ascension.github.io/evidence.html) · [This repository on the map](https://ai-ascension.github.io/repositories.html#sts2-gateway)
 > **Proof source:** [crates/gateway/tests/control_plane.rs](crates/gateway/tests/control_plane.rs) — the replay mirrors these tests.
 > **Owner:** The gateway boundary owner is responsible for the lifecycle and routing control plane: instance records, leases and lease epochs, fencing, fixed forwarding policy, and cleanup.
@@ -17,8 +17,10 @@
 
 Status: Wave 2 POC plus bounded runtime-adapter proof. The target-owned gateway package provides a
 deterministic control-plane core and injected boundary ports; the separate runtime binary adds one
-attached loopback lane. An authorized trace now confirms that lane through the exact recorded host;
-generic process supervision, multi-instance lifecycle, and broader compatibility remain outside it.
+attached loopback lane. Dated evidence confirms that lane through the exact recorded host and shows
+the runtime-v3 path carrying isolated Windows and Linux model-controlled campaigns to Defeat and
+fresh replays. Generic process supervision, multi-instance lifecycle, native multiplayer, and
+broader compatibility remain outside the demonstrated scope.
 
 ## Owner and boundary
 
@@ -39,8 +41,8 @@ credentials, arbitrary proxying, or implicit remote discovery. It consumes only 
 `sts2-protocol/poc-v1`, Runtime-v2, and semantic Runtime-v3 gameplay artifacts. A forwarded request must have a validated instance,
 session, lease, lease epoch, route, method, and bounded body; listener reachability is not
 authentication. Runtime-v2 adds only the fixed `end_turn` operation and its retained receipt ledger,
-plus a typed state route that reports explicit unavailability without a host-state adapter; live
-gameplay settlement is unverified.
+plus a typed state route that reports explicit unavailability without a host-state adapter. The
+Runtime-v2 fake settlement remains distinct from the later bounded Runtime-v3 host evidence.
 
 The POC test allocates and readies fake instances, forwards a fixed command route, and proves that
 stale epochs and a proof from another instance are rejected before transport. It is a gateway
@@ -56,10 +58,11 @@ proprietary game file, save, provider credential, or generated product output is
 protocol artifact is copied as explicit release-like data only.
 
 The current state is `source-derived` from this tree and its policy files, with `confirmed`
-deterministic fake-instance outcomes, a controlled component lane, and one authorized exact-host
-runtime trace. Generic process startup/supervision, isolation under real concurrency, restart
-reconciliation, and release behavior remain `unverified`. See the [compatibility
-record](docs/COMPATIBILITY.md) and [testing plan](docs/TESTING.md).
+deterministic fake-instance outcomes, a controlled component lane, an authorized exact-host runtime
+trace, and the read-only `coop-synchronization-v1` executable profile. The latter reports gateway
+peer metadata and never authorizes game effects. Generic process startup/supervision, isolation
+under real concurrency, restart reconciliation, native multiplayer, and release behavior remain
+`unverified`. See the [compatibility record](docs/COMPATIBILITY.md) and [testing plan](docs/TESTING.md).
 
 ## Local validation
 
@@ -107,11 +110,12 @@ attached downstream configuration are intentional for the vertical slice; the ex
 and lease path is confirmed in the dated authorized trace. General process lifecycle, multi-instance
 scheduling, restart reconciliation, and graceful shutdown remain `unverified`.
 
-The semantic Runtime-v3 proposal validates the exact canonical artifact and correlated envelopes
-on six fixed routes. Its injected process supervisor and co-op ledger are separate source-level
-components, not executable wiring to a real game or multiplayer host. The attached binary still
-has no lease TTL/renewal or durable boot-epoch rotation; see the explicit restart limitation in
-[COMPATIBILITY.md](docs/COMPATIBILITY.md). It cannot establish a reliable autonomous run by itself.
+The Runtime-v3 profile validates the exact canonical artifact and correlated envelopes on six fixed
+routes. The attached binary's fixed-instance path was exercised by the dated Windows/Linux campaign
+and replay records through an already attached mod listener. It still has no lease TTL/renewal or
+durable boot-epoch rotation; see the explicit restart limitation in
+[COMPATIBILITY.md](docs/COMPATIBILITY.md). It cannot establish an autonomous run by itself without
+the harness and provider path.
 
 For opt-in coordinator-reported synchronization, supply `STS2_COOP_ROSTER` as a JSON array,
 for example `[{"peer_id":"local-1","role":"local"},{"peer_id":"ally-1","role":"ally"}]`.
@@ -120,3 +124,10 @@ MCP `coop-synchronization-v1` profile reads agreement under read scope. All peer
 appear missing, and connected reports expire after thirty seconds. This feature reports
 coordination metadata and never authorizes gameplay. See
 [the route and freshness contract](docs/COMPATIBILITY.md#opt-in-coordinator-reports).
+
+The executable synchronization profile was separately exercised through the real gateway and MCP
+processes. It covered missing and partial reports, generation agreement and disagreement,
+disconnect/recovery, stale leases, and rejected unknown or regressing reports, with zero downstream
+game connections. This is coordinator-report transport evidence only: it does not establish native
+peer identity, shared game actions/effects, or multiplayer gameplay. See the [MCP executable
+evidence](https://github.com/AI-Ascension/sts2-mcp-server/blob/main/docs/evidence/coop-synchronization-20260906.md).
