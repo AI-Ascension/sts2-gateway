@@ -5,6 +5,9 @@ runtime or downstream wire contract.
 
 ## [Unreleased]
 
+- Consume the coordinated Runtime-v3 continuation schema with argument-free proceed,
+  confirm-selection and cancel-selection actions; reject mixed revisions and extra arguments.
+
 ### Fixed
 
 - Default MCP transport identity independently to `mcp-session-1` to match MCP and harness
