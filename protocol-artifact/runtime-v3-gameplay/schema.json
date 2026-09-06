@@ -188,7 +188,7 @@
         { "type": "object", "additionalProperties": false, "required": ["kind", "character_id"], "properties": { "kind": { "const": "start_run" }, "character_id": { "$ref": "#/$defs/identity" } } },
         { "type": "object", "additionalProperties": false, "required": ["kind", "node_id"], "properties": { "kind": { "const": "select_map_node" }, "node_id": { "$ref": "#/$defs/identity" } } },
         { "type": "object", "additionalProperties": false, "required": ["kind", "card_id", "target_id"], "properties": { "kind": { "const": "play_card" }, "card_id": { "$ref": "#/$defs/identity" }, "target_id": { "anyOf": [{ "$ref": "#/$defs/identity" }, { "type": "null" }] } } },
-        { "type": "object", "additionalProperties": false, "required": ["kind"], "properties": { "kind": { "enum": ["end_turn", "skip_reward", "rest", "confirm_victory", "save_quit"] } } },
+        { "type": "object", "additionalProperties": false, "required": ["kind"], "properties": { "kind": { "enum": ["end_turn", "skip_reward", "rest", "confirm_victory", "save_quit", "proceed", "confirm_selection", "cancel_selection"] } } },
         { "type": "object", "additionalProperties": false, "required": ["kind", "reward_id"], "properties": { "kind": { "const": "choose_reward" }, "reward_id": { "$ref": "#/$defs/identity" } } },
         { "type": "object", "additionalProperties": false, "required": ["kind", "item_id"], "properties": { "kind": { "const": "shop_purchase" }, "item_id": { "$ref": "#/$defs/identity" } } },
         { "type": "object", "additionalProperties": false, "required": ["kind", "card_id"], "properties": { "kind": { "enum": ["shop_remove", "smith", "select_card"] }, "card_id": { "$ref": "#/$defs/identity" } } },

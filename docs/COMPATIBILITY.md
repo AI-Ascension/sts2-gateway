@@ -129,9 +129,11 @@ session remains `session-1` by default and may be set independently; every lease
 
 These surfaces are additive to Runtime-v2 and do not inherit its runtime evidence.
 
-The gameplay envelope is pinned to protocol PR #8 commit
-`82507361890c1bdce6cffeaf7e616d93e53a7d99`, schema digest
-`b37c80f583aeaf4f81ede2083bcfb4129196baf5eb092470e8738173c4b7226c`.
+The gameplay envelope is pinned to protocol PR #14 commit
+`a81ec64d7d14bdb3079b8c7dc3c75e5c88693dfd`, schema digest
+`8e99cea36b7ede97532348fd8efe302ca79260895265a7bf14ddf7e006d8ff63`.
+This coordinated candidate adds argument-free proceed, confirm-selection and cancel-selection
+actions. Producer and all consumers must migrate together; earlier digests are rejected.
 The complete copied artifact and its source/conformance companions are checked by CI. Runtime
 validation additionally enforces duplicate-field rejection, schema shape, byte bounds, correlated
 identities/operations, and observation/witness relationships. This is the semantic gameplay

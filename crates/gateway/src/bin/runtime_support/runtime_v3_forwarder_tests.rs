@@ -47,6 +47,42 @@ fn embedded_runtime_v3_schema_compiles_and_admits_golden_request()
 }
 
 #[test]
+fn continuation_requests_preserve_closed_actions_and_authenticated_context()
+-> Result<(), Box<dyn std::error::Error>> {
+    let forwarder = RuntimeV3GameplayForwarder::new(16 * 1024, 128 * 1024);
+    for file in [
+        "dispatch-proceed-request.json",
+        "dispatch-confirm-selection-request.json",
+        "dispatch-cancel-selection-request.json",
+    ] {
+        let mut request = fixture(file)?;
+        let headers = headers(&request);
+        assert!(
+            forwarder
+                .validate_request(
+                    RuntimeV3GameplayRoute::DispatchAction,
+                    &serde_json::to_vec(&request)?,
+                    &headers,
+                )
+                .is_ok(),
+            "{file}"
+        );
+        request["action"]["action"]["choice_id"] = "injected".into();
+        assert!(
+            forwarder
+                .validate_request(
+                    RuntimeV3GameplayRoute::DispatchAction,
+                    &serde_json::to_vec(&request)?,
+                    &headers,
+                )
+                .is_err(),
+            "{file}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
 fn requests_require_route_kind_and_authenticated_envelope() -> Result<(), Box<dyn std::error::Error>>
 {
     let forwarder = RuntimeV3GameplayForwarder::new(16 * 1024, 128 * 1024);
