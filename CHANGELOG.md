@@ -8,7 +8,13 @@ host compatibility and release publication.
 - Add opt-in coordinator-reported co-op synchronization: configured roster, control-scoped
   fenced reports, monotonic convergence and expiry, and a read-only response consumed by
   the executable MCP profile. Both routes avoid downstream game access. The copied protocol
-  artifact, deterministic ledger tests and real gateway/MCP transport gate are included.
+  artifact, deterministic ledger tests and real gateway/MCP transport gate are included. The
+  executable check is coordinator-report evidence only; it does not establish native peer
+  identity, shared game effects, or multiplayer gameplay.
+
+- Record bounded native runtime-v3 Windows/Linux campaign and replay paths through an attached
+  mod listener. The dated records cover the named v0.107.1 fixtures and Defeat outcomes; process
+  lifecycle, native multiplayer, and broader compatibility remain unverified.
 
 - Consume the coordinated Runtime-v3 continuation schema with argument-free proceed,
   confirm-selection and cancel-selection actions; reject mixed revisions and extra arguments.
@@ -83,8 +89,9 @@ host compatibility and release publication.
   add a self-check test that the embedded Runtime-v3 schema compiles and admits a golden request.
 
 - The bounded Runtime-v3 gameplay route allowlist and forwarder, gateway-owned co-op peer
-  synchronization, and an injected process supervisor. Live launch, host settlement, and
-  multiplayer traces remain unverified.
+  synchronization, and an injected process supervisor. For this source and component test
+  entry, live launch, host settlement, and multiplayer traces were unverified; later dated
+  campaign records are scoped separately.
 - A bounded injected-process restart seam that removes the old owned handle before replacement
   start and fails closed when replacement start fails.
 - The frozen Runtime-v2 gateway operation ledger and fixed forwarding seam: full envelope and lease
