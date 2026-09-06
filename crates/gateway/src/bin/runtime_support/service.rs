@@ -83,6 +83,8 @@ mod configuration;
 mod coop;
 #[path = "service_lease.rs"]
 mod lease;
+#[path = "service_recovery.rs"]
+mod recovery;
 #[path = "service_routes.rs"]
 mod routes;
 #[path = "service_v2.rs"]

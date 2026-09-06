@@ -7,9 +7,14 @@ license.workspace = true
 publish = false
 
 [dependencies]
+base64.workspace = true
+fs2.workspace = true
+rusqlite.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+sha2.workspace = true
 jsonschema = { version = "=0.52.1", default-features = false }
+uuid.workspace = true
 
 [lints]
 workspace = true

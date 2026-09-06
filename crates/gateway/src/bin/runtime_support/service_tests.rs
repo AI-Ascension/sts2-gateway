@@ -146,3 +146,69 @@ fn v1_fixed_forwarding_preserves_paths_credentials_and_identity() -> Result<(), 
         .map_err(|_| String::from("synthetic downstream panicked"))??;
     Ok(())
 }
+
+#[test]
+fn host_fence_control_route_bridges_without_a_gameplay_lease() -> Result<(), String> {
+    let listener = TcpListener::bind("127.0.0.1:0").map_err(|error| error.to_string())?;
+    listener
+        .set_nonblocking(true)
+        .map_err(|error| error.to_string())?;
+    let address = listener.local_addr().map_err(|error| error.to_string())?;
+    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+    let worker = thread::spawn(move || -> Result<(), String> {
+        let deadline = Instant::now() + Duration::from_secs(2);
+        let mut stream = loop {
+            match listener.accept() {
+                Ok((stream, _)) => break stream,
+                Err(error)
+                    if error.kind() == std::io::ErrorKind::WouldBlock
+                        && Instant::now() < deadline =>
+                {
+                    thread::sleep(Duration::from_millis(1));
+                }
+                Err(error) => return Err(error.to_string()),
+            }
+        };
+        let request = read_request(&mut stream).map_err(|error| error.to_string())?;
+        sender.send(request).map_err(|error| error.to_string())?;
+        write_response(&mut stream, 200, b"{}").map_err(|error| error.to_string())
+    });
+    let mut service = test_service()?;
+    service.config.mod_address = address.to_string();
+    let mut request = authenticated_request("/v1/recovery/host-fence");
+    request.method = String::from("POST");
+    request.headers.remove("x-sts2-lease-id");
+    request.headers.remove("x-sts2-lease-epoch");
+    request.headers.insert(
+        String::from("content-type"),
+        String::from("application/json"),
+    );
+    request.body = frame();
+    let (status, body) = service.handle_request(&request);
+    assert_eq!(status, 200);
+    assert_eq!(body, b"{}");
+    let forwarded = receiver
+        .recv_timeout(Duration::from_secs(2))
+        .map_err(|error| error.to_string())?;
+    assert_eq!(forwarded.method, "POST");
+    assert_eq!(forwarded.path, "/v1/recovery/host-fence");
+    assert_eq!(forwarded.body, request.body);
+    assert_eq!(
+        forwarded.headers.get("authorization").map(String::as_str),
+        Some("Bearer mod-token")
+    );
+    assert!(!forwarded.headers.contains_key("x-sts2-lease-id"));
+    assert!(!forwarded.headers.contains_key("x-sts2-lease-epoch"));
+    worker
+        .join()
+        .map_err(|_| String::from("host-fence downstream panicked"))??;
+    Ok(())
+}
+
+fn frame() -> Vec<u8> {
+    format!(
+        r#"{{"contract":"watchdog-recovery-v1","schema_digest":"{}","message_id":"message-1","correlation_id":"correlation-1","sent_at":"2026-09-06T23:00:00Z","actor":{{"principal_id":"principal-1","role":"gateway"}},"auth":{{"principal_id":"principal-1","capability":"host_fence","proof":"proof-1"}},"kind":"host_fence_request","payload":{{"boot":{{"deployment_id":"deployment-1"}}}}}}"#,
+        sts2_gateway::RECOVERY_SCHEMA_DIGEST
+    )
+    .into_bytes()
+}

@@ -85,6 +85,11 @@ host compatibility and release publication.
 
 ### Added
 
+- Add the fixed, authenticated `POST /v1/recovery/host-fence` bridge for the
+  additive recovery sideband. The bounded downstream request carries the new
+  boot/fence identity in its closed frame and does not require or forward an
+  old gameplay lease; transport uncertainty remains explicit.
+
 - Record the owner-accepted `jsonschema` product dependency and its conditions in ADR 0015;
   add a self-check test that the embedded Runtime-v3 schema compiles and admits a golden request.
 
