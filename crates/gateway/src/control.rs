@@ -20,7 +20,7 @@ where
         caller_id: CallerId,
         session_id: SessionId,
     ) -> Result<Allocation, GatewayError> {
-        if !self.admitting {
+        if !self.is_admitting {
             return Err(GatewayError::AdmissionClosed);
         }
         if self.instances.len() >= self.config.capacity() {
