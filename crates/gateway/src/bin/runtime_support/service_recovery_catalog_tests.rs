@@ -76,3 +76,19 @@ fn same_generation_same_state_observation_keeps_the_catalog() {
     assert!(cache.observe(original.clone()));
     assert_eq!(cache.current().map(|(key, _, _)| key), Some(&original));
 }
+
+#[test]
+fn invalidation_keeps_the_observation_watermark() {
+    let mut cache = RecoveryCatalogCache::default();
+    let original = key(2);
+    assert!(cache.capture(original.clone(), &response(&original)));
+    cache.invalidate_current();
+    assert!(cache.current().is_none());
+
+    // A delayed legal-actions response for the already-consumed generation
+    // cannot repopulate the executable cache after a dispatch.
+    assert!(!cache.capture(key(1), &response(&key(1))));
+    assert!(cache.current().is_none());
+    assert!(cache.observe(key(3)));
+    assert!(cache.current().is_none());
+}

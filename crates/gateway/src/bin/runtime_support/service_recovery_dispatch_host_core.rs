@@ -97,6 +97,14 @@ impl RuntimeService {
             Ok(operation) => operation,
             Err(error) => return super::recovery_wire::recovery_store_error(error),
         };
+        if stored.state == RecoveryOperationState::Settled
+            && let Some(witness) = stored.witness.as_ref()
+        {
+            // A settled (including host DUPLICATE/SETTLED) witness is the
+            // authoritative successor observation.  Advance only the
+            // watermark; the host did not provide a legal-action catalog.
+            let _ = self.observe_recovery_witness(proof, witness);
+        }
         let body = json!({
             "result": response_result(
                 super::recovery_payload::operation_state_name(stored.state),

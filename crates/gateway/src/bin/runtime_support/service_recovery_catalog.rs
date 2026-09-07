@@ -2,7 +2,7 @@
 
 use serde_json::{Value, value::RawValue};
 use std::collections::BTreeMap;
-use sts2_gateway::{RecoveryLease, sha256_hex};
+use sts2_gateway::{RecoveryEffectWitness, RecoveryLease, RecoveryLeaseProof, sha256_hex};
 
 use super::{RuntimeService, RuntimeV3GameplayRoute};
 
@@ -73,6 +73,10 @@ impl RecoveryCatalogCache {
         self.advance_observation(&key)
     }
 
+    pub(super) fn invalidate_current(&mut self) {
+        self.current = None;
+    }
+
     pub(super) fn admission(
         &self,
         key: &RecoveryCatalogKey,
@@ -122,6 +126,33 @@ impl RecoveryCatalogCache {
 }
 
 impl RuntimeService {
+    pub(super) fn invalidate_recovery_catalog(&mut self) {
+        self.recovery_catalog.invalidate_current();
+    }
+
+    // A witness advances freshness but never supplies executable actions.
+    pub(super) fn observe_recovery_witness(
+        &mut self,
+        proof: &RecoveryLeaseProof,
+        witness: &RecoveryEffectWitness,
+    ) -> bool {
+        let Some(lease) = self.recovery_lease.as_ref() else {
+            return false;
+        };
+        if lease.proof() != *proof {
+            return false;
+        }
+        self.recovery_catalog.observe(RecoveryCatalogKey {
+            instance_id: self.config.instance_id.clone(),
+            instance_incarnation: proof.instance_incarnation.clone(),
+            session_id: self.config.session_id.clone(),
+            lease_id: proof.lease_id.clone(),
+            lease_epoch: proof.lease_epoch,
+            state_id: witness.state_id.clone(),
+            gameplay_generation: witness.generation,
+        })
+    }
+
     pub(super) fn capture_recovery_catalog(
         &mut self,
         lease: &RecoveryLease,

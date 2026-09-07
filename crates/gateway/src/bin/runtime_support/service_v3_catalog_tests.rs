@@ -365,11 +365,24 @@ fn durable_duplicate_replays_before_missing_catalog_admission() -> Result<(), St
     let (mut service, lease, path) = recovery_service()?;
     let dispatch = dispatch_envelope(&service, &lease, "durable-duplicate-correlation")?;
     capture_old_catalog(&mut service, &lease, &dispatch)?;
-    let dispatch_request = runtime_request(&service, &lease, "action", dispatch)?;
+    let dispatch_request = runtime_request(&service, &lease, "action", dispatch.clone())?;
     let (status, body) = service.handle_request(&dispatch_request);
     assert_eq!(status, 503);
     assert_eq!(json_body(&body)?["payload"]["result"]["status"], "UNKNOWN");
-    service.recovery_catalog = super::recovery_catalog::RecoveryCatalogCache::default();
+
+    // The durable dispatch marker makes the old catalog unsafe even when the
+    // host proof is unavailable. A different operation cannot reuse it, while
+    // the exact original operation remains replayable.
+    let mut new_dispatch = dispatch;
+    new_dispatch["operation_id"] = "00000000-0000-4000-8000-000000000008".into();
+    new_dispatch["correlation_id"] = "new-correlation".into();
+    let new_request = runtime_request(&service, &lease, "action", new_dispatch)?;
+    let (status, body) = service.handle_request(&new_request);
+    assert_eq!(status, 409);
+    assert_eq!(
+        json_body(&body)?["error_code"],
+        "recovery_catalog_fresh_read_required"
+    );
 
     let (status, body) = service.handle_request(&dispatch_request);
     assert_eq!(status, 503);

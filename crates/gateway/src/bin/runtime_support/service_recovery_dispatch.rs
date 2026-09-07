@@ -66,6 +66,11 @@ impl RuntimeService {
         correlation: &str,
         _caller_proof: Option<&str>,
     ) -> (u16, Vec<u8>) {
+        // mark_dispatched completed durably before this function is entered.
+        // The old legal-action catalog is therefore no longer safe for a new
+        // mutation, even when the host response is uncertain.  Keep the
+        // observation watermark so delayed stale responses cannot restore it.
+        self.invalidate_recovery_catalog();
         let Some(lease) = self.recovery_lease.clone() else {
             return self.recovery_operation_unknown(
                 proof,
