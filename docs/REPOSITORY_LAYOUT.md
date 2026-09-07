@@ -41,3 +41,16 @@ contract; runtime communication remains the separate
 The aggregate NAMING_CONVENTIONS.md and its naming-registry.yaml define shared
 casing and identity vocabulary. Gateway-owned route or wire names require this target's compatibility
 review; a concise directory or equal suffix does not create a shared identity.
+
+## Runtime-map additions
+
+```text
+protocol-artifact/runtime-map-v1/             copied manifest, schema, goldens, and checksums
+schemas/runtime-map-v1.schema.json            source-path schema companion
+conformance/cases/runtime-map-v1.json         implementation-neutral consumer case
+crates/gateway/src/bin/runtime_support/runtime_map*  fixed route and response validator
+```
+
+These are inert contract data and gateway-owned transport validation. The protocol owner remains
+responsible for the neutral model and conformance meaning; the game-mod remains responsible for
+host observation and projection.

@@ -162,3 +162,18 @@ read/control credentials, verifies the full report lifecycle and lease rejection
 that a listening downstream trap received zero connections. It is run explicitly with this
 exact built gateway passed in `STS2_COOP_GATEWAY_BINARY`; see the MCP testing guide and
 the coordinated evidence record. It proves coordination transport, not native multiplayer.
+
+## Runtime-map visibility checks
+
+The `runtime-map-v1` consumer verifies protocol commit
+`d9ffb190ad8990e15f43d7992581dcb2d60b1971` and schema digest
+`6340f3cbe6c1b5728144fe89fdfdf8645acf2f59a77c0e0c30ebfeafc77515d8` through the copied manifest,
+schema, conformance case, and golden checksum inventory. Forwarder tests cover the exact GET-only
+route, bodyless request, downstream path, response budget, provenance and digest, configured
+identity and epoch/generation fences, bounded graph topology, visited position/history/terminal
+references, and independent generation-bound action bindings. Invalid identity, stale generation,
+unknown fields, duplicate graph members, cycles, invalid action-option IDs, and oversized responses
+fail closed. Overlapping coordinates and disconnected visible components remain accepted.
+
+These are deterministic source/component checks. They do not establish a running game-mod, host map
+freshness, map projection compatibility, visualizer behavior, or a gameplay navigation effect.

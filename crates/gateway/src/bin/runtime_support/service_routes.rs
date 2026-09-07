@@ -14,6 +14,11 @@ impl RuntimeService {
         {
             return self.runtime_v3_request(request, route);
         }
+        if let Some(route) =
+            RuntimeMapRoute::parse(&request.method, &request.path, &self.config.instance_id)
+        {
+            return self.runtime_map_request(request, route);
+        }
         match (request.method.as_str(), request.path.as_str()) {
             ("GET", path) if path == self.coop_synchronization_path() => {
                 self.coop_synchronization(request)
