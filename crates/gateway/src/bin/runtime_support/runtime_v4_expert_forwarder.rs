@@ -93,11 +93,21 @@ impl RuntimeV4ExpertForwarder {
         if value["status"] == "settled" {
             let observation = serde_json::to_vec(&value["observation"])
                 .map_err(|_| RuntimeV4ExpertForwardError::ResponseMalformed)?;
-            validate_observation(&observation)
+            let observation = validate_observation(&observation)
                 .ok_or(RuntimeV4ExpertForwardError::ResponseMalformed)?;
+            if observation["state_id"] != value["state_id"]
+                || observation["generation"] != value["generation"]
+            {
+                return Err(RuntimeV4ExpertForwardError::ResponseMalformed);
+            }
             let transition = value["transition"]
                 .as_object()
                 .ok_or(RuntimeV4ExpertForwardError::ResponseMalformed)?;
+            if request["generation"].is_number()
+                && transition["before_generation"] != request["generation"]
+            {
+                return Err(RuntimeV4ExpertForwardError::ResponseMalformed);
+            }
             if transition["after_generation"] != value["generation"]
                 || transition["removed"] != true
                 || transition["after_generation"].as_u64()

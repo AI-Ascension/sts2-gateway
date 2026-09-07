@@ -73,10 +73,13 @@ fn action_request_and_settlement_are_fenced_to_the_route_operation()
     ));
     let mut settled: serde_json::Value = serde_json::from_slice(response)?;
     settled["correlation_id"] = serde_json::Value::String("request-1".into());
-    settled["observation"] = serde_json::from_slice(include_bytes!(concat!(
+    let mut observation: serde_json::Value = serde_json::from_slice(include_bytes!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../../protocol-artifact/runtime-v4-expert/golden/observation.json"
     )))?;
+    observation["state_id"] = settled["state_id"].clone();
+    observation["generation"] = settled["generation"].clone();
+    settled["observation"] = observation.clone();
     assert!(
         forwarder
             .validate_response(
@@ -98,6 +101,56 @@ fn action_request_and_settlement_are_fenced_to_the_route_operation()
                 &serde_json::to_vec(&settled)?,
             )
             .is_err()
+    );
+
+    let mut mismatched_observation = settled.clone();
+    mismatched_observation["observation"]["generation"] = serde_json::json!(7);
+    assert!(
+        forwarder
+            .validate_response(
+                &RuntimeV4ExpertRoute::Reconcile("potion-op-1".into()),
+                &value,
+                &headers(),
+                &serde_json::to_vec(&mismatched_observation)?,
+            )
+            .is_err()
+    );
+
+    let mut mismatched_state = settled.clone();
+    mismatched_state["observation"]["state_id"] = serde_json::json!("live:7");
+    assert!(
+        forwarder
+            .validate_response(
+                &RuntimeV4ExpertRoute::Reconcile("potion-op-1".into()),
+                &value,
+                &headers(),
+                &serde_json::to_vec(&mismatched_state)?,
+            )
+            .is_err()
+    );
+
+    let mut mismatched_before = settled.clone();
+    mismatched_before["transition"]["before_generation"] = serde_json::json!(6);
+    assert!(
+        forwarder
+            .validate_response(
+                &RuntimeV4ExpertRoute::Dispatch,
+                &value,
+                &headers(),
+                &serde_json::to_vec(&mismatched_before)?,
+            )
+            .is_err()
+    );
+
+    assert!(
+        forwarder
+            .validate_response(
+                &RuntimeV4ExpertRoute::Reconcile("potion-op-1".into()),
+                &serde_json::Value::Null,
+                &headers(),
+                &serde_json::to_vec(&settled)?,
+            )
+            .is_ok()
     );
     Ok(())
 }
