@@ -8,10 +8,10 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use sts2_gateway::{GatewayRecoveryStore, RecoveryLease, RecoveryLeaseRequest};
 
-const DEPLOYMENT: &str = "00000000-0000-4000-8000-000000000001";
-const INSTANCE: &str = "00000000-0000-4000-8000-000000000002";
-const OLD_STATE: &str = "00000000-0000-4000-8000-000000000003";
-const DISPATCH_OPERATION: &str = "00000000-0000-4000-8000-000000000004";
+pub(super) const DEPLOYMENT: &str = "00000000-0000-4000-8000-000000000001";
+pub(super) const INSTANCE: &str = "00000000-0000-4000-8000-000000000002";
+pub(super) const OLD_STATE: &str = "00000000-0000-4000-8000-000000000003";
+pub(super) const DISPATCH_OPERATION: &str = "00000000-0000-4000-8000-000000000004";
 const NEW_STATE: &str = "00000000-0000-4000-8000-000000000005";
 const WAIT_OPERATION: &str = "00000000-0000-4000-8000-000000000006";
 const RECOVER_OPERATION: &str = "00000000-0000-4000-8000-000000000007";
@@ -24,7 +24,7 @@ fn fixture(name: &str) -> Result<Value, String> {
         .map_err(|error| error.to_string())
 }
 
-fn recovery_service() -> Result<(RuntimeService, RecoveryLease, PathBuf), String> {
+pub(super) fn recovery_service() -> Result<(RuntimeService, RecoveryLease, PathBuf), String> {
     let mut service = test_service()?;
     service.config.instance_id = INSTANCE.to_owned();
     service.config.recovery_deployment_id = Some(DEPLOYMENT.to_owned());
@@ -75,7 +75,7 @@ fn recovery_service() -> Result<(RuntimeService, RecoveryLease, PathBuf), String
     Ok((service, lease, path))
 }
 
-fn cleanup(service: RuntimeService, path: &Path) {
+pub(super) fn cleanup(service: RuntimeService, path: &Path) {
     drop(service);
     let _ = std::fs::remove_file(path);
     let _ = std::fs::remove_file(path.with_extension("gateway-recovery.lock"));
@@ -89,7 +89,7 @@ fn bind(value: &mut Value, service: &RuntimeService, lease: &RecoveryLease, corr
     value["lease_epoch"] = lease.lease_epoch.into();
 }
 
-fn runtime_request(
+pub(super) fn runtime_request(
     service: &RuntimeService,
     lease: &RecoveryLease,
     suffix: &str,
@@ -130,7 +130,7 @@ fn runtime_request(
     Ok(request)
 }
 
-fn dispatch_envelope(
+pub(super) fn dispatch_envelope(
     service: &RuntimeService,
     lease: &RecoveryLease,
     correlation: &str,
@@ -143,7 +143,7 @@ fn dispatch_envelope(
     Ok(value)
 }
 
-fn capture_old_catalog(
+pub(super) fn capture_old_catalog(
     service: &mut RuntimeService,
     lease: &RecoveryLease,
     dispatch: &Value,
@@ -269,7 +269,7 @@ fn forward_once(
     Ok((status, body, forwarded))
 }
 
-fn json_body(body: &[u8]) -> Result<Value, String> {
+pub(super) fn json_body(body: &[u8]) -> Result<Value, String> {
     serde_json::from_slice(body).map_err(|error| error.to_string())
 }
 
@@ -369,6 +369,11 @@ fn durable_duplicate_replays_before_missing_catalog_admission() -> Result<(), St
     let (status, body) = service.handle_request(&dispatch_request);
     assert_eq!(status, 503);
     assert_eq!(json_body(&body)?["payload"]["result"]["status"], "UNKNOWN");
+
+    // The first dispatch consumed the catalog before the host outcome became
+    // UNKNOWN. A delayed legal-actions response for that same boundary is
+    // not a fresh authoritative read and must remain rejected.
+    assert!(capture_old_catalog(&mut service, &lease, &dispatch).is_err());
 
     // The durable dispatch marker makes the old catalog unsafe even when the
     // host proof is unavailable. A different operation cannot reuse it, while

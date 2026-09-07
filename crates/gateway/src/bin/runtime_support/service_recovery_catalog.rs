@@ -6,9 +6,6 @@ use sts2_gateway::{RecoveryEffectWitness, RecoveryLease, RecoveryLeaseProof, sha
 
 use super::{RuntimeService, RuntimeV3GameplayRoute};
 
-/// The gateway keeps only the catalog for the exact observation to which a new
-/// recovery operation is bound.  In particular, this is not a general-purpose
-/// history or a fallback catalog.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct RecoveryCatalogKey {
     pub(super) instance_id: String,
@@ -24,6 +21,8 @@ pub(super) struct RecoveryCatalogKey {
 pub(super) struct RecoveryCatalogCache {
     current: Option<RecoveryCatalog>,
     observed: Option<RecoveryCatalogKey>,
+    // Consumed boundary awaiting a fresh authoritative observation.
+    invalidated: Option<RecoveryCatalogKey>,
 }
 
 #[derive(Debug)]
@@ -50,6 +49,7 @@ impl RecoveryCatalogCache {
             || !response_matches_key(&response, &key)
             || response["state_id"].as_str() != Some(key.state_id.as_str())
             || response["generation"].as_u64() != Some(key.gameplay_generation)
+            || self.invalidated.as_ref() == Some(&key)
         {
             return false;
         }
@@ -66,15 +66,16 @@ impl RecoveryCatalogCache {
         true
     }
 
-    /// Record a state/reobserve observation without treating its embedded legal
-    /// actions as a recovery catalog.  A newer observation invalidates the
-    /// previous catalog; an older or conflicting observation is rejected.
     pub(super) fn observe(&mut self, key: RecoveryCatalogKey) -> bool {
-        self.advance_observation(&key)
+        let accepted = self.advance_observation(&key);
+        if accepted && self.invalidated.as_ref() == Some(&key) {
+            self.invalidated = None;
+        }
+        accepted
     }
 
     pub(super) fn invalidate_current(&mut self) {
-        self.current = None;
+        self.invalidated = self.current.take().map(|c| c.key).or(self.observed.clone());
     }
 
     pub(super) fn admission(
@@ -130,7 +131,6 @@ impl RuntimeService {
         self.recovery_catalog.invalidate_current();
     }
 
-    // A witness advances freshness but never supplies executable actions.
     pub(super) fn observe_recovery_witness(
         &mut self,
         proof: &RecoveryLeaseProof,
