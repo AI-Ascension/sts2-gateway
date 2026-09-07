@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 
+use super::recovery_catalog_tests::refresh_same_generation_catalog;
 use super::test_support::*;
 use super::*;
 use serde_json::{Value, json};
@@ -16,7 +17,7 @@ const NEW_STATE: &str = "00000000-0000-4000-8000-000000000005";
 const WAIT_OPERATION: &str = "00000000-0000-4000-8000-000000000006";
 const RECOVER_OPERATION: &str = "00000000-0000-4000-8000-000000000007";
 
-fn fixture(name: &str) -> Result<Value, String> {
+pub(super) fn fixture(name: &str) -> Result<Value, String> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../protocol-artifact/runtime-v3-gameplay/golden")
         .join(name);
@@ -81,7 +82,12 @@ pub(super) fn cleanup(service: RuntimeService, path: &Path) {
     let _ = std::fs::remove_file(path.with_extension("gateway-recovery.lock"));
 }
 
-fn bind(value: &mut Value, service: &RuntimeService, lease: &RecoveryLease, correlation: &str) {
+pub(super) fn bind(
+    value: &mut Value,
+    service: &RuntimeService,
+    lease: &RecoveryLease,
+    correlation: &str,
+) {
     value["correlation_id"] = correlation.into();
     value["instance_id"] = service.config.instance_id.clone().into();
     value["session_id"] = service.config.session_id.clone().into();
@@ -217,7 +223,7 @@ fn unknown_wait_response(request: &Value) -> Result<Value, String> {
     Ok(response)
 }
 
-fn forward_once(
+pub(super) fn forward_once(
     service: &mut RuntimeService,
     request: &HttpRequest,
     response_status: u16,
@@ -375,19 +381,20 @@ fn durable_duplicate_replays_before_missing_catalog_admission() -> Result<(), St
     // not a fresh authoritative read and must remain rejected.
     assert!(capture_old_catalog(&mut service, &lease, &dispatch).is_err());
 
+    // A same-generation state read followed by a legal-actions read is fresh
+    // catalog evidence, but it does not settle the durable UNKNOWN operation.
+    refresh_same_generation_catalog(&mut service, &lease, &dispatch, "unknown-refresh")?;
+
     // The durable dispatch marker makes the old catalog unsafe even when the
-    // host proof is unavailable. A different operation cannot reuse it, while
-    // the exact original operation remains replayable.
+    // host proof is unavailable. A different operation cannot be admitted,
+    // while the exact original operation remains replayable.
     let mut new_dispatch = dispatch;
     new_dispatch["operation_id"] = "00000000-0000-4000-8000-000000000008".into();
     new_dispatch["correlation_id"] = "new-correlation".into();
     let new_request = runtime_request(&service, &lease, "action", new_dispatch)?;
     let (status, body) = service.handle_request(&new_request);
-    assert_eq!(status, 409);
-    assert_eq!(
-        json_body(&body)?["error_code"],
-        "recovery_catalog_fresh_read_required"
-    );
+    assert_eq!(status, 413);
+    assert_eq!(json_body(&body)?["error_code"], "recovery_bounds_exceeded");
 
     let (status, body) = service.handle_request(&dispatch_request);
     assert_eq!(status, 503);

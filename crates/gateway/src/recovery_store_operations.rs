@@ -41,6 +41,18 @@ impl GatewayRecoveryStore {
             }
             return Err(RecoveryStoreError::OperationConflict);
         }
+        let incarnation_unresolved: i64 = tx
+            .query_row(
+                "SELECT COUNT(*) FROM operations
+                 WHERE instance_id = ?1 AND instance_incarnation = ?2
+                   AND state IN ('INTENT_RECORDED', 'MAY_HAVE_BEEN_DISPATCHED', 'ACCEPTED', 'UNKNOWN')",
+                rusqlite::params![&intent.instance_id, &intent.instance_incarnation],
+                |row| row.get(0),
+            )
+            .map_err(super::map_sql_error)?;
+        if incarnation_unresolved > 0 {
+            return Err(RecoveryStoreError::CapacityExceeded);
+        }
         let unresolved: i64 = tx
             .query_row(
                 "SELECT COUNT(*) FROM operations

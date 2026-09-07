@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: MIT
 
+use super::RuntimeService;
 use super::recovery_catalog::{RecoveryCatalogCache, RecoveryCatalogKey};
 use super::runtime_v3_catalog_tests::{
-    DISPATCH_OPERATION, OLD_STATE, capture_old_catalog, cleanup, dispatch_envelope, json_body,
-    recovery_service, runtime_request,
+    DISPATCH_OPERATION, OLD_STATE, bind, capture_old_catalog, cleanup, dispatch_envelope, fixture,
+    forward_once, json_body, recovery_service, runtime_request,
 };
 use serde_json::{Value, json};
 use sts2_gateway::{
-    RUNTIME_V3_SCHEMA_DIGEST, RecoveryIntentResult, RecoveryOperationIntent,
+    RUNTIME_V3_SCHEMA_DIGEST, RecoveryIntentResult, RecoveryLease, RecoveryOperationIntent,
     canonicalize_recovery_action, sha256_hex,
 };
 
@@ -34,6 +35,51 @@ fn response(key: &RecoveryCatalogKey) -> Vec<u8> {
         key.gameplay_generation,
     )
     .into_bytes()
+}
+
+pub(super) fn refresh_same_generation_catalog(
+    service: &mut RuntimeService,
+    lease: &RecoveryLease,
+    dispatch: &Value,
+    prefix: &str,
+) -> Result<(), String> {
+    let state_correlation = format!("{prefix}-state");
+    let mut state_request = fixture("state-request.json")?;
+    state_request["generation"] = 1.into();
+    bind(&mut state_request, service, lease, &state_correlation);
+    let mut state_response = fixture("state-response.json")?;
+    bind(&mut state_response, service, lease, &state_correlation);
+    state_response["state_id"] = OLD_STATE.into();
+    state_response["generation"] = 1.into();
+    state_response["observation"]["state_id"] = OLD_STATE.into();
+    state_response["observation"]["generation"] = 1.into();
+    let state_request = runtime_request(service, lease, "state", state_request)?;
+    let state_body = serde_json::to_vec(&state_response).map_err(|error| error.to_string())?;
+    let (status, body, forwarded) = forward_once(service, &state_request, 200, &state_body)?;
+    assert_eq!(status, 200);
+    assert_eq!(body, state_body);
+    assert_eq!(forwarded.path, "/api/v3/runtime/state");
+
+    let legal_correlation = format!("{prefix}-legal");
+    let mut legal_request = fixture("state-request.json")?;
+    legal_request["kind"] = "legal_actions_request".into();
+    legal_request["state_id"] = OLD_STATE.into();
+    legal_request["generation"] = 1.into();
+    bind(&mut legal_request, service, lease, &legal_correlation);
+    let mut legal_response = fixture("state-response.json")?;
+    legal_response["kind"] = "legal_actions_response".into();
+    bind(&mut legal_response, service, lease, &legal_correlation);
+    legal_response["state_id"] = OLD_STATE.into();
+    legal_response["generation"] = 1.into();
+    legal_response["observation"] = Value::Null;
+    legal_response["legal_actions"] = json!([dispatch["action"].clone()]);
+    let legal_request = runtime_request(service, lease, "legal-actions", legal_request)?;
+    let legal_body = serde_json::to_vec(&legal_response).map_err(|error| error.to_string())?;
+    let (status, body, forwarded) = forward_once(service, &legal_request, 200, &legal_body)?;
+    assert_eq!(status, 200);
+    assert_eq!(body, legal_body);
+    assert_eq!(forwarded.path, "/api/v3/runtime/legal-actions");
+    Ok(())
 }
 
 #[test]
@@ -203,9 +249,13 @@ fn accepted_replay_rejects_delayed_same_key_catalog_for_new_operation() -> Resul
     assert_eq!(status, 200);
     assert!(capture_old_catalog(&mut service, &lease, &dispatch).is_err());
 
+    // Fresh same-generation state and legal-action reads do not settle an
+    // ACCEPTED operation or authorize a second mutation in this incarnation.
+    refresh_same_generation_catalog(&mut service, &lease, &dispatch, "accepted-refresh")?;
+
     // The exact accepted operation remains replayable without consulting the
     // executable catalog, while a different operation at that old boundary
-    // requires a fresh legal-actions read.
+    // remains backpressured by the durable unresolved-operation bound.
     let dispatch_request = runtime_request(&service, &lease, "action", dispatch.clone())?;
     let (status, body) = service.handle_request(&dispatch_request);
     assert_eq!(status, 503);
@@ -216,11 +266,8 @@ fn accepted_replay_rejects_delayed_same_key_catalog_for_new_operation() -> Resul
     new_dispatch["correlation_id"] = "new-accepted-correlation".into();
     let new_request = runtime_request(&service, &lease, "action", new_dispatch)?;
     let (status, body) = service.handle_request(&new_request);
-    assert_eq!(status, 409);
-    assert_eq!(
-        json_body(&body)?["error_code"],
-        "recovery_catalog_fresh_read_required"
-    );
+    assert_eq!(status, 413);
+    assert_eq!(json_body(&body)?["error_code"], "recovery_bounds_exceeded");
     cleanup(service, &path);
     Ok(())
 }
