@@ -3,7 +3,12 @@
   <img alt="AI-Ascension — Inspect how AI requests to a game get fenced, one Rust contract at a time. Bounded runtime host trace confirmed. Deterministic tests: confirmed." src="https://raw.githubusercontent.com/AI-Ascension/.github/main/profile/assets/banner-light.svg" width="100%">
 </picture>
 
-# sts2-gateway
+# STS2 Gateway
+
+Part of [Ascension](https://github.com/AI-Ascension/sts2-harness), the AI
+Ascension flagship toolkit. The repository slug remains `sts2-gateway`; the
+evidence language used by **The Climb — by AI Ascension** stays tied to the
+tests and runtime records named below.
 
 > **AI-Ascension · tier 2: control plane · home of the public proof** — In-memory control plane for game-host instances: lifecycle, one lease per instance with epoch fencing, and fixed routes.
 >
