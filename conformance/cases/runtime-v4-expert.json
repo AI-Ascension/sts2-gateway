@@ -1,0 +1,31 @@
+{
+  "case_id": "CT-PROTO-RUNTIME-V4-EXPERT-001",
+  "contract": "sts2.protocol/runtime-v4-expert",
+  "schema": "../../schemas/runtime-v4-expert.schema.json",
+  "artifact": "artifacts/runtime-v4-expert",
+  "checksums": "artifacts/runtime-v4-expert/SHA256SUMS",
+  "profile": "expert-state",
+  "setup": {
+    "live_runtime": false,
+    "network": false,
+    "provider": false,
+    "proprietary_data": false,
+    "seed": "synthetic-visible-seed"
+  },
+  "required": [
+    "schema_digest_and_provenance",
+    "nullable_unavailable_values",
+    "empty_array_means_observed_empty",
+    "richer_player_and_enemy_state",
+    "map_graph_and_contextual_choices",
+    "potion_rest_and_selection_actions",
+    "unknown_field_rejection",
+    "runtime_v3_digest_unchanged"
+  ],
+  "unsupported_claims": [
+    "target_build_field_availability",
+    "native_map_graph_completeness",
+    "live_consumer_compatibility",
+    "live_gameplay_or_victory"
+  ]
+}

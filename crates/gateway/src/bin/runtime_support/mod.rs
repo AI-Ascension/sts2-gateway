@@ -9,6 +9,8 @@ mod metrics;
 mod runtime_v3_gameplay;
 mod runtime_v3_gameplay_forwarder;
 mod runtime_v3_relations;
+mod runtime_v4_expert;
+mod runtime_v4_expert_forwarder;
 mod service;
 mod strict_json;
 
