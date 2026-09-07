@@ -6,6 +6,8 @@ mod forwarder;
 mod http;
 mod journal;
 mod metrics;
+mod runtime_map;
+mod runtime_map_forwarder;
 mod runtime_v3_gameplay;
 mod runtime_v3_gameplay_forwarder;
 mod runtime_v3_relations;

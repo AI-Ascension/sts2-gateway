@@ -48,6 +48,7 @@ pub(super) fn test_service() -> Result<RuntimeService, String> {
         shutdown_requested: false,
         runtime_v2,
         runtime_v3: RuntimeV3GameplayForwarder::new(MAX_BODY_BYTES, MAX_RESPONSE_BYTES),
+        runtime_map: RuntimeMapForwarder::new(MAX_MAP_RESPONSE_BYTES),
         journal_path: None,
         _journal_lock: None,
         metrics: super::super::metrics::RuntimeMetrics::default(),

@@ -130,6 +130,14 @@ pub(crate) fn read_response(
     stream: &mut TcpStream,
     expires: Instant,
 ) -> Result<HttpResponse, ReadError> {
+    read_response_with_limit(stream, expires, MAX_RESPONSE_BYTES)
+}
+
+pub(crate) fn read_response_with_limit(
+    stream: &mut TcpStream,
+    expires: Instant,
+    max_response_bytes: usize,
+) -> Result<HttpResponse, ReadError> {
     let mut bytes = Vec::new();
     let mut buffer = [0_u8; 2048];
     let header_end = loop {
@@ -179,7 +187,7 @@ pub(crate) fn read_response(
         }
     }
     let content_length = content_length.ok_or(ReadError::Malformed)?;
-    if content_length > MAX_RESPONSE_BYTES {
+    if content_length > max_response_bytes {
         return Err(ReadError::Oversized);
     }
     let body_start = header_end + 4;

@@ -111,6 +111,17 @@ impl RuntimeService {
         body: &[u8],
         correlation: Option<&str>,
     ) -> Result<HttpResponse, u16> {
+        self.forward_mod_with_limit(method, path, body, correlation, MAX_RESPONSE_BYTES)
+    }
+
+    pub(super) fn forward_mod_with_limit(
+        &self,
+        method: &str,
+        path: &str,
+        body: &[u8],
+        correlation: Option<&str>,
+        max_response_bytes: usize,
+    ) -> Result<HttpResponse, u16> {
         let expires = Instant::now() + Duration::from_secs(5);
         let address = self
             .config
@@ -165,7 +176,8 @@ impl RuntimeService {
             );
         }
         write_request(&mut stream, method, path, &headers, body, expires).map_err(|_| 503_u16)?;
-        read_response(&mut stream, expires).map_err(read_error_status)
+        read_response_with_limit(&mut stream, expires, max_response_bytes)
+            .map_err(read_error_status)
     }
 }
 

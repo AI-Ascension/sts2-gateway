@@ -1,0 +1,252 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sts2-runtime-map-v1",
+  "title": "STS2 runtime map visibility v1",
+  "description": "Bounded host-owned read-only map projection with generation-bound navigation bindings.",
+  "oneOf": [
+    { "$ref": "#/$defs/request" },
+    { "$ref": "#/$defs/response" },
+    { "$ref": "#/$defs/snapshot" }
+  ],
+  "$defs": {
+    "identity": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9._:/-]+$"
+    },
+    "host_action_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^[A-Za-z0-9._:/-]+$"
+    },
+    "action_option_id": {
+      "description": "Opaque serialized option identity consumed by the host action; distinct from the stable graph node ID.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9._:/-]+$"
+    },
+    "text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[^\\u0000-\\u001F]+$"
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[^\\u0000-\\u001F]+$"
+    },
+    "nullable_identity": {
+      "anyOf": [
+        { "$ref": "#/$defs/identity" },
+        { "type": "null" }
+      ]
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "artifact": { "const": "sts2-protocol/runtime-map-v1" },
+        "source": { "const": "schemas/runtime-map-v1.schema.json" },
+        "generator": { "const": "hand-authored" }
+      },
+      "required": ["artifact", "source", "generator"]
+    },
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/identity" },
+        "row": { "type": "integer", "minimum": -32768, "maximum": 32767 },
+        "column": { "type": "integer", "minimum": -32768, "maximum": 32767 },
+        "category": {
+          "enum": ["unknown", "start", "monster", "elite", "rest", "shop", "event", "treasure", "boss", "other"]
+        },
+        "visited": { "type": "boolean" }
+      },
+      "required": ["id", "row", "column", "category", "visited"]
+    },
+    "edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "from": { "$ref": "#/$defs/identity" },
+        "to": { "$ref": "#/$defs/identity" }
+      },
+      "required": ["from", "to"]
+    },
+    "position": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": { "kind": { "const": "pre_start" } },
+          "required": ["kind"]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": { "const": "current" },
+            "node_id": { "$ref": "#/$defs/identity" }
+          },
+          "required": ["kind", "node_id"]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": { "kind": { "const": "unavailable" } },
+          "required": ["kind"]
+        }
+      ]
+    },
+    "navigation_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "const": "select_map_node" },
+        "node_id": { "$ref": "#/$defs/action_option_id" }
+      },
+      "required": ["kind", "node_id"]
+    },
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "graph_node_id": { "$ref": "#/$defs/identity" },
+        "host_action_id": { "$ref": "#/$defs/host_action_id" },
+        "action": { "$ref": "#/$defs/navigation_action" }
+      },
+      "required": ["graph_node_id", "host_action_id", "action"]
+    },
+    "snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "state_id": { "$ref": "#/$defs/identity" },
+        "generation": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "schema_version": { "const": "visible-map-v1" },
+        "projection_version": { "$ref": "#/$defs/identity" },
+        "game_build": { "$ref": "#/$defs/text" },
+        "mod_version": { "$ref": "#/$defs/text" },
+        "map_instance_id": { "$ref": "#/$defs/nullable_identity" },
+        "act_id": {
+          "anyOf": [
+            { "type": "integer", "minimum": 0, "maximum": 4294967295 },
+            { "type": "null" }
+          ]
+        },
+        "scope_id": { "$ref": "#/$defs/nullable_identity" },
+        "availability": { "enum": ["available", "unavailable", "not_observable", "unsupported"] },
+        "completeness": { "enum": ["complete", "incomplete", "unknown"] },
+        "freshness": { "enum": ["current", "historical"] },
+        "reason": {
+          "anyOf": [
+            { "$ref": "#/$defs/reason" },
+            { "type": "null" }
+          ]
+        },
+        "nodes": {
+          "type": "array",
+          "maxItems": 256,
+          "items": { "$ref": "#/$defs/node" }
+        },
+        "edges": {
+          "type": "array",
+          "maxItems": 1024,
+          "items": { "$ref": "#/$defs/edge" }
+        },
+        "position": { "$ref": "#/$defs/position" },
+        "history": {
+          "type": "array",
+          "maxItems": 256,
+          "items": { "$ref": "#/$defs/identity" }
+        },
+        "terminal_node_ids": {
+          "type": "array",
+          "maxItems": 256,
+          "items": { "$ref": "#/$defs/identity" }
+        },
+        "bindings": {
+          "type": "array",
+          "maxItems": 256,
+          "items": { "$ref": "#/$defs/binding" }
+        }
+      },
+      "required": [
+        "state_id", "generation", "schema_version", "projection_version", "game_build", "mod_version",
+        "map_instance_id", "act_id", "scope_id", "availability", "completeness",
+        "freshness", "reason", "nodes", "edges", "position", "history",
+        "terminal_node_ids", "bindings"
+      ]
+    },
+    "timeout": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "timeout_millis": { "type": "integer", "minimum": 1, "maximum": 120000 },
+        "elapsed_millis": { "type": "integer", "minimum": 0, "maximum": 120000 }
+      },
+      "required": ["timeout_millis", "elapsed_millis"]
+    },
+    "envelope_base": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "protocol_version": { "const": "runtime-map-v1" },
+        "schema_digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "provenance": { "$ref": "#/$defs/provenance" },
+        "correlation_id": { "$ref": "#/$defs/identity" },
+        "instance_id": { "$ref": "#/$defs/identity" },
+        "session_id": { "$ref": "#/$defs/identity" },
+        "lease_id": { "$ref": "#/$defs/identity" },
+        "lease_epoch": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "generation": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "kind": { "enum": ["snapshot_request", "snapshot_response"] },
+        "snapshot": {
+          "anyOf": [
+            { "$ref": "#/$defs/snapshot" },
+            { "type": "null" }
+          ]
+        },
+        "timeout": {
+          "anyOf": [
+            { "$ref": "#/$defs/timeout" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "required": [
+        "protocol_version", "schema_digest", "provenance", "correlation_id", "instance_id",
+        "session_id", "lease_id", "lease_epoch", "generation", "kind", "snapshot", "timeout"
+      ]
+    },
+    "request": {
+      "allOf": [
+        { "$ref": "#/$defs/envelope_base" },
+        {
+          "properties": {
+            "kind": { "const": "snapshot_request" },
+            "snapshot": { "type": "null" },
+            "timeout": { "type": "null" }
+          }
+        }
+      ]
+    },
+    "response": {
+      "allOf": [
+        { "$ref": "#/$defs/envelope_base" },
+        {
+          "properties": {
+            "kind": { "const": "snapshot_response" },
+            "snapshot": { "$ref": "#/$defs/snapshot" }
+          }
+        }
+      ]
+    }
+  }
+}

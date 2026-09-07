@@ -76,6 +76,7 @@ cargo test --workspace --all-targets --all-features --locked
 (cd protocol-artifact/poc-v1 && sha256sum -c SHA256SUMS)
 (cd protocol-artifact/runtime-v2 && sha256sum -c SHA256SUMS)
 (cd protocol-artifact/runtime-v3-gameplay && sha256sum -c SHA256SUMS)
+(cd protocol-artifact/runtime-map-v1 && sha256sum -c SHA256SUMS)
 ```
 
 The first command is the local policy entrypoint and checks required paths, licenses, links,
@@ -131,3 +132,10 @@ disconnect/recovery, stale leases, and rejected unknown or regressing reports, w
 game connections. This is coordinator-report transport evidence only: it does not establish native
 peer identity, shared game actions/effects, or multiplayer gameplay. See the [MCP executable
 evidence](https://github.com/AI-Ascension/sts2-mcp-server/blob/main/docs/evidence/coop-synchronization-20260906.md).
+
+The additive `runtime-map-v1` route exposes a bodyless `GET
+/v1/instances/{instance_id}/map-snapshot` request and forwards only the fixed downstream map
+snapshot path. It validates the corrected visible-map artifact, identity/generation fence, bounded
+graph, and independent navigation bindings before returning data. The route is source/component
+evidence; live map freshness and visualizer rendering remain unverified. See
+[ADR 0017](docs/decisions/0017-runtime-map-read-route.md).
