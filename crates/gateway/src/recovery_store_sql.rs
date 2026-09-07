@@ -35,7 +35,18 @@ CREATE TABLE IF NOT EXISTS leases (
     caller_id TEXT NOT NULL,
     session_id TEXT NOT NULL,
     status TEXT NOT NULL,
-    revoked_reason TEXT
+    revoked_reason TEXT,
+    host_fence_id TEXT,
+    host_fence_generation INTEGER,
+    host_installation_id TEXT,
+    host_grant_digest TEXT,
+    host_state TEXT NOT NULL DEFAULT 'UNINSTALLED',
+    host_install_generation INTEGER NOT NULL DEFAULT 0,
+    host_renew_sequence INTEGER NOT NULL DEFAULT 0,
+    host_ack_message_id TEXT,
+    host_ack_recorded_at_millis INTEGER,
+    pending_expires_at_millis INTEGER,
+    pending_renew_sequence INTEGER
 );
 CREATE INDEX IF NOT EXISTS leases_status_idx ON leases(status);
 CREATE TABLE IF NOT EXISTS operations (
@@ -105,7 +116,7 @@ CREATE TABLE IF NOT EXISTS operation_archive (
 );
 CREATE INDEX IF NOT EXISTS operation_archive_digest_idx
     ON operation_archive(instance_id, operation_id, payload_digest);
-PRAGMA user_version = 2;
+PRAGMA user_version = 3;
 "#;
 
 pub(super) const OPERATION_COLUMNS: &str =

@@ -19,16 +19,12 @@ impl RuntimeService {
         ) {
             return (400, json_error("recovery_revoke_reason_invalid"));
         }
-        let Some(store) = self.recovery.as_mut() else {
+        if self.recovery.is_none() {
             return (503, json_error("recovery_persistence_unavailable"));
-        };
-        if let Err(error) = store.revoke_lease(&proof, reason) {
-            return super::recovery_wire::recovery_store_error(error);
         }
-        self.recovery_lease = None;
-        self.recovery_lease_deadline = None;
-        self.lease_active = false;
-        self.lease_revoked = true;
+        if let Err(error) = self.revoke_host_lease(&proof, reason, frame.correlation()) {
+            return error.body();
+        }
         let body = json!({ "result": response_result("LEASE_REVOKED", false, None) });
         (
             200,

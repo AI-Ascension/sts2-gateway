@@ -5,6 +5,11 @@ host compatibility and release publication.
 
 ## [Unreleased]
 
+- Add the authenticated, fixed-route host lease-control consumer for gateway-issued
+  install, renew, and revoke acknowledgments. Protected grant persistence,
+  fail-closed admission, and operation identity reconciliation are included;
+  managed-host settlement and live deployment remain unverified.
+
 - Add opt-in coordinator-reported co-op synchronization: configured roster, control-scoped
   fenced reports, monotonic convergence and expiry, and a read-only response consumed by
   the executable MCP profile. Both routes avoid downstream game access. The copied protocol

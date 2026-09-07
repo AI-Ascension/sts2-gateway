@@ -92,6 +92,11 @@ impl RuntimeConfig {
                     "STS2_CALLER_ID must be a lowercase RFC-4122 UUID for the recovery profile",
                 ));
             }
+            if !valid_uuid_v4(&session_id) {
+                return Err(String::from(
+                    "STS2_SESSION_ID must be a lowercase UUIDv4 for the recovery profile",
+                ));
+            }
             if let Some(deployment_id) = recovery_deployment_id.as_ref()
                 && !valid_uuid(deployment_id)
             {
@@ -147,6 +152,14 @@ impl RuntimeConfig {
 fn valid_uuid(value: &str) -> bool {
     Uuid::parse_str(value).ok().is_some_and(|id| {
         id.hyphenated().to_string() == value && id.get_variant() == Variant::RFC4122
+    })
+}
+
+fn valid_uuid_v4(value: &str) -> bool {
+    Uuid::parse_str(value).ok().is_some_and(|id| {
+        id.hyphenated().to_string() == value
+            && id.get_variant() == Variant::RFC4122
+            && id.get_version_num() == 4
     })
 }
 

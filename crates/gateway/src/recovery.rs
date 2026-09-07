@@ -16,11 +16,13 @@ use uuid::Uuid;
 pub use recovery_canonical::canonicalize_recovery_action;
 pub use recovery_store::{GatewayRecoveryStore, RecoveryLeaseRequest, RecoveryStorePragmas};
 pub use recovery_types::{
-    MAX_RECOVERY_ACTION_BYTES, MAX_RECOVERY_FRAME_BYTES, MAX_RECOVERY_RESPONSE_BYTES,
-    MAX_WIRE_INTEGER, RECOVERY_CONTRACT, RECOVERY_SCHEMA_DIGEST,
-    RECOVERY_TOMBSTONE_RETENTION_MILLIS, RUNTIME_V3_SCHEMA_DIGEST, RecoveryAdmissionTicket,
-    RecoveryBootContext, RecoveryBootState, RecoveryEffectWitness, RecoveryHostFence,
-    RecoveryIntentResult, RecoveryLease, RecoveryLeaseProof, RecoveryLeaseState, RecoveryOperation,
+    HOST_LEASE_CONTROL_CONTRACT, HOST_LEASE_CONTROL_SCHEMA_DIGEST, MAX_HOST_LEASE_FRAME_BYTES,
+    MAX_HOST_LEASE_PAYLOAD_BYTES, MAX_HOST_LEASE_PROOF_BYTES, MAX_RECOVERY_ACTION_BYTES,
+    MAX_RECOVERY_FRAME_BYTES, MAX_RECOVERY_RESPONSE_BYTES, MAX_WIRE_INTEGER, RECOVERY_CONTRACT,
+    RECOVERY_SCHEMA_DIGEST, RECOVERY_TOMBSTONE_RETENTION_MILLIS, RUNTIME_V3_SCHEMA_DIGEST,
+    RecoveryAdmissionTicket, RecoveryBootContext, RecoveryBootState, RecoveryEffectWitness,
+    RecoveryHostFence, RecoveryHostLeaseBinding, RecoveryHostLeaseState, RecoveryIntentResult,
+    RecoveryLease, RecoveryLeaseProof, RecoveryLeaseState, RecoveryOperation,
     RecoveryOperationIntent, RecoveryOperationState, RecoveryReleaseSet, RecoveryStoreConfig,
     RecoveryStoreError, RecoveryTicketState, RecoveryUncertaintyReason,
 };

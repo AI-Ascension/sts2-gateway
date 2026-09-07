@@ -4,9 +4,14 @@ use serde::{Deserialize, Serialize};
 
 pub use super::recovery_validation::RecoveryStoreError;
 
+#[path = "recovery_host_lease_types.rs"]
+mod recovery_host_lease_types;
 #[path = "recovery_types_ticket.rs"]
 mod recovery_types_ticket;
 
+pub use recovery_host_lease_types::{
+    RecoveryHostLeaseBinding, RecoveryHostLeaseState, RecoveryLeaseProof,
+};
 pub use recovery_types_ticket::{
     RecoveryAdmissionTicket, RecoveryStoreConfig, RecoveryTicketState,
 };
@@ -21,6 +26,17 @@ pub const MAX_RECOVERY_ACTION_BYTES: usize = 65_536;
 pub const MAX_RECOVERY_RESPONSE_BYTES: usize = 128 * 1024;
 pub const MAX_WIRE_INTEGER: u64 = 9_007_199_254_740_991;
 pub const RECOVERY_TOMBSTONE_RETENTION_MILLIS: u64 = 86_400_000;
+
+/// Additive gateway-to-host lease installation contract.  This is deliberately
+/// separate from the frozen recovery-v1 lease-acquire sideband: recovery-v1
+/// creates the gateway authority, while this contract installs that exact
+/// authority at the host.
+pub const HOST_LEASE_CONTROL_CONTRACT: &str = "watchdog-host-lease-control-v1";
+pub const HOST_LEASE_CONTROL_SCHEMA_DIGEST: &str =
+    "e22faf0f7d3cd313a007b65e52058b3c255153d5778dd8124055c283adf977f9";
+pub const MAX_HOST_LEASE_FRAME_BYTES: usize = 262_144;
+pub const MAX_HOST_LEASE_PAYLOAD_BYTES: usize = 65_536;
+pub const MAX_HOST_LEASE_PROOF_BYTES: usize = 512;
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct RecoveryReleaseSet {
@@ -152,33 +168,6 @@ pub struct RecoveryLease {
     pub ttl_seconds: u64,
     pub renewal_interval_seconds: u64,
     pub last_renew_sequence: u64,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct RecoveryLeaseProof {
-    pub deployment_id: String,
-    pub instance_id: String,
-    pub instance_incarnation: String,
-    pub boot_id: String,
-    pub authority_generation: u64,
-    pub lease_id: String,
-    pub lease_epoch: u64,
-    pub fence_token: String,
-}
-
-impl RecoveryLease {
-    pub fn proof(&self) -> RecoveryLeaseProof {
-        RecoveryLeaseProof {
-            deployment_id: self.deployment_id.clone(),
-            instance_id: self.instance_id.clone(),
-            instance_incarnation: self.instance_incarnation.clone(),
-            boot_id: self.boot_id.clone(),
-            authority_generation: self.authority_generation,
-            lease_id: self.lease_id.clone(),
-            lease_epoch: self.lease_epoch,
-            fence_token: self.fence_token.clone(),
-        }
-    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]

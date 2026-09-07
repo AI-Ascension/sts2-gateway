@@ -6,6 +6,10 @@ use std::time::{Duration, Instant};
 
 use sts2_gateway::MAX_RECOVERY_FRAME_BYTES;
 
+use super::host_lease_control::{
+    HostLeaseFrameError, HostLeaseKind, parse_request, secret_from_environment,
+    verify_request_proof,
+};
 use super::http::{HttpResponse, ReadError, read_response, write_request};
 use super::recovery_frame::{RecoveryFrame, RecoveryFrameError, RecoveryKind};
 
@@ -99,6 +103,83 @@ impl HttpRecoveryControlForwarder {
         frame: &[u8],
     ) -> Result<HttpResponse, RecoveryControlTransportFault> {
         self.forward_frame(RecoveryKind::HostFence, frame)
+    }
+
+    /// Sends the additive gateway-issued host lease-control frame over the
+    /// same fixed authenticated recovery mux.  The frame kind and closed body
+    /// select the operation; the transport never forwards an arbitrary path.
+    pub(crate) fn forward_host_lease_frame(
+        &self,
+        kind: HostLeaseKind,
+        frame: &[u8],
+    ) -> Result<HttpResponse, RecoveryControlTransportFault> {
+        let value = parse_request(frame, kind).map_err(|error| match error {
+            super::host_lease_control::HostLeaseFrameError::Oversized => {
+                RecoveryControlTransportFault::RequestOversized
+            }
+            super::host_lease_control::HostLeaseFrameError::Invalid
+            | super::host_lease_control::HostLeaseFrameError::Authentication
+            | super::host_lease_control::HostLeaseFrameError::Configuration => {
+                RecoveryControlTransportFault::InvalidFrame
+            }
+        })?;
+        let secret = secret_from_environment().map_err(|error| match error {
+            HostLeaseFrameError::Configuration => {
+                RecoveryControlTransportFault::InvalidConfiguration
+            }
+            HostLeaseFrameError::Oversized => RecoveryControlTransportFault::RequestOversized,
+            HostLeaseFrameError::Invalid | HostLeaseFrameError::Authentication => {
+                RecoveryControlTransportFault::InvalidFrame
+            }
+        })?;
+        verify_request_proof(&value, kind, &secret).map_err(|error| match error {
+            HostLeaseFrameError::Oversized => RecoveryControlTransportFault::RequestOversized,
+            HostLeaseFrameError::Configuration => {
+                RecoveryControlTransportFault::InvalidConfiguration
+            }
+            HostLeaseFrameError::Invalid | HostLeaseFrameError::Authentication => {
+                RecoveryControlTransportFault::InvalidFrame
+            }
+        })?;
+        self.forward_raw(frame)
+    }
+
+    fn forward_raw(&self, frame: &[u8]) -> Result<HttpResponse, RecoveryControlTransportFault> {
+        if !valid_token(&self.mod_token) {
+            return Err(RecoveryControlTransportFault::InvalidConfiguration);
+        }
+        let address = self
+            .mod_address
+            .parse::<SocketAddr>()
+            .map_err(|_| RecoveryControlTransportFault::UnavailableBeforeWrite)?;
+        if !address.ip().is_loopback() || address.port() == 0 {
+            return Err(RecoveryControlTransportFault::UnavailableBeforeWrite);
+        }
+        let mut stream = TcpStream::connect_timeout(&address, CONNECT_TIMEOUT)
+            .map_err(|_| RecoveryControlTransportFault::UnavailableBeforeWrite)?;
+        let headers = BTreeMap::from([
+            (
+                String::from("Authorization"),
+                format!("Bearer {}", self.mod_token),
+            ),
+            (String::from("Host"), self.mod_address.clone()),
+            (String::from("Content-Length"), frame.len().to_string()),
+            (
+                String::from("Content-Type"),
+                String::from("application/json"),
+            ),
+        ]);
+        let expires = Instant::now() + EXCHANGE_TIMEOUT;
+        write_request(
+            &mut stream,
+            "POST",
+            RECOVERY_CONTROL_PATH,
+            &headers,
+            frame,
+            expires,
+        )
+        .map_err(|_| RecoveryControlTransportFault::DisconnectedAfterWrite)?;
+        read_response(&mut stream, expires).map_err(map_read_error)
     }
 }
 

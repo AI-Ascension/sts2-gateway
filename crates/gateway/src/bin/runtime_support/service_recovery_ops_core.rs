@@ -19,6 +19,11 @@ impl RuntimeService {
         let Some(proof) = self.lease_proof_from_wire(&frame.payload()["lease"]) else {
             return (409, json_error("recovery_stale_lease"));
         };
+        match self.host_lease_ready(&proof.lease_id) {
+            Ok(true) => {}
+            Ok(false) => return (503, json_error("recovery_host_lease_required")),
+            Err(error) => return super::recovery_wire::recovery_store_error(error),
+        }
         let Some((operation_id, payload_digest, original, expected, action)) =
             parse_operation_payload(&frame.payload()["operation"])
         else {

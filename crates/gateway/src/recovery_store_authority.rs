@@ -87,8 +87,22 @@ impl GatewayRecoveryStore {
             None => 1,
         };
         tx.execute(
-            "UPDATE leases SET status = 'REVOKED', revoked_reason = 'incarnation_replaced'
+            "UPDATE leases SET status = 'REVOKED', revoked_reason = 'incarnation_replaced',
+                    host_state = CASE WHEN host_state IN
+                        ('PENDING_HOST_INSTALL', 'INSTALLED', 'PENDING_HOST_RENEW', 'PENDING_HOST_REVOKE')
+                        THEN 'RESTART_INVALIDATED' ELSE host_state END
              WHERE status = 'ACTIVE'",
+            [],
+        )
+        .map_err(super::map_sql_error)?;
+        // A process may have durably revoked its local lease before losing
+        // the host acknowledgment.  Invalidate those pending/installed host
+        // records as well; a fresh boot may never resend their token from
+        // durable state or revive their authority.
+        tx.execute(
+            "UPDATE leases SET host_state = 'RESTART_INVALIDATED'
+             WHERE host_state IN
+                ('PENDING_HOST_INSTALL', 'INSTALLED', 'PENDING_HOST_RENEW', 'PENDING_HOST_REVOKE')",
             [],
         )
         .map_err(super::map_sql_error)?;

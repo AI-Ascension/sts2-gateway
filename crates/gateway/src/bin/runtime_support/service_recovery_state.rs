@@ -69,6 +69,7 @@ impl RuntimeService {
             }
             self.recovery_lease = None;
             self.recovery_lease_deadline = None;
+            self.recovery_host_grant = None;
             self.lease_active = false;
         }
     }

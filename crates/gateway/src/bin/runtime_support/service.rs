@@ -20,10 +20,7 @@ use sts2_gateway::{
 use super::auth::{AuthFailure, AuthPolicy, AuthScope};
 use super::coop_reports::CoopReports;
 use super::forwarder::HttpRuntimeV2Forwarder;
-use super::http::{
-    HttpRequest, HttpResponse, MAX_BODY_BYTES, MAX_RESPONSE_BYTES, read_request, read_response,
-    write_request, write_response,
-};
+use super::http::{HttpRequest, MAX_BODY_BYTES, MAX_RESPONSE_BYTES, read_request, write_response};
 use super::journal;
 use super::metrics::RuntimeMetrics;
 use super::runtime_v3_gameplay::RuntimeV3GameplayRoute;
@@ -57,6 +54,7 @@ pub(crate) struct RuntimeService {
     recovery_fence: Option<RecoveryHostFence>,
     recovery_lease: Option<RecoveryLease>,
     recovery_lease_deadline: Option<Instant>,
+    recovery_host_grant: Option<HostLeaseGrant>,
     recovery_clock_started: Instant,
     recovery_clock_wall_millis: u64,
     recovery_last_now_millis: u64,
@@ -96,8 +94,16 @@ mod authorization;
 mod configuration;
 #[path = "service_coop.rs"]
 mod coop;
+#[path = "service_host_lease.rs"]
+mod host_lease;
+#[path = "service_host_lease_helpers.rs"]
+mod host_lease_helpers;
+#[path = "service_host_lease_ops.rs"]
+mod host_lease_ops;
 #[path = "service_lease.rs"]
 mod lease;
+#[path = "service_lease_transport.rs"]
+mod lease_transport;
 #[path = "service_recovery.rs"]
 mod recovery;
 #[path = "service_recovery_catalog.rs"]
@@ -134,9 +140,15 @@ mod v3;
 use admission::{accept_requests, run_worker};
 use authorization::request_rejection;
 use support::{
-    json_bytes, json_error, json_overload, read_error_status, safe_identity, safe_operation_id,
-    unix_millis,
+    json_bytes, json_error, json_overload, safe_identity, safe_operation_id, unix_millis,
 };
+
+#[derive(Clone, Debug)]
+struct HostLeaseGrant {
+    installation_id: String,
+    grant_digest: String,
+    grant: Value,
+}
 
 impl RuntimeService {
     pub(crate) fn from_environment() -> Result<Self, String> {
@@ -226,6 +238,7 @@ impl RuntimeService {
             recovery_fence: None,
             recovery_lease: None,
             recovery_lease_deadline: None,
+            recovery_host_grant: None,
             recovery_clock_started,
             recovery_clock_wall_millis,
             recovery_last_now_millis: recovery_clock_wall_millis,

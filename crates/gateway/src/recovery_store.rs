@@ -55,6 +55,14 @@ mod authority;
 mod authority_lease;
 #[path = "recovery_store_backup.rs"]
 mod backup;
+#[path = "recovery_store_host_lease.rs"]
+mod host_lease;
+#[path = "recovery_store_host_lease_ack.rs"]
+mod host_lease_ack;
+#[path = "recovery_store_host_lease_renew.rs"]
+mod host_lease_renew;
+#[path = "recovery_store_host_lease_revoke.rs"]
+mod host_lease_revoke;
 #[path = "recovery_store_lease.rs"]
 mod lease;
 #[path = "recovery_store_operation_helpers.rs"]

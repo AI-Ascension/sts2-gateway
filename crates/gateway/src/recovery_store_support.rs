@@ -55,10 +55,10 @@ pub(super) fn migrate(conn: &Connection) -> Result<(), RecoveryStoreError> {
     let version: i64 = conn
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .map_err(map_sql_error)?;
-    if version != 0 && version != 1 && version != 2 {
+    if version != 0 && version != 1 && version != 2 && version != 3 {
         return Err(RecoveryStoreError::IncompatibleSchema {
             found: version,
-            expected: 2,
+            expected: 3,
         });
     }
     if version == 0 {
@@ -109,6 +109,24 @@ pub(super) fn migrate(conn: &Connection) -> Result<(), RecoveryStoreError> {
              CREATE INDEX IF NOT EXISTS operation_archive_digest_idx
                  ON operation_archive(instance_id, operation_id, payload_digest);
              PRAGMA user_version = 2;",
+        )
+        .map_err(map_sql_error)?;
+    }
+    if version != 0 && version < 3 {
+        conn.execute_batch(
+            "ALTER TABLE leases ADD COLUMN host_fence_id TEXT;
+             ALTER TABLE leases ADD COLUMN host_fence_generation INTEGER;
+             ALTER TABLE leases ADD COLUMN host_installation_id TEXT;
+             ALTER TABLE leases ADD COLUMN host_grant_digest TEXT;
+             ALTER TABLE leases ADD COLUMN host_state TEXT NOT NULL DEFAULT 'UNINSTALLED';
+             ALTER TABLE leases ADD COLUMN host_install_generation INTEGER NOT NULL DEFAULT 0;
+             ALTER TABLE leases ADD COLUMN host_renew_sequence INTEGER NOT NULL DEFAULT 0;
+             ALTER TABLE leases ADD COLUMN host_ack_message_id TEXT;
+             ALTER TABLE leases ADD COLUMN host_ack_recorded_at_millis INTEGER;
+             ALTER TABLE leases ADD COLUMN pending_expires_at_millis INTEGER;
+             ALTER TABLE leases ADD COLUMN pending_renew_sequence INTEGER;
+             UPDATE leases SET host_state = 'UNINSTALLED' WHERE host_state IS NULL;
+             PRAGMA user_version = 3;",
         )
         .map_err(map_sql_error)?;
     }

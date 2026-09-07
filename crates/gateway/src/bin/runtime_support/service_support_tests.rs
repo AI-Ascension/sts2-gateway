@@ -63,6 +63,7 @@ pub(super) fn test_service() -> Result<RuntimeService, String> {
         recovery_fence: None,
         recovery_lease: None,
         recovery_lease_deadline: None,
+        recovery_host_grant: None,
         recovery_clock_started: Instant::now(),
         recovery_clock_wall_millis: 0,
         recovery_last_now_millis: 0,
@@ -270,6 +271,7 @@ mod recovery_v3_duplicate_tests {
         RecoveryOperationIntent, RecoveryOperationState, RecoveryUncertaintyReason,
         canonical_json_digest,
     };
+    use uuid::Uuid;
 
     use super::super::RuntimeV3GameplayRoute;
     use super::test_service;
@@ -318,6 +320,28 @@ mod recovery_v3_duplicate_tests {
                 ttl_seconds: 30,
                 renewal_interval_seconds: 10,
             })
+            .map_err(|error| error.to_string())?;
+        let installation_id = Uuid::new_v4().to_string();
+        let grant_digest = "a".repeat(64);
+        store
+            .prepare_host_lease_install(
+                &lease.lease_id,
+                &installation_id,
+                &grant_digest,
+                &fence.host_fence_id,
+                fence.fence_generation,
+                1_003,
+            )
+            .map_err(|error| error.to_string())?;
+        store
+            .complete_host_lease_install(
+                &lease.lease_id,
+                &installation_id,
+                &grant_digest,
+                1,
+                &Uuid::new_v4().to_string(),
+                1_004,
+            )
             .map_err(|error| error.to_string())?;
         let action = br#"{"action":{"kind":"end_turn"},"action_id":"action-end-turn"}"#;
         let operation = RecoveryOperationIntent {

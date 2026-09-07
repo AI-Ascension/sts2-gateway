@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: MIT
 
-use std::time::Instant;
-
 use serde_json::{Value, json};
 use sts2_gateway::RecoveryLeaseRequest;
 
@@ -131,6 +129,7 @@ impl RuntimeService {
         self.recovery_fence = None;
         self.recovery_lease = None;
         self.recovery_lease_deadline = None;
+        self.recovery_host_grant = None;
         self.lease_active = false;
         self.lease_revoked = false;
         let body = json!({

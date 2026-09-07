@@ -148,20 +148,22 @@ impl RuntimeService {
     }
 
     pub(super) fn runtime_v2_shutdown(&mut self, request: &HttpRequest) -> (u16, Vec<u8>) {
-        if let Err(error) = self.check_lease(request) {
+        let pending_revoke_retry = self.pending_host_revoke_matches(request);
+        if !pending_revoke_retry && let Err(error) = self.check_lease(request) {
             return error;
         }
         if self.recovery.is_some() {
             let Some(lease) = self.recovery_lease.clone() else {
                 return (409, json_error("lease_not_active"));
             };
-            if let Some(store) = self.recovery.as_mut()
-                && let Err(error) = store.revoke_lease(&lease.proof(), "shutdown")
-            {
-                return super::recovery_wire::recovery_store_error(error);
+            let correlation = request
+                .headers
+                .get("x-sts2-correlation-id")
+                .map(String::as_str)
+                .unwrap_or_default();
+            if let Err(error) = self.revoke_host_lease(&lease.proof(), "shutdown", correlation) {
+                return error.body();
             }
-            self.recovery_lease = None;
-            self.recovery_lease_deadline = None;
         }
         self.lease_active = false;
         self.lease_revoked = true;

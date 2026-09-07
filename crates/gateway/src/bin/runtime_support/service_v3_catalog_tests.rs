@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use sts2_gateway::{GatewayRecoveryStore, RecoveryLease, RecoveryLeaseRequest};
+use uuid::Uuid;
 
 pub(super) const DEPLOYMENT: &str = "00000000-0000-4000-8000-000000000001";
 pub(super) const INSTANCE: &str = "00000000-0000-4000-8000-000000000002";
@@ -65,6 +66,27 @@ pub(super) fn recovery_service() -> Result<(RuntimeService, RecoveryLease, PathB
             ttl_seconds: service.config.recovery_ttl_seconds,
             renewal_interval_seconds: service.config.recovery_renewal_interval_seconds,
         })
+        .map_err(|error| error.to_string())?;
+    let installation_id = Uuid::new_v4().to_string();
+    store
+        .prepare_host_lease_install(
+            &lease.lease_id,
+            &installation_id,
+            &"a".repeat(64),
+            &fence.host_fence_id,
+            fence.fence_generation,
+            now.saturating_add(3),
+        )
+        .map_err(|error| error.to_string())?;
+    store
+        .complete_host_lease_install(
+            &lease.lease_id,
+            &installation_id,
+            &"a".repeat(64),
+            1,
+            &Uuid::new_v4().to_string(),
+            now.saturating_add(4),
+        )
         .map_err(|error| error.to_string())?;
     service.recovery = Some(store);
     service.recovery_boot = Some(boot);
