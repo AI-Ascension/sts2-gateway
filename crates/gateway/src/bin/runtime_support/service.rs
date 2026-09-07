@@ -91,6 +91,8 @@ struct QueuedRequest {
 
 #[path = "service_admission.rs"]
 mod admission;
+#[path = "service_allocation_context.rs"]
+mod allocation_context;
 #[path = "service_authorization.rs"]
 mod authorization;
 #[path = "service_config.rs"]

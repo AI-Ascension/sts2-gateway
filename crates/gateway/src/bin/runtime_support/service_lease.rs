@@ -226,10 +226,14 @@ impl RuntimeService {
     }
 }
 
-fn allocation_response(
+pub(super) fn allocation_response(
     service: &RuntimeService,
     lease: &sts2_gateway::RecoveryLease,
 ) -> (u16, Vec<u8>) {
+    let recovery_authority = match super::allocation_context::recovery_authority(service, lease) {
+        Ok(authority) => authority,
+        Err(error) => return (503, json_error(error)),
+    };
     (
         200,
         json_bytes(&json!({
@@ -242,6 +246,7 @@ fn allocation_response(
             "fence_token": lease.fence_token,
             "expires_at_millis": lease.expires_at_millis,
             "transport": "attached-loopback",
+            "recovery_authority": recovery_authority,
         })),
     )
 }

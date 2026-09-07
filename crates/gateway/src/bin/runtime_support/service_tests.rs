@@ -55,6 +55,132 @@ fn allocation_rejects_duplicate_unknown_and_missing_members() -> Result<(), Stri
 }
 
 #[test]
+fn recovery_allocation_response_binds_the_acquired_lease_and_current_fence() -> Result<(), String> {
+    let (service, lease, path) = super::runtime_v3_catalog_tests::recovery_service()?;
+    let (status, body) = super::lease::allocation_response(&service, &lease);
+    assert_eq!(status, 200);
+    let response: Value = serde_json::from_slice(&body).map_err(|error| error.to_string())?;
+    let lease_id = response["lease_id"]
+        .as_str()
+        .ok_or_else(|| String::from("lease_id missing"))?;
+    assert_eq!(response["lease_id"], lease.lease_id);
+    assert_eq!(response["lease_epoch"], lease.lease_epoch);
+    assert_ne!(response["lease_id"], service.config.lease_id);
+    assert!(
+        service
+            .recovery
+            .as_ref()
+            .ok_or_else(|| String::from("recovery store missing"))?
+            .host_lease_is_ready(lease_id)
+            .map_err(|error| error.to_string())?
+    );
+    assert_eq!(response["fence_token"], lease.fence_token);
+    let authority = &response["recovery_authority"];
+    assert_eq!(authority["contract"], "watchdog-runtime-allocation-v1");
+    assert_eq!(
+        authority["schema_digest"],
+        super::allocation_context::ALLOCATION_SCHEMA_DIGEST
+    );
+    assert_eq!(
+        authority["context"],
+        serde_json::json!({
+            "deployment_id": lease.deployment_id,
+            "instance_id": lease.instance_id,
+            "instance_incarnation": lease.instance_incarnation,
+            "boot_id": lease.boot_id,
+            "authority_generation": lease.authority_generation,
+            "lease_id": lease.lease_id,
+            "lease_epoch": lease.lease_epoch,
+        })
+    );
+    let fence = service
+        .recovery_fence
+        .as_ref()
+        .ok_or_else(|| String::from("recovery fence missing"))?;
+    assert_eq!(
+        authority["current_fence"],
+        super::recovery_wire::fence_value(fence)
+    );
+    super::runtime_v3_catalog_tests::cleanup(service, &path);
+    Ok(())
+}
+
+#[test]
+fn recovery_allocation_response_fails_closed_without_matching_fence() -> Result<(), String> {
+    let (mut service, lease, path) = super::runtime_v3_catalog_tests::recovery_service()?;
+    service.recovery_fence = None;
+    let (status, body) = super::lease::allocation_response(&service, &lease);
+    assert_eq!(status, 503);
+    assert_eq!(
+        serde_json::from_slice::<Value>(&body).map_err(|error| error.to_string())?["error_code"],
+        "recovery_host_fence_required"
+    );
+    super::runtime_v3_catalog_tests::cleanup(service, &path);
+
+    let (mut service, lease, path) = super::runtime_v3_catalog_tests::recovery_service()?;
+    service
+        .recovery_fence
+        .as_mut()
+        .ok_or_else(|| String::from("recovery fence missing"))?
+        .boot_id = String::from("00000000-0000-4000-8000-000000000099");
+    let (status, body) = super::lease::allocation_response(&service, &lease);
+    assert_eq!(status, 503);
+    assert_eq!(
+        serde_json::from_slice::<Value>(&body).map_err(|error| error.to_string())?["error_code"],
+        "recovery_allocation_authority_mismatch"
+    );
+    super::runtime_v3_catalog_tests::cleanup(service, &path);
+    Ok(())
+}
+
+#[test]
+fn recovery_allocate_route_fails_closed_before_success_without_current_fence() -> Result<(), String>
+{
+    let (mut service, _lease, path) = super::runtime_v3_catalog_tests::recovery_service()?;
+    service.recovery_fence = None;
+    let (status, _body) = service.allocate(
+        br#"{"instance_id":"00000000-0000-4000-8000-000000000002","caller_id":"harness","session_id":"session-1"}"#,
+    );
+    assert_eq!(status, 503);
+    super::runtime_v3_catalog_tests::cleanup(service, &path);
+
+    let (mut service, _lease, path) = super::runtime_v3_catalog_tests::recovery_service()?;
+    service
+        .recovery_fence
+        .as_mut()
+        .ok_or_else(|| String::from("recovery fence missing"))?
+        .boot_id = String::from("00000000-0000-4000-8000-000000000099");
+    let (status, _body) = service.allocate(
+        br#"{"instance_id":"00000000-0000-4000-8000-000000000002","caller_id":"harness","session_id":"session-1"}"#,
+    );
+    assert_ne!(status, 200);
+    super::runtime_v3_catalog_tests::cleanup(service, &path);
+    Ok(())
+}
+
+#[test]
+fn nonrecovery_allocation_response_remains_unchanged() -> Result<(), String> {
+    let mut service = test_service()?;
+    let (status, body) = service.allocate(
+        br#"{"instance_id":"instance-1","caller_id":"harness","session_id":"session-1"}"#,
+    );
+    assert_eq!(status, 200);
+    assert_eq!(
+        serde_json::from_slice::<Value>(&body).map_err(|error| error.to_string())?,
+        serde_json::json!({
+            "status": "allocated",
+            "instance_id": "instance-1",
+            "caller_id": "harness",
+            "session_id": "session-1",
+            "lease_id": "lease-1",
+            "lease_epoch": 1,
+            "transport": "attached-loopback"
+        })
+    );
+    Ok(())
+}
+
+#[test]
 fn v1_fixed_forwarding_preserves_paths_credentials_and_identity() -> Result<(), String> {
     let listener = TcpListener::bind("127.0.0.1:0").map_err(|e| e.to_string())?;
     listener.set_nonblocking(true).map_err(|e| e.to_string())?;
