@@ -56,9 +56,9 @@ fn allocation_rejects_duplicate_unknown_and_missing_members() -> Result<(), Stri
 
 #[test]
 fn recovery_allocation_response_binds_the_acquired_lease_and_current_fence() -> Result<(), String> {
-    let (service, lease, path) = super::runtime_v3_catalog_tests::recovery_service()?;
-    let (status, body) = super::lease::allocation_response(&service, &lease);
-    assert_eq!(status, 200);
+    let (mut service, lease, path) = super::runtime_v3_catalog_tests::recovery_service()?;
+    let (status, body) = super::lease::allocation_response(&mut service, &lease);
+    assert_eq!(status, 200, "{}", String::from_utf8_lossy(&body));
     let response: Value = serde_json::from_slice(&body).map_err(|error| error.to_string())?;
     let lease_id = response["lease_id"]
         .as_str()
@@ -109,7 +109,7 @@ fn recovery_allocation_response_binds_the_acquired_lease_and_current_fence() -> 
 fn recovery_allocation_response_fails_closed_without_matching_fence() -> Result<(), String> {
     let (mut service, lease, path) = super::runtime_v3_catalog_tests::recovery_service()?;
     service.recovery_fence = None;
-    let (status, body) = super::lease::allocation_response(&service, &lease);
+    let (status, body) = super::lease::allocation_response(&mut service, &lease);
     assert_eq!(status, 503);
     assert_eq!(
         serde_json::from_slice::<Value>(&body).map_err(|error| error.to_string())?["error_code"],
@@ -123,7 +123,7 @@ fn recovery_allocation_response_fails_closed_without_matching_fence() -> Result<
         .as_mut()
         .ok_or_else(|| String::from("recovery fence missing"))?
         .boot_id = String::from("00000000-0000-4000-8000-000000000099");
-    let (status, body) = super::lease::allocation_response(&service, &lease);
+    let (status, body) = super::lease::allocation_response(&mut service, &lease);
     assert_eq!(status, 503);
     assert_eq!(
         serde_json::from_slice::<Value>(&body).map_err(|error| error.to_string())?["error_code"],

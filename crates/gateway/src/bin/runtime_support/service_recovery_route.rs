@@ -57,6 +57,16 @@ impl RuntimeService {
         {
             return (403, json_error("recovery_principal_forbidden"));
         }
+        if matches!(kind, RecoveryKind::LeaseAcquire | RecoveryKind::LeaseRenew
+            | RecoveryKind::OperationIntent | RecoveryKind::OperationDispatch)
+        {
+            if self.lease_revoked || self.shutdown_requested {
+                return (409, json_error("lease_context_revoked"));
+            }
+            if kind != RecoveryKind::LeaseAcquire && !self.lease_active {
+                return (409, json_error("lease_not_active"));
+            }
+        }
         match kind {
             RecoveryKind::Bootstrap => self.recovery_bootstrap(&frame),
             RecoveryKind::HostFence => self.recovery_host_fence_frame(&frame),

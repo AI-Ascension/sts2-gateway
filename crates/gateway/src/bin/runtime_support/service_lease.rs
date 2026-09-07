@@ -4,6 +4,8 @@ use super::*;
 use sts2_gateway::RecoveryHostLeaseState;
 use uuid::Uuid;
 
+pub(super) use super::allocation_context::allocation_response;
+
 impl RuntimeService {
     pub(super) fn allocate(&mut self, body: &[u8]) -> (u16, Vec<u8>) {
         if self.lease_revoked || self.shutdown_requested {
@@ -152,6 +154,9 @@ impl RuntimeService {
     pub(super) fn check_lease(&mut self, request: &HttpRequest) -> Result<(), (u16, Vec<u8>)> {
         if self.recovery.is_some() {
             self.check_recovery_deadline();
+            if !self.lease_active || self.lease_revoked || self.shutdown_requested {
+                return Err((409, json_error("lease_not_active")));
+            }
             let Some(lease) = self.recovery_lease.clone() else {
                 return Err((409, json_error("lease_not_active")));
             };
@@ -224,31 +229,6 @@ impl RuntimeService {
         }
         Ok(())
     }
-}
-
-pub(super) fn allocation_response(
-    service: &RuntimeService,
-    lease: &sts2_gateway::RecoveryLease,
-) -> (u16, Vec<u8>) {
-    let recovery_authority = match super::allocation_context::recovery_authority(service, lease) {
-        Ok(authority) => authority,
-        Err(error) => return (503, json_error(error)),
-    };
-    (
-        200,
-        json_bytes(&json!({
-            "status": "allocated",
-            "instance_id": lease.instance_id,
-            "caller_id": service.config.caller_id,
-            "session_id": service.config.session_id,
-            "lease_id": lease.lease_id,
-            "lease_epoch": lease.lease_epoch,
-            "fence_token": lease.fence_token,
-            "expires_at_millis": lease.expires_at_millis,
-            "transport": "attached-loopback",
-            "recovery_authority": recovery_authority,
-        })),
-    )
 }
 
 #[derive(serde::Deserialize)]

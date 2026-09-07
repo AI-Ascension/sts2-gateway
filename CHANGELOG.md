@@ -26,6 +26,11 @@ host compatibility and release publication.
 
 ### Fixed
 
+- Validate recovery allocation authority against the current lease, durable fence,
+  installed host binding and monotonic deadline. Failed responses close local
+  admission before fallible revocation; busy storage cannot reopen mutation.
+  Confirmed host cleanup permits a fresh epoch without clearing prior stop intent.
+
 - Default MCP transport identity independently to `mcp-session-1` to match MCP and harness
   configuration; retain validated explicit overrides and the complete session fence.
 

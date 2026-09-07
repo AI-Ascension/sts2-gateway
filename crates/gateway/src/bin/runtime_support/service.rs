@@ -289,28 +289,4 @@ impl RuntimeService {
 }
 
 #[cfg(test)]
-#[path = "service_admission_tests.rs"]
-mod admission_tests;
-
-#[cfg(test)]
-#[path = "service_auth_tests.rs"]
-mod auth_tests;
-#[cfg(test)]
-#[path = "service_tests.rs"]
-mod legacy_tests;
-#[cfg(test)]
-#[path = "service_recovery_catalog_tests.rs"]
-mod recovery_catalog_tests;
-#[cfg(test)]
-#[path = "service_routes_tests.rs"]
-mod routes_tests;
-#[cfg(test)]
-#[path = "service_v3_catalog_tests.rs"]
-mod runtime_v3_catalog_tests;
-#[cfg(test)]
-#[path = "service_support_tests.rs"]
-mod test_support;
-
-#[cfg(test)]
-#[path = "service_coop_tests.rs"]
-mod coop_tests;
+include!("service_test_modules.rs");

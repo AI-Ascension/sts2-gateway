@@ -98,6 +98,15 @@ with the authorized host supervisor.
 
 ## Evidence levels
 
+The allocation-failure suites run in `sts2-gateway-runtime`. They exercise an
+elapsed monotonic deadline, substituted lease, inactive local admission,
+post-install fence mismatch, and a real competing SQLite write transaction.
+The busy-write oracle proves the durable row remains active after the failed
+revoke, while both ordinary lease admission and recovery mutation routes remain
+closed. Signed synthetic host acknowledgments prove gateway-side revocation
+recording, fresh-epoch allocation, and prior stop preservation. The post-install
+fault hook is compiled only for tests; there is no production fault route.
+
 - `confirmed`: an authorized controlled test passed its stated oracle;
 - `source-derived`: source/configuration directly establishes the claim;
 - `inferred`: a documented consequence not yet exercised;

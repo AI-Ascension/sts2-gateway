@@ -51,6 +51,14 @@ API, and a successful gateway acknowledgment does not prove game state or effect
 
 ## Change classification
 
+Recovery allocation response hardening is an unpublished fail-closed patch,
+defined in [ADR 0018](decisions/0018-allocation-failure-admission.md). The
+`watchdog-runtime-allocation-v1` schema digest and successful response bytes are
+unchanged. Failed response construction closes new mutation admission, attempts
+bounded revocation, and retains uncertain cleanup. A fresh allocation is allowed
+only after durable host cleanup and absent prior stop/revocation. Tests against
+SQLite and signed synthetic peers do not establish live host cleanup.
+
 The ledger's monotonic-observation repair is a patch to the existing freshness invariant; it does
 not change Runtime-v2 artifact bytes. Historical receipts keep their own generation and are distinct
 from the newest admission observation. Corrupt/inconsistent checkpoint generations fail closed.
