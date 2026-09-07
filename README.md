@@ -117,6 +117,12 @@ durable boot-epoch rotation; see the explicit restart limitation in
 [COMPATIBILITY.md](docs/COMPATIBILITY.md). It cannot establish an autonomous run by itself without
 the harness and provider path.
 
+The additive Runtime-v4 expert routes are also implemented and validate the checked-in expert-state
+and expert-action artifacts. Native host legality, settled effects, provider execution, and
+end-to-end compatibility remain unverified.
+
+The exact Runtime-v4 source/component record is [documented in the compatibility matrix](docs/COMPATIBILITY.md#runtime-v4-expert-sourcecomponent-row).
+
 For opt-in coordinator-reported synchronization, supply `STS2_COOP_ROSTER` as a JSON array,
 for example `[{"peer_id":"local-1","role":"local"},{"peer_id":"ally-1","role":"ally"}]`.
 The configured coordinator submits bounded peer reports under control scope; the separate

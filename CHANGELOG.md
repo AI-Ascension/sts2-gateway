@@ -5,6 +5,11 @@ host compatibility and release publication.
 
 ## [Unreleased]
 
+- Add the bounded Runtime-v4 expert-state, expert-action, and expert-reconcile gateway routes.
+  The source/component implementation validates the checked-in observation and action artifacts
+  at `17b93bf`; native host legality, settled effects, provider runs, and end-to-end compatibility
+  remain unverified.
+
 - Add opt-in coordinator-reported co-op synchronization: configured roster, control-scoped
   fenced reports, monotonic convergence and expiry, and a read-only response consumed by
   the executable MCP profile. Both routes avoid downstream game access. The copied protocol

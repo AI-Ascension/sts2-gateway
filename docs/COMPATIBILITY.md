@@ -120,6 +120,26 @@ handling, global scheduling, or host compatibility. `STS2_MCP_SESSION_ID` defaul
 session remains `session-1` by default and may be set independently; every lease-protected request must then carry the matching
 `x-mcp-session-id` value.
 
+## Runtime-v4 expert source/component row
+
+The additive `runtime-v4-expert` surface is implemented at the gateway source/component boundary
+at commit `17b93bf35e5256f6adf690aa148fa57d4f56c523`. The gateway admits fixed expert-state,
+expert-action, and expert-reconcile paths, validates the request/response envelopes, and forwards
+only the corresponding fixed paths to the attached mod boundary. Its copied artifact identities
+are:
+
+| artifact | schema digest | checked-in location |
+| --- | --- | --- |
+| Runtime-v4 expert observation | `0ee034d5da83f34e9fa0ba23038738d56ef8cfccb1c6e752af3ab63d212c8e42` | `protocol-artifact/runtime-v4-expert/schema.json` |
+| Runtime-v4 expert action | `393318bda8c3522c0ecbacc78b95471a9f4dc3f825169d2048f4c74a7b7f2929` | `protocol-artifact/runtime-v4-expert-action/schema.json` |
+
+| Surface | Current evidence | Result |
+| --- | --- | --- |
+| `runtime-v4-expert` state/action/reconcile routes | Source validation, strict envelope checks, artifact checks, and gateway workspace policy/tests/Clippy at `17b93bf` | Source/component confirmed; native host legality, settled host effects, provider runs, deployment, and broader compatibility unverified |
+
+The source/component checks do not establish a running mod, a valid host observation, a settled
+potion effect, a model-controlled episode, or compatibility with an arbitrary host version.
+
 ## Runtime-v3 and co-op row
 
 | Surface | Current evidence | Result |
