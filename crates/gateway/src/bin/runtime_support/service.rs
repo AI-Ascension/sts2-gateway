@@ -286,6 +286,9 @@ mod recovery_catalog_tests;
 #[path = "service_routes_tests.rs"]
 mod routes_tests;
 #[cfg(test)]
+#[path = "service_v3_catalog_tests.rs"]
+mod runtime_v3_catalog_tests;
+#[cfg(test)]
 #[path = "service_support_tests.rs"]
 mod test_support;
 

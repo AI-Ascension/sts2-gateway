@@ -143,15 +143,19 @@ impl RuntimeService {
     pub(super) fn observe_recovery_catalog(
         &mut self,
         lease: &RecoveryLease,
+        route: RuntimeV3GameplayRoute,
         status: u16,
         body: &[u8],
     ) -> bool {
         if status != 200 {
-            return false;
+            return true;
         }
         let Some(response) = super::super::strict_json::parse(body).ok() else {
             return false;
         };
+        if !authoritative_observation(route, &response) {
+            return true;
+        }
         let Some(key) = self.recovery_catalog_key(lease, &response) else {
             return false;
         };
@@ -212,6 +216,19 @@ fn same_authority_context(left: &RecoveryCatalogKey, right: &RecoveryCatalogKey)
         && left.session_id == right.session_id
         && left.lease_id == right.lease_id
         && left.lease_epoch == right.lease_epoch
+}
+
+fn authoritative_observation(route: RuntimeV3GameplayRoute, response: &Value) -> bool {
+    if !response["observation"].is_object() {
+        return false;
+    }
+    match route {
+        RuntimeV3GameplayRoute::State | RuntimeV3GameplayRoute::Reobserve => true,
+        RuntimeV3GameplayRoute::DispatchAction
+        | RuntimeV3GameplayRoute::WaitForTransition
+        | RuntimeV3GameplayRoute::Recover => response["status"].as_str() == Some("settled"),
+        RuntimeV3GameplayRoute::LegalActions => false,
+    }
 }
 
 /// Extract the value bytes without reserializing through `serde_json::Value`.

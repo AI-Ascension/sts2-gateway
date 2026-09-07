@@ -74,10 +74,18 @@ impl RuntimeService {
                                 | RuntimeV3GameplayRoute::Reobserve => self
                                     .observe_recovery_catalog(
                                         &lease,
+                                        route,
                                         response.status,
                                         &response.body,
                                     ),
-                                _ => true,
+                                RuntimeV3GameplayRoute::DispatchAction
+                                | RuntimeV3GameplayRoute::WaitForTransition
+                                | RuntimeV3GameplayRoute::Recover => self.observe_recovery_catalog(
+                                    &lease,
+                                    route,
+                                    response.status,
+                                    &response.body,
+                                ),
                             };
                             if !catalog_update {
                                 return (502, json_error("runtime_v3_catalog_observation_invalid"));
