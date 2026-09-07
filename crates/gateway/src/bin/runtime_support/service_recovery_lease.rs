@@ -22,6 +22,8 @@ impl RuntimeService {
         if self.recovery.is_none() {
             return (503, json_error("recovery_persistence_unavailable"));
         }
+        // An external revoke is intentional, including the shutdown reason.
+        self.allocation_cleanup_lease_id = None;
         if let Err(error) = self.revoke_host_lease(&proof, reason, frame.correlation()) {
             return error.body();
         }

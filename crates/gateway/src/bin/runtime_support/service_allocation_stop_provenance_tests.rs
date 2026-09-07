@@ -10,6 +10,7 @@ enum Stop {
     Shutdown,
     ShutdownRequested,
     OtherLeaseMarker,
+    ExternalShutdown,
 }
 
 #[test]
@@ -21,6 +22,7 @@ fn delayed_cleanup_ack_never_overrides_stop_or_other_lease_provenance() -> Resul
         Stop::Shutdown,
         Stop::ShutdownRequested,
         Stop::OtherLeaseMarker,
+        Stop::ExternalShutdown,
     ] {
         verify_stop(stop)?;
     }

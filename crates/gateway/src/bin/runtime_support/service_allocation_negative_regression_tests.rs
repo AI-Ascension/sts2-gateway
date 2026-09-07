@@ -71,6 +71,20 @@ fn confirmed_signed_revoke_reopens_a_fresh_allocation_epoch() -> Result<(), Stri
         .ok_or_else(|| String::from("host binding missing"))?;
     assert_eq!(binding.state, RecoveryHostLeaseState::Installed);
 
+    let untouched = std::net::TcpListener::bind("127.0.0.1:0")
+        .map_err(|error| error.to_string())?;
+    untouched.set_nonblocking(true).map_err(|error| error.to_string())?;
+    service.config.mod_address = untouched.local_addr().map_err(|error| error.to_string())?.to_string();
+    assert_eq!(service.allocate(b"{}").0, 409);
+    let mut wrong: serde_json::Value = serde_json::from_slice(&allocation)
+        .map_err(|error| error.to_string())?;
+    wrong["caller_id"] = serde_json::Value::String(Uuid::new_v4().to_string());
+    assert_eq!(service.allocate(&serde_json::to_vec(&wrong)
+        .map_err(|error| error.to_string())?).0, 409);
+    assert!(matches!(untouched.accept(), Err(error) if error.kind() == std::io::ErrorKind::WouldBlock));
+    assert_eq!(service.allocation_cleanup_lease_id.as_deref(), Some(lease.lease_id.as_str()));
+    drop(untouched);
+
     let (address, retry_server) = spawn_signed_ack_server(
         service.config.host_lease_key.clone(),
         service.config.host_principal_id.clone(),
@@ -79,13 +93,11 @@ fn confirmed_signed_revoke_reopens_a_fresh_allocation_epoch() -> Result<(), Stri
         None,
     )?;
     service.config.mod_address = address;
-    let revoke = service.handle_request(&recovery_revoke_request(&service, &lease));
     let fresh = service.allocate(&allocation);
     retry_server
         .join()
         .map_err(|_| String::from("revoke retry host fake panicked"))??;
 
-    assert_eq!(revoke.0, 200);
     assert!(
         !service.lease_revoked,
         "confirmed cleanup left lease_revoked=true; fresh allocation status was {}",

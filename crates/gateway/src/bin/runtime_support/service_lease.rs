@@ -8,10 +8,13 @@ pub(super) use super::allocation_context::allocation_response;
 
 impl RuntimeService {
     pub(super) fn allocate(&mut self, body: &[u8]) -> (u16, Vec<u8>) {
-        if self.lease_revoked || self.shutdown_requested {
+        if self.shutdown_requested {
             return (409, json_error("lease_context_revoked"));
         }
         let Ok(allocation) = serde_json::from_slice::<AllocationRequest>(body) else {
+            if self.lease_revoked {
+                return (409, json_error("lease_context_revoked"));
+            }
             return (400, json_error("allocation_body_invalid"));
         };
         if allocation.instance_id != self.config.instance_id
@@ -21,6 +24,10 @@ impl RuntimeService {
             return (409, json_error("allocation_identity_rejected"));
         }
         if self.recovery.is_some() {
+            super::allocation_cleanup::retry_unreturned_allocation(self);
+            if self.lease_revoked {
+                return (409, json_error("lease_context_revoked"));
+            }
             let Some(boot) = self.recovery_boot.clone() else {
                 return (503, json_error("recovery_boot_required"));
             };
@@ -76,6 +83,9 @@ impl RuntimeService {
                 Ok(lease) => allocation_response(self, &lease),
                 Err(error) => error.body(),
             };
+        }
+        if self.lease_revoked {
+            return (409, json_error("lease_context_revoked"));
         }
         self.lease_active = true;
         (

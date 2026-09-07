@@ -29,6 +29,13 @@ remove that permission before their fallible cleanup. A marker for another lease
 cannot authorize a fresh allocation. This does not replace watchdog-owned durable
 operator intent across process or machine restart.
 
+All validated external recovery revocations cancel cleanup permission, including
+the `shutdown` reason. Automatic cleanup retries instead occur on a subsequent
+allocation request only after its configured instance/caller/session identities
+match. Each request attempts at most one retained exact-lease revocation; no new
+allocation occurs unless its host ACK commits durably. Malformed or mismatched
+allocation requests cannot trigger cleanup, and explicit shutdown never retries.
+
 Installation activation failure after a durable host ACK also enters cleanup.
 Readiness on ordinary and recovery mutation paths verifies the full canonical
 grant digest and current durable fence, not merely an `INSTALLED` state label.

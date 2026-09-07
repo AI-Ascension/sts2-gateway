@@ -103,3 +103,24 @@ The debug runtime SHA-256 is
 These remain Linux component/synthetic-transport checks. Independent re-review,
 integrated release validation, and the native/live/service/soak axes remain
 unverified by this repair.
+
+## External stop versus internal retry
+
+Further review of `25b9d14f225036cf87baa94dfcd500c782678465` identified a missing
+case: an external recovery revoke with reason `shutdown` could retain automatic
+cleanup permission. Root added that seventh signed-ACK case and reproduced
+`ACK reopened stopped admission: ExternalShutdown` (test exit 101).
+
+Validated external revocations now cancel cleanup permission before the fallible
+revoke. A subsequent valid allocation request may instead retry one exact retained
+cleanup internally, after instance/caller/session validation. A fresh lease is
+acquired only after durable host acknowledgment. The positive retry regression
+uses this allocation path, not an external shutdown command. A nonblocking TCP
+listener verifies malformed and wrong-caller requests never contact the host;
+the retained cleanup marker remains unchanged.
+
+All 14 allocation tests pass, including seven stop/provenance cases. Root also
+passed formatting, strict policy (211 files), locked workspace/all-target/
+all-feature Clippy with warnings denied, tests, and build after the production
+repair. The additional malformed/wrong-caller transport assertions passed in a
+focused rerun. Independent re-review of this follow-up remains pending.

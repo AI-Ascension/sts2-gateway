@@ -48,6 +48,25 @@ pub(super) fn cleanup_unreturned_allocation(service: &mut RuntimeService) {
     }
 }
 
+/// Called only after allocation identity validation. Retry one retained cleanup,
+/// never an old mutation, and let durable host acknowledgment reopen admission.
+pub(super) fn retry_unreturned_allocation(service: &mut RuntimeService) {
+    if service.shutdown_requested || !service.lease_revoked {
+        return;
+    }
+    let Some(lease) = service.recovery_lease.clone() else {
+        return;
+    };
+    if service.allocation_cleanup_lease_id.as_deref() != Some(lease.lease_id.as_str()) {
+        return;
+    }
+    let _ = service.revoke_host_lease(
+        &lease.proof(),
+        "shutdown",
+        &uuid::Uuid::new_v4().to_string(),
+    );
+}
+
 pub(super) fn failed_install(
     service: &mut RuntimeService,
     lease: &RecoveryLease,
