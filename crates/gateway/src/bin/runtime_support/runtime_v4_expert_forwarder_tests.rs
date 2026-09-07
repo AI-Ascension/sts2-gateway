@@ -64,7 +64,7 @@ fn action_request_and_settlement_are_fenced_to_the_route_operation()
     ));
     let value = forwarder
         .validate_request(&dispatch, request, &headers())
-        .expect("action request must validate");
+        .map_err(|error| format!("action request must validate: {error:?}"))?;
     assert_eq!(value["operation_id"], "potion-op-1");
 
     let response = include_bytes!(concat!(

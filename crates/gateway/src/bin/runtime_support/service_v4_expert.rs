@@ -34,6 +34,8 @@ impl RuntimeService {
             .map(String::as_str);
         let method = if route.is_dispatch() { "POST" } else { "GET" };
         let downstream_path = route.downstream_path();
+        // The native mod route requires an empty GET body and copies the operation suffix from
+        // `downstream_path` into the callback body before RuntimeV4ExpertSupport.Handle runs.
         match self.forward_mod(method, &downstream_path, &request.body, correlation) {
             Ok(response) if route.is_state() && (200..300).contains(&response.status) => match self
                 .runtime_v4_expert
