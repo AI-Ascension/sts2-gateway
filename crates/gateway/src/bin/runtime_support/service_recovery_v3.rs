@@ -2,8 +2,8 @@
 
 use serde_json::Value;
 use sts2_gateway::{
-    RUNTIME_V3_SCHEMA_DIGEST, RecoveryIntentResult, RecoveryOperationIntent,
-    RecoveryOperationState, canonicalize_recovery_action, sha256_hex,
+    RUNTIME_V3_SCHEMA_DIGEST, RecoveryIntentResult, RecoveryLeaseProof, RecoveryOperation,
+    RecoveryOperationIntent, RecoveryOperationState, canonicalize_recovery_action, sha256_hex,
 };
 
 use super::{HttpRequest, RuntimeService, json_error};
@@ -45,6 +45,59 @@ impl RuntimeService {
         }
         let payload_digest = sha256_hex(&action);
         let proof = lease.proof();
+        let correlation = request
+            .headers
+            .get("x-sts2-correlation-id")
+            .map(String::as_str)
+            .unwrap_or_else(|| envelope["correlation_id"].as_str().unwrap_or_default());
+        // A retry must consult the durable operation record before looking at
+        // the in-memory catalog.  The catalog is state-scoped and may have
+        // advanced or been evicted, while the operation's original binding is
+        // immutable and remains authoritative for an exact duplicate.
+        let existing = {
+            let Some(store) = self.recovery.as_ref() else {
+                return (503, json_error("recovery_persistence_unavailable"));
+            };
+            match store.lookup_operation(&proof.instance_id, operation_id, &payload_digest) {
+                Ok(operation) => operation,
+                Err(error) => return super::recovery_wire::recovery_store_error(error),
+            }
+        };
+        if let Some(operation) = existing {
+            if !operation_matches_v3_retry(&operation, &proof, &action, state_id, generation) {
+                return (409, json_error("recovery_operation_context_mismatch"));
+            }
+            if operation.state == RecoveryOperationState::IntentRecorded {
+                let now = self.recovery_now_millis();
+                let Some(store) = self.recovery.as_mut() else {
+                    return (503, json_error("recovery_persistence_unavailable"));
+                };
+                let operation =
+                    match store.mark_dispatched(&proof, &proof.instance_id, operation_id, now) {
+                        Ok(operation) => operation,
+                        Err(error) => return super::recovery_wire::recovery_store_error(error),
+                    };
+                let _ = store;
+                return self.forward_recovery_operation(&proof, &operation, correlation, None);
+            }
+            // UNKNOWN and every other non-intent state are replay-only.  In
+            // particular, uncertainty is never converted into a second host
+            // mutation attempt.
+            return self.recovery_operation_replay(&operation, correlation);
+        }
+
+        let catalog_digest = match self.recovery_catalog_admission(&lease, &envelope) {
+            Ok(digest) => digest,
+            Err(super::recovery_catalog::RecoveryCatalogAdmission::Missing) => {
+                return (409, json_error("recovery_catalog_fresh_read_required"));
+            }
+            Err(super::recovery_catalog::RecoveryCatalogAdmission::Stale) => {
+                return (409, json_error("recovery_catalog_stale"));
+            }
+            Err(super::recovery_catalog::RecoveryCatalogAdmission::ActionNotCurrent) => {
+                return (409, json_error("recovery_action_not_current"));
+            }
+        };
         let intent = RecoveryOperationIntent {
             operation_id: operation_id.to_owned(),
             deployment_id: proof.deployment_id.clone(),
@@ -59,14 +112,9 @@ impl RuntimeService {
             payload_digest,
             expected_state_id: state_id.to_owned(),
             expected_generation: generation,
-            catalog_digest: self.config.recovery_release.profile_digest.clone(),
+            catalog_digest,
             now_millis: self.recovery_now_millis(),
         };
-        let correlation = request
-            .headers
-            .get("x-sts2-correlation-id")
-            .map(String::as_str)
-            .unwrap_or_else(|| envelope["correlation_id"].as_str().unwrap_or_default());
         let Some(store) = self.recovery.as_mut() else {
             return (503, json_error("recovery_persistence_unavailable"));
         };
@@ -104,4 +152,24 @@ impl RuntimeService {
         let _ = store;
         self.forward_recovery_operation(&proof, &operation, correlation, None)
     }
+}
+
+fn operation_matches_v3_retry(
+    operation: &RecoveryOperation,
+    proof: &RecoveryLeaseProof,
+    action: &[u8],
+    state_id: &str,
+    generation: u64,
+) -> bool {
+    operation.deployment_id == proof.deployment_id
+        && operation.instance_id == proof.instance_id
+        && operation.instance_incarnation == proof.instance_incarnation
+        && operation.boot_id == proof.boot_id
+        && operation.authority_generation == proof.authority_generation
+        && operation.lease_id == proof.lease_id
+        && operation.lease_epoch == proof.lease_epoch
+        && operation.schema_digest == RUNTIME_V3_SCHEMA_DIGEST
+        && operation.canonical_json == action
+        && operation.expected_state_id == state_id
+        && operation.expected_generation == generation
 }

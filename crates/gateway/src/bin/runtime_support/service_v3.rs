@@ -57,7 +57,17 @@ impl RuntimeService {
                     .runtime_v3
                     .validate_response(route, &envelope, &response.body)
                 {
-                    Ok(()) => (response.status, response.body),
+                    Ok(()) => {
+                        if route == RuntimeV3GameplayRoute::LegalActions
+                            && let Some(lease) = self.recovery_lease.clone()
+                        {
+                            // Only a schema- and relation-validated successful
+                            // host response can establish the state-scoped
+                            // catalog used by recovery admission.
+                            self.capture_recovery_catalog(&lease, response.status, &response.body);
+                        }
+                        (response.status, response.body)
+                    }
                     Err(error) => (502, json_error(runtime_v3_error_code(error))),
                 }
             }

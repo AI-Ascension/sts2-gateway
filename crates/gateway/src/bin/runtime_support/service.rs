@@ -47,6 +47,7 @@ pub(crate) struct RuntimeService {
     shutdown_requested: bool,
     runtime_v2: RuntimeV2Ledger<HttpRuntimeV2Forwarder>,
     runtime_v3: RuntimeV3GameplayForwarder,
+    recovery_catalog: recovery_catalog::RecoveryCatalogCache,
     journal_path: Option<PathBuf>,
     _journal_lock: Option<journal::JournalLock>,
     metrics: RuntimeMetrics,
@@ -99,6 +100,8 @@ mod coop;
 mod lease;
 #[path = "service_recovery.rs"]
 mod recovery;
+#[path = "service_recovery_catalog.rs"]
+mod recovery_catalog;
 #[path = "service_recovery_dispatch.rs"]
 mod recovery_dispatch;
 #[path = "service_recovery_dispatch_host.rs"]
@@ -215,6 +218,7 @@ impl RuntimeService {
             shutdown_requested: false,
             runtime_v2,
             runtime_v3: RuntimeV3GameplayForwarder::new(MAX_BODY_BYTES, MAX_RESPONSE_BYTES),
+            recovery_catalog: recovery_catalog::RecoveryCatalogCache::default(),
             metrics: RuntimeMetrics::default(),
             coop_reports,
             recovery,
