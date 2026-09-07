@@ -1,0 +1,6 @@
+fc1b2f97aba26fd1435d818db4b24978969ba0c91bb466345781721de69d7470  ../../conformance/cases/runtime-v4-expert-action.json
+393318bda8c3522c0ecbacc78b95471a9f4dc3f825169d2048f4c74a7b7f2929  ../../schemas/runtime-v4-expert-action.schema.json
+d0d8c8be38787fc3b8c11657bca6e627a56be31aa858a8cd9cfab8253a4e97f5  manifest.json
+393318bda8c3522c0ecbacc78b95471a9f4dc3f825169d2048f4c74a7b7f2929  schema.json
+7b287c5007bc41c56cb34d17c3c1cdd1e571d2cc34f2f150cddaa248a42abff4  golden/action-request.json
+107a56ff959e9699475e78c48c5e41fa1267b7186c9b630c57e1952d9058c5e7  golden/action-settled.json

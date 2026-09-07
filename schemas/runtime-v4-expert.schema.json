@@ -140,6 +140,37 @@
             "kind": { "enum": ["defend", "buff", "debuff", "unknown"] },
             "target_ids": { "anyOf": [{ "type": "array", "maxItems": 16, "items": { "$ref": "#/$defs/identity" } }, { "type": "null" }] }
           }
+        },
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["kind", "intents", "target_ids"],
+          "properties": {
+            "kind": { "const": "composite" },
+            "intents": { "type": "array", "minItems": 2, "maxItems": 16, "items": { "$ref": "#/$defs/intent_component" } },
+            "target_ids": { "anyOf": [{ "type": "array", "maxItems": 16, "items": { "$ref": "#/$defs/identity" } }, { "type": "null" }] }
+          }
+        }
+      ]
+    },
+    "intent_component": {
+      "oneOf": [
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["kind", "damage", "hits", "target_ids"],
+          "properties": {
+            "kind": { "const": "attack" },
+            "damage": { "type": "integer", "minimum": 0, "maximum": 65535 },
+            "hits": { "type": "integer", "minimum": 1, "maximum": 255 },
+            "target_ids": { "anyOf": [{ "type": "array", "maxItems": 16, "items": { "$ref": "#/$defs/identity" } }, { "type": "null" }] }
+          }
+        },
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["kind", "target_ids"],
+          "properties": {
+            "kind": { "enum": ["defend", "buff", "debuff", "unknown"] },
+            "target_ids": { "anyOf": [{ "type": "array", "maxItems": 16, "items": { "$ref": "#/$defs/identity" } }, { "type": "null" }] }
+          }
         }
       ]
     },
