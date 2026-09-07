@@ -22,6 +22,8 @@ pub(super) fn test_service() -> Result<RuntimeService, String> {
         recovery_release: RecoveryReleaseSet::unconfigured(),
         recovery_ttl_seconds: 30,
         recovery_renewal_interval_seconds: 10,
+        host_lease_key: vec![0x11; 32],
+        host_principal_id: String::from("00000000-0000-4000-8000-00000000000a"),
     };
     let binding = RuntimeV2Binding::new(
         &config.instance_id,

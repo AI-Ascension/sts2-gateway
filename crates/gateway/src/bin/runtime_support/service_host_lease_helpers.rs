@@ -2,10 +2,12 @@
 
 //! Shared construction and error mapping for host lease operations.
 
+use std::time::{Duration, Instant};
+
 use serde_json::{Value, json};
 use sts2_gateway::{RecoveryBootContext, RecoveryHostFence, RecoveryLease, RecoveryStoreError};
 
-use super::super::host_lease_control::{HostLeaseAck, HostLeaseFrameError};
+use super::super::host_lease_control::{HostLeaseAck, HostLeaseFrameError, HostLeaseKind};
 use super::super::recovery_frame::timestamp_from_millis;
 use super::host_lease::HostLeaseFailure;
 
@@ -63,6 +65,7 @@ pub(super) fn grant_value(
 }
 
 pub(super) fn validate_ack(
+    kind: HostLeaseKind,
     ack: &HostLeaseAck,
     lease: &RecoveryLease,
     fence: &RecoveryHostFence,
@@ -84,18 +87,45 @@ pub(super) fn validate_ack(
             code: "recovery_host_lease_context_mismatch",
         });
     }
-    if let Some((sequence, expires)) = renewal
-        && (ack.renew_sequence != Some(sequence) || ack.expires_at != Some(expires))
-    {
+    let (expected_sequence, expected_expires) = match kind {
+        HostLeaseKind::Install => (None, Some(lease.expires_at_millis)),
+        HostLeaseKind::Renew => renewal
+            .map(|(sequence, expires)| (Some(sequence), Some(expires)))
+            .ok_or_else(HostLeaseFailure::invalid_response)?,
+        HostLeaseKind::Revoke => (None, None),
+    };
+    if ack.renew_sequence != expected_sequence || ack.expires_at != expected_expires {
         return Err(HostLeaseFailure {
             status: 409,
             code: "recovery_host_lease_context_mismatch",
         });
     }
+    if ack.recorded_at >= lease.expires_at_millis {
+        return Err(HostLeaseFailure::expired());
+    }
     if ack.host_install_generation == 0 || ack.message_id.is_empty() {
         return Err(HostLeaseFailure::invalid_response());
     }
     Ok(())
+}
+
+pub(super) fn lease_deadline(
+    expires_at_millis: u64,
+    ttl_seconds: u64,
+    received_at: Instant,
+    received_at_wall_millis: u64,
+) -> Result<Instant, HostLeaseFailure> {
+    let remaining = expires_at_millis
+        .checked_sub(received_at_wall_millis)
+        .filter(|remaining| *remaining > 0)
+        .ok_or_else(HostLeaseFailure::expired)?;
+    let ttl_millis = ttl_seconds
+        .checked_mul(1_000)
+        .ok_or_else(HostLeaseFailure::configuration)?;
+    let remaining = remaining.min(ttl_millis);
+    received_at
+        .checked_add(Duration::from_millis(remaining))
+        .ok_or_else(HostLeaseFailure::configuration)
 }
 
 pub(super) fn frame_correlation(frame: &[u8]) -> String {
@@ -170,5 +200,87 @@ pub(super) fn map_store_error(error: RecoveryStoreError) -> HostLeaseFailure {
             status: 409,
             code: "recovery_host_lease_conflict",
         },
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use sts2_gateway::{RecoveryHostFence, RecoveryLease};
+
+    use super::super::super::host_lease_control::{HostLeaseAck, HostLeaseKind};
+    use super::{HostLeaseFailure, validate_ack};
+
+    const BOOT_ID: &str = "00000000-0000-4000-8000-000000000004";
+    const INSTANCE_INCAR: &str = "00000000-0000-4000-8000-000000000003";
+    const LEASE_ID: &str = "00000000-0000-4000-8000-000000000006";
+    const FENCE_ID: &str = "00000000-0000-4000-8000-000000000005";
+    const INSTALLATION_ID: &str = "00000000-0000-4000-8000-000000000009";
+    const ACK_ID: &str = "00000000-0000-4000-8000-000000000013";
+
+    fn lease(expires_at_millis: u64) -> RecoveryLease {
+        RecoveryLease {
+            deployment_id: String::from("00000000-0000-4000-8000-000000000001"),
+            instance_id: String::from("00000000-0000-4000-8000-000000000002"),
+            instance_incarnation: INSTANCE_INCAR.to_owned(),
+            boot_id: BOOT_ID.to_owned(),
+            authority_generation: 1,
+            lease_id: LEASE_ID.to_owned(),
+            lease_epoch: 1,
+            fence_token: String::from("A").repeat(43),
+            issued_at_millis: expires_at_millis.saturating_sub(30_000),
+            expires_at_millis,
+            ttl_seconds: 30,
+            renewal_interval_seconds: 10,
+            last_renew_sequence: 0,
+        }
+    }
+
+    fn fence() -> RecoveryHostFence {
+        RecoveryHostFence {
+            host_fence_id: FENCE_ID.to_owned(),
+            deployment_id: String::from("00000000-0000-4000-8000-000000000001"),
+            instance_id: String::from("00000000-0000-4000-8000-000000000002"),
+            instance_incarnation: INSTANCE_INCAR.to_owned(),
+            boot_id: BOOT_ID.to_owned(),
+            authority_generation: 1,
+            fence_generation: 3,
+            created_at_millis: 1,
+        }
+    }
+
+    fn install_ack(recorded_at: u64, expires_at: u64) -> HostLeaseAck {
+        HostLeaseAck {
+            installation_id: INSTALLATION_ID.to_owned(),
+            grant_digest: "a".repeat(64),
+            boot_id: BOOT_ID.to_owned(),
+            instance_incarnation: INSTANCE_INCAR.to_owned(),
+            host_fence_id: FENCE_ID.to_owned(),
+            fence_generation: 3,
+            lease_id: LEASE_ID.to_owned(),
+            lease_epoch: 1,
+            host_install_generation: 1,
+            recorded_at,
+            renew_sequence: None,
+            expires_at: Some(expires_at),
+            message_id: ACK_ID.to_owned(),
+        }
+    }
+
+    #[test]
+    fn delayed_ack_is_rejected_at_the_expiry_boundary() {
+        let current_lease = lease(2_000);
+        let delayed = install_ack(2_000, current_lease.expires_at_millis);
+        assert_eq!(
+            validate_ack(
+                HostLeaseKind::Install,
+                &delayed,
+                &current_lease,
+                &fence(),
+                INSTALLATION_ID,
+                &"a".repeat(64),
+                None,
+            ),
+            Err(HostLeaseFailure::expired())
+        );
     }
 }

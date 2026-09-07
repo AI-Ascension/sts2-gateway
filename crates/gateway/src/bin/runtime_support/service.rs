@@ -79,6 +79,8 @@ struct RuntimeConfig {
     recovery_release: RecoveryReleaseSet,
     recovery_ttl_seconds: u64,
     recovery_renewal_interval_seconds: u64,
+    host_lease_key: Vec<u8>,
+    host_principal_id: String,
 }
 
 struct QueuedRequest {

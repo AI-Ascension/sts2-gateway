@@ -125,11 +125,17 @@ pub(super) fn parse_response(
     bytes: &[u8],
     kind: HostLeaseKind,
     secret: &[u8],
+    expected_principal_id: &str,
 ) -> Result<Value, HostLeaseFrameError> {
     if secret.len() != 32 {
         return Err(HostLeaseFrameError::Configuration);
     }
     let value = parse_frame(bytes, kind, true)?;
+    if value["actor"]["principal_id"].as_str() != Some(expected_principal_id)
+        || value["auth"]["principal_id"].as_str() != Some(expected_principal_id)
+    {
+        return Err(HostLeaseFrameError::Authentication);
+    }
     let Some(proof) = value["auth"]["proof"].as_str() else {
         return Err(HostLeaseFrameError::Authentication);
     };
@@ -171,17 +177,38 @@ pub(super) fn canonical_hcj1(value: &Value) -> Result<Vec<u8>, HostLeaseFrameErr
     crypto::canonical_hcj1(value)
 }
 
-pub(super) fn secret_from_environment() -> Result<Vec<u8>, HostLeaseFrameError> {
+pub(super) fn host_lease_key_from_environment() -> Result<Vec<u8>, HostLeaseFrameError> {
     use base64::Engine;
-    let encoded = std::env::var("STS2_RUNTIME_BOOTSTRAP_SECRET")
-        .map_err(|_| HostLeaseFrameError::Configuration)?;
-    let secret = base64::engine::general_purpose::STANDARD
-        .decode(encoded)
-        .map_err(|_| HostLeaseFrameError::Configuration)?;
+    let encoded = std::env::var("STS2_RUNTIME_HOST_LEASE_KEY")
+        .map_err(|_| HostLeaseFrameError::Configuration)?
+        .trim()
+        .to_owned();
+    let secret = if encoded.len() == 64 && encoded.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        let mut bytes = Vec::with_capacity(32);
+        for pair in encoded.as_bytes().chunks_exact(2) {
+            let high = hex_value(pair[0]).ok_or(HostLeaseFrameError::Configuration)?;
+            let low = hex_value(pair[1]).ok_or(HostLeaseFrameError::Configuration)?;
+            bytes.push((high << 4) | low);
+        }
+        bytes
+    } else {
+        base64::engine::general_purpose::STANDARD
+            .decode(encoded)
+            .map_err(|_| HostLeaseFrameError::Configuration)?
+    };
     if secret.len() != 32 {
         return Err(HostLeaseFrameError::Configuration);
     }
     Ok(secret)
+}
+
+fn hex_value(byte: u8) -> Option<u8> {
+    match byte {
+        b'0'..=b'9' => Some(byte - b'0'),
+        b'a'..=b'f' => Some(byte - b'a' + 10),
+        b'A'..=b'F' => Some(byte - b'A' + 10),
+        _ => None,
+    }
 }
 
 pub(super) fn ack_status(value: &Value, kind: HostLeaseKind) -> Option<&str> {
@@ -243,7 +270,7 @@ fn parse_frame(
     if bytes.len() > MAX_HOST_LEASE_FRAME_BYTES {
         return Err(HostLeaseFrameError::Oversized);
     }
-    let value = strict_json::parse(bytes).map_err(|_| HostLeaseFrameError::Invalid)?;
+    let value = strict_json::parse_hcj1(bytes).map_err(|_| HostLeaseFrameError::Invalid)?;
     validate_frame_shape(&value, kind, response)?;
     Ok(value)
 }

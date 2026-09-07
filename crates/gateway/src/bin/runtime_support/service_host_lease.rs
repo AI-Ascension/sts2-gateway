@@ -7,9 +7,11 @@ use sts2_gateway::{
 };
 
 use super::super::host_lease_control::{
-    HostLeaseKind, ack_context, ack_status, grant_digest, request_frame, secret_from_environment,
+    HostLeaseKind, ack_context, ack_status, grant_digest, request_frame,
 };
-use super::host_lease_helpers::{grant_value, map_frame_error, map_store_error, validate_ack};
+use super::host_lease_helpers::{
+    grant_value, lease_deadline, map_frame_error, map_store_error, validate_ack,
+};
 use super::{HostLeaseGrant, HttpRequest, RuntimeService, json_error, safe_identity};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -30,6 +32,13 @@ impl HostLeaseFailure {
         Self {
             status: 503,
             code: "recovery_host_lease_outcome_unknown",
+        }
+    }
+
+    pub(super) const fn expired() -> Self {
+        Self {
+            status: 410,
+            code: "recovery_lease_expired",
         }
     }
 
@@ -98,15 +107,18 @@ impl RuntimeService {
         lease: &RecoveryLease,
         correlation: &str,
     ) -> Result<RecoveryLease, HostLeaseFailure> {
+        let send_started = std::time::Instant::now();
         let (installation_id, grant, digest, already_installed) =
             self.prepare_host_install(boot, fence, lease)?;
+        let received_at = self.recovery_now_millis();
+        self.establish_install_deadline(lease, send_started, received_at)?;
         if already_installed {
             self.recovery_host_grant = Some(HostLeaseGrant {
                 installation_id,
                 grant_digest: digest,
                 grant,
             });
-            self.activate_recovery_lease(lease.clone());
+            self.activate_recovery_lease(lease.clone())?;
             return Ok(lease.clone());
         }
         // Retain the exact grant before any configuration lookup or frame
@@ -117,7 +129,6 @@ impl RuntimeService {
             grant_digest: digest.clone(),
             grant: grant.clone(),
         });
-        let secret = secret_from_environment().map_err(map_frame_error)?;
         let frame = request_frame(
             HostLeaseKind::Install,
             &self.config.caller_id,
@@ -127,14 +138,24 @@ impl RuntimeService {
                 "grant": grant,
                 "grant_digest": digest,
             }),
-            &secret,
+            &self.config.host_lease_key,
         )
         .map_err(map_frame_error)?;
         let response = self.forward_host_lease(HostLeaseKind::Install, &frame)?;
+        let response_received_at = self.recovery_now_millis();
+        self.establish_install_deadline(lease, send_started, response_received_at)?;
         let status = ack_status(&response, HostLeaseKind::Install)
             .ok_or_else(HostLeaseFailure::invalid_response)?;
         let ack = ack_context(&response).ok_or_else(HostLeaseFailure::invalid_response)?;
-        validate_ack(&ack, lease, fence, &installation_id, &digest, None)?;
+        validate_ack(
+            HostLeaseKind::Install,
+            &ack,
+            lease,
+            fence,
+            &installation_id,
+            &digest,
+            None,
+        )?;
         if let Err(error) = self
             .recovery
             .as_mut()
@@ -156,7 +177,7 @@ impl RuntimeService {
             grant,
         });
         if status == "INSTALLED" || status == "DUPLICATE" {
-            self.activate_recovery_lease(lease.clone());
+            self.activate_recovery_lease(lease.clone())?;
             Ok(lease.clone())
         } else {
             Err(HostLeaseFailure::invalid_response())
@@ -169,6 +190,7 @@ impl RuntimeService {
         sequence: u64,
         correlation: &str,
     ) -> Result<RecoveryLease, HostLeaseFailure> {
+        let send_started = std::time::Instant::now();
         let now = self.recovery_now_millis();
         let candidate = self
             .recovery
@@ -176,6 +198,12 @@ impl RuntimeService {
             .ok_or(HostLeaseFailure::configuration())?
             .prepare_host_lease_renew(proof, sequence, now)
             .map_err(map_store_error)?;
+        let renewal_deadline = lease_deadline(
+            candidate.expires_at_millis,
+            candidate.ttl_seconds,
+            send_started,
+            now,
+        )?;
         let boot = self
             .recovery_boot
             .clone()
@@ -210,7 +238,6 @@ impl RuntimeService {
                 .set_host_lease_grant_digest(&candidate.lease_id, &installation_id, &digest)
                 .map_err(map_store_error)?;
         }
-        let secret = secret_from_environment().map_err(map_frame_error)?;
         let frame = request_frame(
             HostLeaseKind::Renew,
             &self.config.caller_id,
@@ -221,7 +248,7 @@ impl RuntimeService {
                 "grant_digest": digest,
                 "renew_sequence": sequence,
             }),
-            &secret,
+            &self.config.host_lease_key,
         )
         .map_err(map_frame_error)?;
         let response = self.forward_host_lease(HostLeaseKind::Renew, &frame)?;
@@ -229,6 +256,7 @@ impl RuntimeService {
             .ok_or_else(HostLeaseFailure::invalid_response)?;
         let ack = ack_context(&response).ok_or_else(HostLeaseFailure::invalid_response)?;
         validate_ack(
+            HostLeaseKind::Renew,
             &ack,
             &candidate,
             &fence,
@@ -238,6 +266,9 @@ impl RuntimeService {
         )?;
         if status != "RENEWED" && status != "RENEW_DUPLICATE" {
             return Err(HostLeaseFailure::invalid_response());
+        }
+        if std::time::Instant::now() >= renewal_deadline {
+            return Err(HostLeaseFailure::expired());
         }
         self.recovery
             .as_mut()
@@ -258,7 +289,12 @@ impl RuntimeService {
             grant_digest: digest,
             grant,
         });
-        self.activate_recovery_lease(candidate.clone());
+        self.recovery_lease_deadline = Some(renewal_deadline);
+        self.activate_recovery_lease(candidate.clone())?;
         Ok(candidate)
     }
 }
+
+#[cfg(test)]
+#[path = "service_host_lease_tests.rs"]
+mod tests;

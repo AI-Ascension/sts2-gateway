@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 
+use super::super::host_lease_control::host_lease_key_from_environment;
 use super::*;
 use uuid::{Uuid, Variant};
 
@@ -63,6 +64,21 @@ impl RuntimeConfig {
             parse_recovery_seconds("STS2_RECOVERY_LEASE_TTL_SECONDS", "30", 5, 300)?;
         let recovery_renewal_interval_seconds =
             parse_recovery_seconds("STS2_RECOVERY_LEASE_RENEWAL_INTERVAL_SECONDS", "10", 1, 100)?;
+        let (host_lease_key, host_principal_id) = if recovery_profile
+            || recovery_store_path.is_some()
+        {
+            let host_principal_id = required("STS2_RUNTIME_HOST_PRINCIPAL_ID")?;
+            if !valid_uuid(&host_principal_id) {
+                return Err(String::from(
+                    "STS2_RUNTIME_HOST_PRINCIPAL_ID must be a lowercase RFC-4122 UUID",
+                ));
+            }
+            let host_lease_key = host_lease_key_from_environment()
+                .map_err(|_| String::from("STS2_RUNTIME_HOST_LEASE_KEY must encode 32 bytes"))?;
+            (host_lease_key, host_principal_id)
+        } else {
+            (Vec::new(), String::new())
+        };
         for (name, value) in [
             ("STS2_INSTANCE_ID", &instance_id),
             ("STS2_CALLER_ID", &caller_id),
@@ -145,6 +161,8 @@ impl RuntimeConfig {
             recovery_release,
             recovery_ttl_seconds,
             recovery_renewal_interval_seconds,
+            host_lease_key,
+            host_principal_id,
         })
     }
 }

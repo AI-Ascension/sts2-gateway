@@ -101,7 +101,8 @@ impl GatewayRecoveryStore {
             .query_row(
                 "SELECT status, deployment_id, instance_id, instance_incarnation, boot_id,
                         authority_generation, host_installation_id, host_grant_digest,
-                        host_state, host_fence_id, host_fence_generation
+                        host_state, host_fence_id, host_fence_generation,
+                        expires_at_millis
                  FROM leases WHERE lease_id = ?1",
                 [lease_id],
                 |row| {
@@ -118,12 +119,16 @@ impl GatewayRecoveryStore {
                             .map_err(|_| rusqlite::Error::InvalidQuery)?,
                         row.get::<_, Option<String>>(9)?,
                         row.get::<_, Option<i64>>(10)?,
+                        row_u64(row, 11)?,
                     ))
                 },
             )
             .optional()
             .map_err(map_sql_error)?
             .ok_or(RecoveryStoreError::LeaseNotFound)?;
+        if now_millis >= row.11 {
+            return Err(RecoveryStoreError::LeaseExpired);
+        }
         if row.0 != "ACTIVE" {
             return Err(if row.0 == "EXPIRED" {
                 RecoveryStoreError::LeaseExpired

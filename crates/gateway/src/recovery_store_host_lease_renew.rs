@@ -156,6 +156,9 @@ impl GatewayRecoveryStore {
         if row.6.as_deref() != Some(installation_id) {
             return Err(RecoveryStoreError::StaleLease);
         }
+        if ack_recorded_at_millis >= expires_at_millis {
+            return Err(RecoveryStoreError::LeaseExpired);
+        }
         if row.0 == RecoveryHostLeaseState::Installed
             && row.3 == host_install_generation
             && row.4 == renew_sequence

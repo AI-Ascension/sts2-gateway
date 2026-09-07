@@ -2,7 +2,7 @@
 
 //! Host lease revoke, installation preparation, and transport operations.
 
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use serde_json::{Value, json};
 use sts2_gateway::{RecoveryBootContext, RecoveryHostFence, RecoveryHostLeaseState, RecoveryLease};
@@ -10,13 +10,12 @@ use uuid::Uuid;
 
 use super::super::host_lease_control::{
     HostLeaseKind, ack_context, ack_status, grant_digest, parse_response, request_frame,
-    secret_from_environment,
 };
 use super::super::recovery_control::HttpRecoveryControlForwarder;
 use super::RuntimeService;
 use super::host_lease::HostLeaseFailure;
 use super::host_lease_helpers::{
-    frame_correlation, grant_value, map_frame_error, map_store_error, validate_ack,
+    frame_correlation, grant_value, lease_deadline, map_frame_error, map_store_error, validate_ack,
 };
 
 impl RuntimeService {
@@ -69,7 +68,6 @@ impl RuntimeService {
         if binding.grant_digest.as_deref() != Some(digest.as_str()) {
             return Err(HostLeaseFailure::unknown());
         }
-        let secret = secret_from_environment().map_err(map_frame_error)?;
         let frame = request_frame(
             HostLeaseKind::Revoke,
             &self.config.caller_id,
@@ -80,14 +78,22 @@ impl RuntimeService {
                 "grant_digest": digest,
                 "reason": reason,
             }),
-            &secret,
+            &self.config.host_lease_key,
         )
         .map_err(map_frame_error)?;
         let response = self.forward_host_lease(HostLeaseKind::Revoke, &frame)?;
         let status = ack_status(&response, HostLeaseKind::Revoke)
             .ok_or_else(HostLeaseFailure::invalid_response)?;
         let ack = ack_context(&response).ok_or_else(HostLeaseFailure::invalid_response)?;
-        validate_ack(&ack, &lease, &fence, &installation_id, &digest, None)?;
+        validate_ack(
+            HostLeaseKind::Revoke,
+            &ack,
+            &lease,
+            &fence,
+            &installation_id,
+            &digest,
+            None,
+        )?;
         if status != "REVOKED" && status != "REVOKE_DUPLICATE" {
             return Err(HostLeaseFailure::invalid_response());
         }
@@ -191,7 +197,7 @@ impl RuntimeService {
             HttpRecoveryControlForwarder::new(&self.config.mod_address, &self.config.mod_token);
         let response =
             forwarder
-                .forward_host_lease_frame(kind, frame)
+                .forward_host_lease_frame(kind, frame, &self.config.host_lease_key)
                 .map_err(|error| {
                     match error {
                 super::super::recovery_control::RecoveryControlTransportFault::InvalidConfiguration
@@ -224,9 +230,13 @@ impl RuntimeService {
                 }
             });
         }
-        let secret = secret_from_environment().map_err(map_frame_error)?;
-        let kind_response =
-            parse_response(&response.body, kind, &secret).map_err(map_frame_error)?;
+        let kind_response = parse_response(
+            &response.body,
+            kind,
+            &self.config.host_lease_key,
+            &self.config.host_principal_id,
+        )
+        .map_err(map_frame_error)?;
         if kind_response["correlation_id"] != frame_correlation(frame) {
             return Err(HostLeaseFailure {
                 status: 409,
@@ -236,15 +246,51 @@ impl RuntimeService {
         Ok(kind_response)
     }
 
-    pub(super) fn activate_recovery_lease(&mut self, lease: RecoveryLease) {
+    pub(super) fn activate_recovery_lease(
+        &mut self,
+        lease: RecoveryLease,
+    ) -> Result<(), HostLeaseFailure> {
         let now = self.recovery_now_millis();
-        let remaining = lease
-            .expires_at_millis
-            .saturating_sub(now)
-            .min(lease.ttl_seconds.saturating_mul(1_000));
-        self.recovery_lease_deadline = Some(Instant::now() + Duration::from_millis(remaining));
+        let Some(deadline) = self.recovery_lease_deadline else {
+            return Err(HostLeaseFailure::expired());
+        };
+        if now >= lease.expires_at_millis || Instant::now() >= deadline {
+            self.recovery_lease_deadline = None;
+            self.lease_active = false;
+            return Err(HostLeaseFailure::expired());
+        }
         self.recovery_lease = Some(lease);
         self.lease_active = true;
         self.lease_revoked = false;
+        Ok(())
+    }
+
+    pub(super) fn establish_install_deadline(
+        &mut self,
+        lease: &RecoveryLease,
+        send_started: Instant,
+        received_at: u64,
+    ) -> Result<(), HostLeaseFailure> {
+        if self
+            .recovery_lease
+            .as_ref()
+            .is_some_and(|current| current.lease_id != lease.lease_id)
+        {
+            self.recovery_lease_deadline = None;
+        }
+        if let Some(deadline) = self.recovery_lease_deadline {
+            if received_at >= lease.expires_at_millis || Instant::now() >= deadline {
+                self.recovery_lease_deadline = None;
+                return Err(HostLeaseFailure::expired());
+            }
+            return Ok(());
+        }
+        self.recovery_lease_deadline = Some(lease_deadline(
+            lease.expires_at_millis,
+            lease.ttl_seconds,
+            send_started,
+            received_at,
+        )?);
+        Ok(())
     }
 }

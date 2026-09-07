@@ -55,7 +55,8 @@ impl GatewayRecoveryStore {
             .query_row(
                 "SELECT host_state, host_installation_id, host_grant_digest,
                         host_install_generation, host_renew_sequence,
-                        host_ack_message_id, host_ack_recorded_at_millis
+                        host_ack_message_id, host_ack_recorded_at_millis,
+                        expires_at_millis
                  FROM leases WHERE lease_id = ?1",
                 [lease_id],
                 |row| {
@@ -68,12 +69,16 @@ impl GatewayRecoveryStore {
                         row_u64(row, 4)?,
                         row.get::<_, Option<String>>(5)?,
                         row.get::<_, Option<i64>>(6)?,
+                        row_u64(row, 7)?,
                     ))
                 },
             )
             .optional()
             .map_err(map_sql_error)?
             .ok_or(RecoveryStoreError::LeaseNotFound)?;
+        if ack_recorded_at_millis >= row.7 {
+            return Err(RecoveryStoreError::LeaseExpired);
+        }
         if row.1.as_deref() != Some(installation_id) || row.2.as_deref() != Some(grant_digest) {
             return Err(RecoveryStoreError::StaleLease);
         }

@@ -7,8 +7,7 @@ use std::time::{Duration, Instant};
 use sts2_gateway::MAX_RECOVERY_FRAME_BYTES;
 
 use super::host_lease_control::{
-    HostLeaseFrameError, HostLeaseKind, parse_request, secret_from_environment,
-    verify_request_proof,
+    HostLeaseFrameError, HostLeaseKind, parse_request, verify_request_proof,
 };
 use super::http::{HttpResponse, ReadError, read_response, write_request};
 use super::recovery_frame::{RecoveryFrame, RecoveryFrameError, RecoveryKind};
@@ -112,6 +111,7 @@ impl HttpRecoveryControlForwarder {
         &self,
         kind: HostLeaseKind,
         frame: &[u8],
+        secret: &[u8],
     ) -> Result<HttpResponse, RecoveryControlTransportFault> {
         let value = parse_request(frame, kind).map_err(|error| match error {
             super::host_lease_control::HostLeaseFrameError::Oversized => {
@@ -123,16 +123,7 @@ impl HttpRecoveryControlForwarder {
                 RecoveryControlTransportFault::InvalidFrame
             }
         })?;
-        let secret = secret_from_environment().map_err(|error| match error {
-            HostLeaseFrameError::Configuration => {
-                RecoveryControlTransportFault::InvalidConfiguration
-            }
-            HostLeaseFrameError::Oversized => RecoveryControlTransportFault::RequestOversized,
-            HostLeaseFrameError::Invalid | HostLeaseFrameError::Authentication => {
-                RecoveryControlTransportFault::InvalidFrame
-            }
-        })?;
-        verify_request_proof(&value, kind, &secret).map_err(|error| match error {
+        verify_request_proof(&value, kind, secret).map_err(|error| match error {
             HostLeaseFrameError::Oversized => RecoveryControlTransportFault::RequestOversized,
             HostLeaseFrameError::Configuration => {
                 RecoveryControlTransportFault::InvalidConfiguration
