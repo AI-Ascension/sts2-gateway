@@ -23,6 +23,7 @@ pub(super) struct RecoveryCatalogKey {
 #[derive(Debug, Default)]
 pub(super) struct RecoveryCatalogCache {
     current: Option<RecoveryCatalog>,
+    observed: Option<RecoveryCatalogKey>,
 }
 
 #[derive(Debug)]
@@ -46,9 +47,13 @@ impl RecoveryCatalogCache {
             return false;
         };
         if response["kind"] != RuntimeV3GameplayRoute::LegalActions.response_kind()
+            || !response_matches_key(&response, &key)
             || response["state_id"].as_str() != Some(key.state_id.as_str())
             || response["generation"].as_u64() != Some(key.gameplay_generation)
         {
+            return false;
+        }
+        if !self.advance_observation(&key) {
             return false;
         }
         let digest = sha256_hex(&raw);
@@ -59,6 +64,13 @@ impl RecoveryCatalogCache {
             actions,
         });
         true
+    }
+
+    /// Record a state/reobserve observation without treating its embedded legal
+    /// actions as a recovery catalog.  A newer observation invalidates the
+    /// previous catalog; an older or conflicting observation is rejected.
+    pub(super) fn observe(&mut self, key: RecoveryCatalogKey) -> bool {
+        self.advance_observation(&key)
     }
 
     pub(super) fn admission(
@@ -89,6 +101,24 @@ impl RecoveryCatalogCache {
             )
         })
     }
+
+    fn advance_observation(&mut self, key: &RecoveryCatalogKey) -> bool {
+        if let Some(observed) = self.observed.as_ref() {
+            if !same_authority_context(observed, key) {
+                self.current = None;
+            } else if key.gameplay_generation < observed.gameplay_generation
+                || (key.gameplay_generation == observed.gameplay_generation
+                    && key.state_id != observed.state_id)
+            {
+                return false;
+            } else if key.gameplay_generation > observed.gameplay_generation {
+                self.current = None;
+            }
+        }
+
+        self.observed = Some(key.clone());
+        true
+    }
 }
 
 impl RuntimeService {
@@ -108,6 +138,24 @@ impl RuntimeService {
             return false;
         };
         self.recovery_catalog.capture(key, body)
+    }
+
+    pub(super) fn observe_recovery_catalog(
+        &mut self,
+        lease: &RecoveryLease,
+        status: u16,
+        body: &[u8],
+    ) -> bool {
+        if status != 200 {
+            return false;
+        }
+        let Some(response) = super::super::strict_json::parse(body).ok() else {
+            return false;
+        };
+        let Some(key) = self.recovery_catalog_key(lease, &response) else {
+            return false;
+        };
+        self.recovery_catalog.observe(key)
     }
 
     pub(super) fn recovery_catalog_admission(
@@ -149,6 +197,21 @@ impl RuntimeService {
                 gameplay_generation,
             })
     }
+}
+
+fn response_matches_key(response: &Value, key: &RecoveryCatalogKey) -> bool {
+    response["instance_id"].as_str() == Some(key.instance_id.as_str())
+        && response["session_id"].as_str() == Some(key.session_id.as_str())
+        && response["lease_id"].as_str() == Some(key.lease_id.as_str())
+        && response["lease_epoch"].as_u64() == Some(key.lease_epoch)
+}
+
+fn same_authority_context(left: &RecoveryCatalogKey, right: &RecoveryCatalogKey) -> bool {
+    left.instance_id == right.instance_id
+        && left.instance_incarnation == right.instance_incarnation
+        && left.session_id == right.session_id
+        && left.lease_id == right.lease_id
+        && left.lease_epoch == right.lease_epoch
 }
 
 /// Extract the value bytes without reserializing through `serde_json::Value`.

@@ -120,9 +120,15 @@ mod recovery_catalog_tests {
         }
     }
 
-    fn response(raw_actions: &str, generation: u64) -> Vec<u8> {
+    fn response(key: &RecoveryCatalogKey, raw_actions: &str) -> Vec<u8> {
         format!(
-            r#"{{"kind":"legal_actions_response","state_id":"state","generation":{generation},"legal_actions":{raw_actions}}}"#
+            r#"{{"instance_id":"{}","session_id":"{}","lease_id":"{}","lease_epoch":{},"kind":"legal_actions_response","state_id":"{}","generation":{},"legal_actions":{raw_actions}}}"#,
+            key.instance_id,
+            key.session_id,
+            key.lease_id,
+            key.lease_epoch,
+            key.state_id,
+            key.gameplay_generation,
         )
         .into_bytes()
     }
@@ -132,7 +138,8 @@ mod recovery_catalog_tests {
     -> Result<(), Box<dyn std::error::Error>> {
         let raw = r#"[ {"action_id":"a\u0031","action":{"kind":"end_turn"}} ]"#;
         let mut cache = RecoveryCatalogCache::default();
-        assert!(cache.capture(key(9), &response(raw, 9)));
+        let catalog_key = key(9);
+        assert!(cache.capture(catalog_key.clone(), &response(&catalog_key, raw)));
         let (_, bytes, digest) = cache.current().ok_or("catalog")?;
         assert_eq!(bytes, raw.as_bytes());
         assert_eq!(digest, sha256_hex(raw.as_bytes()));
@@ -151,7 +158,8 @@ mod recovery_catalog_tests {
   { "action_id": "a3", "action": { "kind": "end_turn" } }
 ]"#;
         let mut cache = RecoveryCatalogCache::default();
-        assert!(cache.capture(key(10), &response(raw, 10)));
+        let catalog_key = key(10);
+        assert!(cache.capture(catalog_key.clone(), &response(&catalog_key, raw)));
         let (_, bytes, digest) = cache.current().ok_or("catalog")?;
         assert_eq!(bytes, raw.as_bytes());
         assert_eq!(digest, sha256_hex(raw.as_bytes()));
@@ -165,7 +173,8 @@ mod recovery_catalog_tests {
     #[test]
     fn malformed_duplicate_and_trailing_responses_do_not_poison_cache() {
         let mut cache = RecoveryCatalogCache::default();
-        assert!(cache.capture(key(1), &response("[]", 1)));
+        let catalog_key = key(1);
+        assert!(cache.capture(catalog_key.clone(), &response(&catalog_key, "[]")));
         let before = cache
             .current()
             .map(|(_, bytes, digest)| (bytes.to_vec(), digest.to_owned()));
@@ -173,7 +182,7 @@ mod recovery_catalog_tests {
         assert!(
             !cache.capture(
                 key(2),
-                &response("[]", 2)
+                &response(&key(2), "[]")
                     .into_iter()
                     .chain(b" trailing".iter().copied())
                     .collect::<Vec<_>>()
@@ -192,7 +201,8 @@ mod recovery_catalog_tests {
     -> Result<(), Box<dyn std::error::Error>> {
         let action = r#"[{"action_id":"a1","action":{"kind":"end_turn"}}]"#;
         let mut cache = RecoveryCatalogCache::default();
-        assert!(cache.capture(key(1), &response(action, 1)));
+        let catalog_key = key(1);
+        assert!(cache.capture(catalog_key.clone(), &response(&catalog_key, action)));
         let legal: Value =
             serde_json::from_str(r#"{"action_id":"a1","action":{"kind":"end_turn"}}"#)?;
         let digest = sha256_hex(action.as_bytes());
@@ -207,7 +217,8 @@ mod recovery_catalog_tests {
             cache.admission(&key(1), &changed),
             Err(RecoveryCatalogAdmission::ActionNotCurrent)
         );
-        assert!(cache.capture(key(2), &response("[]", 2)));
+        let newer_key = key(2);
+        assert!(cache.capture(newer_key.clone(), &response(&newer_key, "[]")));
         assert_eq!(
             cache.admission(&key(1), &legal),
             Err(RecoveryCatalogAdmission::Stale)
@@ -231,7 +242,8 @@ mod recovery_catalog_tests {
     -> Result<(), Box<dyn std::error::Error>> {
         let action = r#"[{"action_id":"a1","action":{"kind":"end_turn"}}]"#;
         let mut cache = RecoveryCatalogCache::default();
-        assert!(cache.capture(key(1), &response(action, 1)));
+        let catalog_key = key(1);
+        assert!(cache.capture(catalog_key.clone(), &response(&catalog_key, action)));
         let legal: Value =
             serde_json::from_str(r#"{"action_id":"a1","action":{"kind":"end_turn"}}"#)?;
         let mut changed_lease = key(1);

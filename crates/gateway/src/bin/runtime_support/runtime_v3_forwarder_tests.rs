@@ -231,6 +231,51 @@ fn responses_bind_correlation_context_kind_operation_and_witness()
 }
 
 #[test]
+fn legal_actions_response_binds_the_requested_state() -> Result<(), Box<dyn std::error::Error>> {
+    let forwarder = RuntimeV3GameplayForwarder::new(16 * 1024, 128 * 1024);
+    let mut request = fixture("state-request.json")?;
+    request["kind"] = "legal_actions_request".into();
+    request["state_id"] = "combat-1".into();
+    let mut response = fixture("state-response.json")?;
+    response["kind"] = "legal_actions_response".into();
+    response["observation"] = Value::Null;
+    response["legal_actions"] = serde_json::json!([]);
+    let route = RuntimeV3GameplayRoute::LegalActions;
+    assert_eq!(
+        forwarder.validate_response(route, &request, &serde_json::to_vec(&response)?),
+        Ok(())
+    );
+    response["state_id"] = "different-state".into();
+    assert!(
+        forwarder
+            .validate_response(route, &request, &serde_json::to_vec(&response)?)
+            .is_err()
+    );
+    Ok(())
+}
+
+#[test]
+fn legal_actions_response_binds_the_requested_generation() -> Result<(), Box<dyn std::error::Error>>
+{
+    let forwarder = RuntimeV3GameplayForwarder::new(16 * 1024, 128 * 1024);
+    let mut request = fixture("state-request.json")?;
+    request["kind"] = "legal_actions_request".into();
+    request["state_id"] = "combat-1".into();
+    let mut response = fixture("state-response.json")?;
+    response["kind"] = "legal_actions_response".into();
+    response["observation"] = Value::Null;
+    response["legal_actions"] = serde_json::json!([]);
+    response["generation"] = 1.into();
+    let route = RuntimeV3GameplayRoute::LegalActions;
+    assert!(
+        forwarder
+            .validate_response(route, &request, &serde_json::to_vec(&response)?)
+            .is_err()
+    );
+    Ok(())
+}
+
+#[test]
 fn semantic_bounds_reject_duplicate_catalog_ids_and_oversized_utf8()
 -> Result<(), Box<dyn std::error::Error>> {
     let mut response = fixture("state-response.json")?;

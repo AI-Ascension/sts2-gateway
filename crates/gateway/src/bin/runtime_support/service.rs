@@ -280,6 +280,9 @@ mod auth_tests;
 #[path = "service_tests.rs"]
 mod legacy_tests;
 #[cfg(test)]
+#[path = "service_recovery_catalog_tests.rs"]
+mod recovery_catalog_tests;
+#[cfg(test)]
 #[path = "service_routes_tests.rs"]
 mod routes_tests;
 #[cfg(test)]

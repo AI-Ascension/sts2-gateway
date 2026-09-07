@@ -58,13 +58,30 @@ impl RuntimeService {
                     .validate_response(route, &envelope, &response.body)
                 {
                     Ok(()) => {
-                        if route == RuntimeV3GameplayRoute::LegalActions
-                            && let Some(lease) = self.recovery_lease.clone()
-                        {
-                            // Only a schema- and relation-validated successful
-                            // host response can establish the state-scoped
-                            // catalog used by recovery admission.
-                            self.capture_recovery_catalog(&lease, response.status, &response.body);
+                        if let Some(lease) = self.recovery_lease.clone() {
+                            // Only a schema-, relation-, and authority-context-validated
+                            // response can change the state-scoped recovery catalog. State and
+                            // reobserve responses establish freshness but never become the
+                            // executable catalog themselves.
+                            let catalog_update = match route {
+                                RuntimeV3GameplayRoute::LegalActions => self
+                                    .capture_recovery_catalog(
+                                        &lease,
+                                        response.status,
+                                        &response.body,
+                                    ),
+                                RuntimeV3GameplayRoute::State
+                                | RuntimeV3GameplayRoute::Reobserve => self
+                                    .observe_recovery_catalog(
+                                        &lease,
+                                        response.status,
+                                        &response.body,
+                                    ),
+                                _ => true,
+                            };
+                            if !catalog_update {
+                                return (502, json_error("runtime_v3_catalog_observation_invalid"));
+                            }
                         }
                         (response.status, response.body)
                     }
