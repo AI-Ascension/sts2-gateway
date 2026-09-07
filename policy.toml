@@ -1,4 +1,4 @@
-policy_version = 1
+policy_version = 2
 
 [project]
 required_files = [
@@ -52,7 +52,7 @@ required_files = [
   "tools/repo-policy/src/license.rs",
   "tools/repo-policy/src/main.rs",
   "tools/repo-policy/src/markdown.rs",
-  "tools/repo-policy/src/rust.rs",
+  "tools/repo-policy/src/rust.rs", "tools/repo-policy/src/rust_paths.rs", "tools/repo-policy/src/rust_lints.rs", "tools/repo-policy/src/rust_tests.rs",
   "tools/repo-policy/src/workflow.rs",
   ".github/workflows/ci.yml",
   ".github/workflows/policy.yml",
@@ -74,7 +74,11 @@ ignored_directories = [
   "target",
   "vendor",
 ]
-ignored_path_prefixes = []
+ignored_path_prefixes = ["standards/tools/standards-sync"]
+
+[severity]
+mandatory = ["*"]
+advisory = ["SIZE001"]
 
 [limits]
 rust_production_preferred = 300

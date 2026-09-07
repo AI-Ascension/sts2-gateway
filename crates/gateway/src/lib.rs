@@ -1,5 +1,19 @@
 // SPDX-License-Identifier: MIT
 
+//! Bounded lifecycle, lease, and forwarding primitives for one gateway instance.
+//!
+//! Gateway configuration rejects zero capacities and limits before runtime construction:
+//!
+//! ```
+//! use sts2_gateway::{ConfigError, GatewayConfig};
+//!
+//! assert!(GatewayConfig::try_new(4, 1_000, 4_096, 8_192).is_ok());
+//! assert_eq!(
+//!     GatewayConfig::try_new(0, 1_000, 4_096, 8_192),
+//!     Err(ConfigError::ZeroCapacity)
+//! );
+//! ```
+
 mod control;
 mod coop_session;
 mod fencing;

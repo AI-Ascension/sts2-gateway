@@ -1,6 +1,7 @@
 name: Continuous integration
 
 on:
+  merge_group:
   pull_request:
   push:
     branches:
@@ -49,12 +50,24 @@ jobs:
       - name: Check formatting
         run: cargo fmt --all --check
 
+      - name: Enforce repository policy
+        run: cargo run --locked --package repo-policy -- --strict
+
+      - name: Validate adopted standards bundle
+        run: cargo run --locked --manifest-path standards/tools/standards-sync/Cargo.toml -- validate --root .
+
       - name: Verify co-op synchronization artifact inventory
         working-directory: protocol-artifact/coop-synchronization-v1
         run: sha256sum -c SHA256SUMS
+
+      - name: Enforce production restrictions through Clippy
+        run: cargo clippy --workspace --lib --bins --all-features --locked -- -D warnings -F clippy::unwrap_used -F clippy::expect_used -F clippy::panic -F clippy::todo -F clippy::unimplemented
 
       - name: Run Clippy
         run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 
       - name: Run Rust tests
         run: cargo test --workspace --all-targets --all-features --locked
+
+      - name: Run Rust documentation tests
+        run: cargo test --workspace --all-features --doc --locked

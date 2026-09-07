@@ -46,11 +46,49 @@ pub(crate) fn collect(root: &Path, policy: &Policy) -> Result<Vec<PathBuf>, Stri
     Ok(files)
 }
 
+pub(crate) fn symlink_findings(root: &Path, policy: &Policy) -> Vec<Finding> {
+    let mut findings = Vec::new();
+    let mut pending = vec![root.to_path_buf()];
+    while let Some(directory) = pending.pop() {
+        let Ok(entries) = fs::read_dir(&directory) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let Ok(metadata) = fs::symlink_metadata(&path) else {
+                continue;
+            };
+            let relative = path.strip_prefix(root).map_or_else(
+                |_| path.to_string_lossy().replace('\\', "/"),
+                |value| value.to_string_lossy().replace('\\', "/"),
+            );
+            if metadata.file_type().is_symlink() {
+                let managed_root = relative == "standards/tools/standards-sync";
+                if !ignored_directory(Path::new(&relative), policy) || managed_root {
+                    findings.push(Finding::error(
+                        "CFG001",
+                        &relative,
+                        "symbolic links are not permitted in checked source paths",
+                    ));
+                }
+                continue;
+            }
+            if metadata.is_dir() && !ignored_directory(Path::new(&relative), policy) {
+                pending.push(path);
+            }
+        }
+    }
+    findings
+}
+
 pub(crate) fn required_file_findings(root: &Path, policy: &Policy) -> Vec<Finding> {
     policy
         .required_files
         .iter()
-        .filter(|relative| !root.join(*relative).is_file())
+        .filter(|relative| {
+            !fs::symlink_metadata(root.join(*relative))
+                .is_ok_and(|metadata| metadata.is_file() && !metadata.file_type().is_symlink())
+        })
         .map(|relative| Finding::error("DOC001", relative, "required file is missing"))
         .collect()
 }
@@ -71,7 +109,9 @@ pub(crate) fn exemption_findings(root: &Path, policy: &Policy) -> Vec<Finding> {
                 relative,
                 "exemption reason must contain at least 20 characters",
             ));
-        } else if !root.join(path).is_file() {
+        } else if !fs::symlink_metadata(root.join(path))
+            .is_ok_and(|metadata| metadata.is_file() && !metadata.file_type().is_symlink())
+        {
             findings.push(Finding::error(
                 "EXC001",
                 relative,
@@ -202,10 +242,15 @@ fn is_test_path(path: &Path, name: &str, suffixes: &[&str]) -> bool {
 }
 
 fn ignored_directory(relative: &Path, policy: &Policy) -> bool {
+    let rust_binary_sources = relative.file_name().is_some_and(|name| name == "bin")
+        && relative
+            .parent()
+            .and_then(Path::file_name)
+            .is_some_and(|name| name == "src");
     relative
         .file_name()
         .and_then(|name| name.to_str())
-        .is_some_and(|name| policy.ignored_directories.contains(name))
+        .is_some_and(|name| policy.ignored_directories.contains(name) && !rust_binary_sources)
         || ignored_prefix(relative, policy)
 }
 

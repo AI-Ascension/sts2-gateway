@@ -25,7 +25,9 @@ Run from `sts2-gateway`:
 cargo run --locked --package repo-policy -- --strict
 ```
 
-`--strict` promotes size warnings to failures. The same command runs in
+This target uses policy version 2: its explicit severity table keeps preferred `SIZE001` guidance
+advisory while all unclassified findings remain mandatory. Version 1 remains supported for legacy
+callers, where `--strict` promotes every warning. The same command runs in
 [`.github/workflows/policy.yml`](../.github/workflows/policy.yml), after the tool's own tests. The
 CI workflow repeats formatting, Clippy, and tests with the pinned lockfile.
 
@@ -44,3 +46,13 @@ The former directory-name ignore for `bin` also skipped `crates/gateway/src/bin`
 attached runtime's source. That ignore is removed: runtime source and its concern-specific test
 modules now receive the unchanged size, license, and language checks. A regression test loads this
 repository's actual policy and verifies the runtime entrypoint, service, and HTTP parser are scanned.
+
+## Production lint scope
+
+The production Clippy lane selects workspace libraries and binaries and forbids
+unwrap, expect, panic, todo and unimplemented on the compiler command line.
+A source-level allowance cannot override that lane. The existing all-target lane
+still checks tests with their scoped allowances. `production_lints` runs real
+compiler fixtures for forbidden constructs, an attempted blanket allowance,
+and valid comments/test-only code. Missing Clippy or an unrelated compiler
+failure cannot satisfy a negative case: its diagnostic must identify the rule.
