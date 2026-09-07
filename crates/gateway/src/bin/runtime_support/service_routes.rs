@@ -4,9 +4,12 @@ use super::*;
 
 impl RuntimeService {
     pub(super) fn handle_request(&mut self, request: &HttpRequest) -> (u16, Vec<u8>) {
-        if let Some(rejection) =
-            request_rejection(request, &self.config.auth_policy, &self.config.instance_id)
-        {
+        if let Some(rejection) = request_rejection(
+            request,
+            &self.config.auth_policy,
+            &self.config.instance_id,
+            self.recovery.is_some(),
+        ) {
             return rejection;
         }
         if let Some(route) =
@@ -15,6 +18,70 @@ impl RuntimeService {
             return self.runtime_v3_request(request, route);
         }
         match (request.method.as_str(), request.path.as_str()) {
+            ("POST", "/v1/recovery/bootstrap")
+                if request.content_type_is_json() && !request.body.is_empty() =>
+            {
+                self.recovery_route(
+                    request,
+                    super::super::recovery_frame::RecoveryKind::Bootstrap,
+                )
+            }
+            ("POST", "/v1/recovery/lease/acquire")
+                if request.content_type_is_json() && !request.body.is_empty() =>
+            {
+                self.recovery_route(
+                    request,
+                    super::super::recovery_frame::RecoveryKind::LeaseAcquire,
+                )
+            }
+            ("POST", "/v1/recovery/lease/renew")
+                if request.content_type_is_json() && !request.body.is_empty() =>
+            {
+                self.recovery_route(
+                    request,
+                    super::super::recovery_frame::RecoveryKind::LeaseRenew,
+                )
+            }
+            ("POST", "/v1/recovery/lease/revoke")
+                if request.content_type_is_json() && !request.body.is_empty() =>
+            {
+                self.recovery_route(
+                    request,
+                    super::super::recovery_frame::RecoveryKind::LeaseRevoke,
+                )
+            }
+            ("POST", "/v1/recovery/operation/intent")
+                if request.content_type_is_json() && !request.body.is_empty() =>
+            {
+                self.recovery_route(
+                    request,
+                    super::super::recovery_frame::RecoveryKind::OperationIntent,
+                )
+            }
+            ("POST", "/v1/recovery/operation/dispatch")
+                if request.content_type_is_json() && !request.body.is_empty() =>
+            {
+                self.recovery_route(
+                    request,
+                    super::super::recovery_frame::RecoveryKind::OperationDispatch,
+                )
+            }
+            ("POST", "/v1/recovery/operation/lookup")
+                if request.content_type_is_json() && !request.body.is_empty() =>
+            {
+                self.recovery_route(
+                    request,
+                    super::super::recovery_frame::RecoveryKind::OperationLookup,
+                )
+            }
+            ("POST", "/v1/recovery/operation/reconcile")
+                if request.content_type_is_json() && !request.body.is_empty() =>
+            {
+                self.recovery_route(
+                    request,
+                    super::super::recovery_frame::RecoveryKind::OperationReconcile,
+                )
+            }
             ("GET", path) if path == self.coop_synchronization_path() => {
                 self.coop_synchronization(request)
             }
@@ -25,6 +92,8 @@ impl RuntimeService {
                 self.recovery_host_fence(request)
             }
             ("GET", "/health/ready") if request.body.is_empty() => self.health(),
+            ("GET", "/health/live") if request.body.is_empty() => self.health_live(),
+            ("GET", "/health/progress") if request.body.is_empty() => self.health_progress(),
             ("POST", "/v1/sessions/allocate")
                 if request.content_type_is_json() && !request.body.is_empty() =>
             {
@@ -82,6 +151,18 @@ impl RuntimeService {
         if let Err(error) = self.check_lease(request) {
             return error;
         }
+        if self.recovery.is_some() {
+            let Some(lease) = self.recovery_lease.clone() else {
+                return (409, json_error("lease_not_active"));
+            };
+            if let Some(store) = self.recovery.as_mut()
+                && let Err(error) = store.revoke_lease(&lease.proof(), "shutdown")
+            {
+                return super::recovery_wire::recovery_store_error(error);
+            }
+            self.recovery_lease = None;
+            self.recovery_lease_deadline = None;
+        }
         self.lease_active = false;
         self.lease_revoked = true;
         self.shutdown_requested = true;
@@ -131,7 +212,10 @@ impl RuntimeService {
             .filter(|operation_id| !operation_id.is_empty() && !operation_id.contains('/'))
     }
 
-    pub(super) fn health(&self) -> (u16, Vec<u8>) {
+    pub(super) fn health(&mut self) -> (u16, Vec<u8>) {
+        if self.recovery.is_some() && !self.recovery_ready() {
+            return (503, json_error("recovery_host_fence_required"));
+        }
         match self.forward_mod("GET", "/health/ready", &[], None) {
             Ok(response) if response.status == 200 => (
                 200,
@@ -144,5 +228,31 @@ impl RuntimeService {
             Ok(_) => (503, json_error("downstream_not_ready")),
             Err(status) => (status, json_error("downstream_unavailable")),
         }
+    }
+
+    pub(super) fn health_live(&self) -> (u16, Vec<u8>) {
+        (
+            200,
+            json_bytes(&json!({
+                "status": "live",
+                "instance_id": self.config.instance_id,
+            })),
+        )
+    }
+
+    pub(super) fn health_progress(&mut self) -> (u16, Vec<u8>) {
+        let mut body = self
+            .metrics
+            .snapshot(&self.config.instance_id, self.config.queue_capacity);
+        if let Some(store) = self.recovery.as_ref() {
+            match store.unresolved_count() {
+                Ok(count) => body["recovery_unresolved_operations"] = count.into(),
+                Err(_) => return (503, json_error("recovery_persistence_unavailable")),
+            }
+            body["recovery_ready"] = self.recovery_ready().into();
+        } else {
+            body["recovery_ready"] = true.into();
+        }
+        (200, json_bytes(&body))
     }
 }

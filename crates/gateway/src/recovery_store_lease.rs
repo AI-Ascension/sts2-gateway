@@ -3,7 +3,7 @@
 use super::super::GatewayRecoveryStore;
 use super::super::recovery_types::{
     RecoveryBootState, RecoveryLease, RecoveryLeaseProof, RecoveryLeaseState, RecoveryStoreError,
-    validate_identity, validate_uuid, validate_uuid_v4, validate_wire,
+    validate_identity, validate_token, validate_uuid, validate_uuid_v4, validate_wire,
 };
 
 impl GatewayRecoveryStore {
@@ -55,7 +55,7 @@ impl GatewayRecoveryStore {
         if renew_sequence <= lease.last_renew_sequence {
             return Err(RecoveryStoreError::StaleLease);
         }
-        let expires = now_millis
+        let candidate_expires = now_millis
             .checked_add(
                 lease
                     .ttl_seconds
@@ -63,6 +63,9 @@ impl GatewayRecoveryStore {
                     .ok_or(RecoveryStoreError::CounterExhausted)?,
             )
             .ok_or(RecoveryStoreError::CounterExhausted)?;
+        // The audit clock is wall-clock input and may move backwards. A
+        // renewal must never shorten an already-issued authority deadline.
+        let expires = lease.expires_at_millis.max(candidate_expires);
         validate_wire(expires, "expires_at_millis")?;
         let changed = self
             .conn
@@ -132,6 +135,63 @@ impl GatewayRecoveryStore {
             return Err(RecoveryStoreError::LeaseRevoked);
         }
         Ok(())
+    }
+
+    pub(super) fn ensure_context(
+        &self,
+        proof: &RecoveryLeaseProof,
+        now_millis: u64,
+    ) -> Result<RecoveryLease, RecoveryStoreError> {
+        validate_uuid("deployment_id", &proof.deployment_id)?;
+        validate_uuid("instance_id", &proof.instance_id)?;
+        validate_uuid_v4("instance_incarnation", &proof.instance_incarnation)?;
+        validate_uuid_v4("boot_id", &proof.boot_id)?;
+        validate_uuid_v4("lease_id", &proof.lease_id)?;
+        validate_token("fence_token", &proof.fence_token)?;
+        let Some(lease) = self.lease_by_id_with_token(&proof.lease_id, &proof.fence_token)? else {
+            return Err(RecoveryStoreError::LeaseNotFound);
+        };
+        if lease.deployment_id != proof.deployment_id
+            || lease.instance_id != proof.instance_id
+            || lease.instance_incarnation != proof.instance_incarnation
+            || lease.boot_id != proof.boot_id
+            || lease.authority_generation != proof.authority_generation
+            || lease.lease_epoch != proof.lease_epoch
+        {
+            return Err(RecoveryStoreError::StaleLease);
+        }
+        let status = self
+            .conn
+            .query_row(
+                "SELECT status FROM leases WHERE lease_id = ?1",
+                [&proof.lease_id],
+                |row| row.get::<_, String>(0),
+            )
+            .map_err(super::map_sql_error)?;
+        match status.as_str() {
+            "ACTIVE" => {}
+            "EXPIRED" => return Err(RecoveryStoreError::LeaseExpired),
+            "REVOKED" => return Err(RecoveryStoreError::LeaseRevoked),
+            _ => {
+                return Err(RecoveryStoreError::Corrupt(
+                    "unknown lease state".to_owned(),
+                ));
+            }
+        }
+        if lease.expires_at_millis <= now_millis {
+            return Err(RecoveryStoreError::LeaseExpired);
+        }
+        let Some(authority) = self.current_authority()? else {
+            return Err(RecoveryStoreError::AuthorityNotFound);
+        };
+        if authority.state != RecoveryBootState::Ready
+            || authority.boot_id != proof.boot_id
+            || authority.instance_incarnation != proof.instance_incarnation
+            || authority.authority_generation != proof.authority_generation
+        {
+            return Err(RecoveryStoreError::StaleLease);
+        }
+        Ok(lease)
     }
 }
 

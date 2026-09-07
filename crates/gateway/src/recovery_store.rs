@@ -8,9 +8,8 @@ use fs2::FileExt;
 use rusqlite::{Connection, OptionalExtension, Transaction};
 
 use super::recovery_types::{
-    RecoveryBootContext, RecoveryBootState, RecoveryHostFence, RecoveryLease, RecoveryLeaseProof,
-    RecoveryLeaseState, RecoveryStoreConfig, RecoveryStoreError, validate_token, validate_uuid,
-    validate_uuid_v4,
+    RecoveryBootContext, RecoveryHostFence, RecoveryLease, RecoveryLeaseState, RecoveryStoreConfig,
+    RecoveryStoreError,
 };
 use super::sha256_hex;
 
@@ -52,6 +51,8 @@ pub struct RecoveryLeaseRequest {
 mod archive;
 #[path = "recovery_store_authority.rs"]
 mod authority;
+#[path = "recovery_store_authority_lease.rs"]
+mod authority_lease;
 #[path = "recovery_store_backup.rs"]
 mod backup;
 #[path = "recovery_store_lease.rs"]
@@ -62,10 +63,14 @@ mod operation_helpers;
 mod operation_persistence;
 #[path = "recovery_store_operations.rs"]
 mod operations;
+#[path = "recovery_store_rekey.rs"]
+mod rekey;
 #[path = "recovery_store_sql.rs"]
 mod sql;
 #[path = "recovery_store_support.rs"]
 mod support;
+#[path = "recovery_store_ticket_helpers.rs"]
+mod ticket_helpers;
 #[path = "recovery_store_tickets.rs"]
 mod tickets;
 
@@ -86,7 +91,9 @@ impl GatewayRecoveryStore {
         config.validate()?;
         let path = path.as_ref().to_path_buf();
         ensure_parent(&path)?;
+        support::reject_symlink_path(&path)?;
         let lock_path = path.with_extension("gateway-recovery.lock");
+        support::reject_symlink_path(&lock_path)?;
         let lock = open_private(&lock_path)?;
         lock.try_lock_exclusive()
             .map_err(|_| RecoveryStoreError::Busy)?;
@@ -235,45 +242,6 @@ impl GatewayRecoveryStore {
             )
             .optional()
             .map_err(map_sql_error)
-    }
-
-    pub(super) fn ensure_context(
-        &self,
-        proof: &RecoveryLeaseProof,
-        now_millis: u64,
-    ) -> Result<RecoveryLease, RecoveryStoreError> {
-        validate_uuid("deployment_id", &proof.deployment_id)?;
-        validate_uuid("instance_id", &proof.instance_id)?;
-        validate_uuid_v4("instance_incarnation", &proof.instance_incarnation)?;
-        validate_uuid_v4("boot_id", &proof.boot_id)?;
-        validate_uuid_v4("lease_id", &proof.lease_id)?;
-        validate_token("fence_token", &proof.fence_token)?;
-        let Some(lease) = self.lease_by_id_with_token(&proof.lease_id, &proof.fence_token)? else {
-            return Err(RecoveryStoreError::LeaseNotFound);
-        };
-        if lease.deployment_id != proof.deployment_id
-            || lease.instance_id != proof.instance_id
-            || lease.instance_incarnation != proof.instance_incarnation
-            || lease.boot_id != proof.boot_id
-            || lease.authority_generation != proof.authority_generation
-            || lease.lease_epoch != proof.lease_epoch
-        {
-            return Err(RecoveryStoreError::StaleLease);
-        }
-        if lease.expires_at_millis <= now_millis {
-            return Err(RecoveryStoreError::LeaseExpired);
-        }
-        let Some(authority) = self.current_authority()? else {
-            return Err(RecoveryStoreError::AuthorityNotFound);
-        };
-        if authority.state != RecoveryBootState::Ready
-            || authority.boot_id != proof.boot_id
-            || authority.instance_incarnation != proof.instance_incarnation
-            || authority.authority_generation != proof.authority_generation
-        {
-            return Err(RecoveryStoreError::StaleLease);
-        }
-        Ok(lease)
     }
 
     pub(super) fn lease_by_id_with_token(

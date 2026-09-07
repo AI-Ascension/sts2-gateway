@@ -1,15 +1,28 @@
 // SPDX-License-Identifier: MIT
 
 use std::fs::{self, File, OpenOptions};
-use std::path::Path;
+use std::io::Write;
+use std::path::{Path, PathBuf};
 
+use fs2::FileExt;
 use rusqlite::Connection;
+use serde::{Deserialize, Serialize};
 
+use super::super::GatewayRecoveryStore;
 use super::super::recovery_types::{
-    MAX_WIRE_INTEGER, RecoveryBootContext, RecoveryBootState, RecoveryReleaseSet,
-    RecoveryStoreError, RecoveryUncertaintyReason, validate_uuid, validate_wire,
+    RecoveryBootContext, RecoveryReleaseSet, RecoveryStoreError, validate_uuid, validate_wire,
 };
-use super::super::{GatewayRecoveryStore, random_uuid};
+
+const PROVENANCE_SUFFIX: &str = "gateway-recovery.meta";
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct BackupProvenance {
+    source_path: String,
+    deployment_id: String,
+    instance_id: String,
+    authority_generation: u64,
+}
 
 impl GatewayRecoveryStore {
     /// Produces an online SQLite backup without replacing an existing path.
@@ -20,7 +33,27 @@ impl GatewayRecoveryStore {
         if destination == self.path() || destination.exists() {
             return Err(RecoveryStoreError::BackupExists);
         }
+        super::support::reject_symlink_path(destination)?;
         ensure_backup_parent(destination)?;
+        let authority = self
+            .current_authority()?
+            .ok_or(RecoveryStoreError::AuthorityNotFound)?;
+        let source_path = self.path.canonicalize().map_err(|error| {
+            RecoveryStoreError::Io(format!("backup source canonicalization failed: {error}"))
+        })?;
+        let provenance = BackupProvenance {
+            source_path: source_path
+                .to_str()
+                .ok_or_else(|| {
+                    RecoveryStoreError::InvalidInput(
+                        "backup source path must be valid UTF-8".to_owned(),
+                    )
+                })?
+                .to_owned(),
+            deployment_id: authority.deployment_id,
+            instance_id: authority.instance_id,
+            authority_generation: authority.authority_generation,
+        };
         let created = create_private(destination)?;
         let result = (|| {
             self.conn
@@ -31,11 +64,13 @@ impl GatewayRecoveryStore {
                 .map_err(super::map_sql_error)?;
             created
                 .sync_all()
-                .map_err(|error| RecoveryStoreError::Io(format!("backup fsync failed: {error}")))
+                .map_err(|error| RecoveryStoreError::Io(format!("backup fsync failed: {error}")))?;
+            write_provenance(destination, &provenance)
         })();
         if result.is_err() {
             drop(created);
             let _ = fs::remove_file(destination);
+            let _ = fs::remove_file(provenance_path(destination));
         }
         result
     }
@@ -53,6 +88,8 @@ impl GatewayRecoveryStore {
     ) -> Result<(Self, RecoveryBootContext), RecoveryStoreError> {
         let source = source.as_ref();
         let destination = destination.as_ref();
+        super::support::reject_symlink_path(source)?;
+        super::support::reject_symlink_path(destination)?;
         if !source.exists() {
             return Err(RecoveryStoreError::Io(
                 "recovery backup source does not exist".to_owned(),
@@ -66,6 +103,38 @@ impl GatewayRecoveryStore {
         validate_wire(now_millis, "now_millis")?;
         release.validate()?;
         ensure_backup_parent(destination)?;
+        let provenance = read_provenance(source)?;
+        if provenance.instance_id != instance_id {
+            return Err(RecoveryStoreError::ContractMismatch(
+                "backup provenance identity does not match the restore namespace".to_owned(),
+            ));
+        }
+        let live_path = PathBuf::from(&provenance.source_path);
+        super::support::reject_symlink_path(&live_path)?;
+        if !live_path.exists() {
+            return Err(RecoveryStoreError::Io(
+                "live authority high-water source is unavailable".to_owned(),
+            ));
+        }
+        let live_lock_path = live_path.with_extension("gateway-recovery.lock");
+        super::support::reject_symlink_path(&live_lock_path)?;
+        let live_lock = super::support::open_private(&live_lock_path)?;
+        live_lock
+            .try_lock_exclusive()
+            .map_err(|_| RecoveryStoreError::Busy)?;
+        let live_conn = Connection::open(&live_path).map_err(super::map_sql_error)?;
+        let live_generation: u64 = live_conn
+            .query_row(
+                "SELECT authority_generation FROM authority WHERE singleton = 1",
+                [],
+                |row| super::row_u64(row, 0),
+            )
+            .map_err(super::map_sql_error)?;
+        if live_generation != provenance.authority_generation {
+            return Err(RecoveryStoreError::ContractMismatch(
+                "backup is older than the live authority high-water mark".to_owned(),
+            ));
+        }
         let source_conn = Connection::open(source).map_err(super::map_sql_error)?;
         let source_integrity: String = source_conn
             .query_row("PRAGMA integrity_check", [], |row| row.get(0))
@@ -82,102 +151,29 @@ impl GatewayRecoveryStore {
         drop(source_conn);
         if let Err(error) = backup_result {
             drop(created);
-            let _ = fs::remove_file(destination);
+            cleanup_failed_restore(destination);
             return Err(error);
         }
-        created.sync_all().map_err(|error| {
+        let sync_result = created.sync_all().map_err(|error| {
             RecoveryStoreError::Io(format!("restored backup fsync failed: {error}"))
-        })?;
+        });
         drop(created);
-        let mut store = Self::open(destination)?;
-        let boot = store.rekey_namespace(deployment_id, instance_id, release, now_millis)?;
-        Ok((store, boot))
-    }
-
-    /// Atomically replaces the deployment namespace on restored state and
-    /// starts a fresh boot. Historical operation rows keep their original
-    /// deployment context and therefore cannot authorize a mutation.
-    pub fn rekey_namespace(
-        &mut self,
-        deployment_id: &str,
-        instance_id: &str,
-        release: RecoveryReleaseSet,
-        now_millis: u64,
-    ) -> Result<RecoveryBootContext, RecoveryStoreError> {
-        validate_uuid("deployment_id", deployment_id)?;
-        validate_uuid("instance_id", instance_id)?;
-        validate_wire(now_millis, "now_millis")?;
-        release.validate()?;
-        let current = self
-            .current_authority()?
-            .ok_or(RecoveryStoreError::AuthorityNotFound)?;
-        if current.instance_id != instance_id {
-            return Err(RecoveryStoreError::ContractMismatch(
-                "rekey instance identity differs from the restored store".to_owned(),
-            ));
+        if let Err(error) = sync_result {
+            cleanup_failed_restore(destination);
+            return Err(error);
         }
-        if current.release != release {
-            return Err(RecoveryStoreError::ReleaseMismatch);
+        let result = (|| {
+            let mut store = Self::open(destination)?;
+            let boot = store.rekey_namespace(deployment_id, instance_id, release, now_millis)?;
+            Ok((store, boot))
+        })();
+        match result {
+            Ok(value) => Ok(value),
+            Err(error) => {
+                cleanup_failed_restore(destination);
+                Err(error)
+            }
         }
-        let generation = current
-            .authority_generation
-            .checked_add(1)
-            .filter(|value| *value <= MAX_WIRE_INTEGER)
-            .ok_or(RecoveryStoreError::CounterExhausted)?;
-        let boot_id = random_uuid();
-        let incarnation = random_uuid();
-        let tx = self.transaction()?;
-        tx.execute(
-            "UPDATE leases SET status = 'REVOKED', revoked_reason = 'rekey'
-             WHERE status = 'ACTIVE'",
-            [],
-        )
-        .map_err(super::map_sql_error)?;
-        tx.execute(
-            "UPDATE operations SET state = 'UNKNOWN', uncertainty_reason = ?1,
-                    updated_at_millis = ?2
-             WHERE state IN ('INTENT_RECORDED', 'MAY_HAVE_BEEN_DISPATCHED', 'ACCEPTED', 'UNKNOWN')",
-            rusqlite::params![
-                RecoveryUncertaintyReason::AuthorityRotated.as_str(),
-                now_millis as i64,
-            ],
-        )
-        .map_err(super::map_sql_error)?;
-        tx.execute(
-            "UPDATE authority SET deployment_id = ?1, instance_id = ?2,
-                    instance_incarnation = ?3, boot_id = ?4,
-                    authority_generation = ?5, release_digest = ?6,
-                    config_digest = ?7, profile_digest = ?8,
-                    runtime_v3_schema_digest = ?9, created_at_millis = ?10,
-                    state = ?11, host_fence_id = NULL,
-                    fence_generation = NULL, host_fence_at = NULL
-             WHERE singleton = 1",
-            rusqlite::params![
-                deployment_id,
-                instance_id,
-                incarnation,
-                boot_id,
-                generation as i64,
-                release.release_digest,
-                release.config_digest,
-                release.profile_digest,
-                release.runtime_v3_schema_digest,
-                now_millis as i64,
-                RecoveryBootState::FenceRequired.as_str(),
-            ],
-        )
-        .map_err(super::map_sql_error)?;
-        tx.commit().map_err(super::map_sql_error)?;
-        Ok(RecoveryBootContext {
-            deployment_id: deployment_id.to_owned(),
-            instance_id: instance_id.to_owned(),
-            instance_incarnation: incarnation,
-            boot_id,
-            authority_generation: generation,
-            release,
-            created_at_millis: now_millis,
-            state: RecoveryBootState::FenceRequired,
-        })
     }
 }
 
@@ -188,6 +184,50 @@ fn ensure_backup_parent(path: &Path) -> Result<(), RecoveryStoreError> {
         })?;
     }
     Ok(())
+}
+
+fn provenance_path(path: &Path) -> PathBuf {
+    path.with_extension(PROVENANCE_SUFFIX)
+}
+
+fn write_provenance(
+    destination: &Path,
+    provenance: &BackupProvenance,
+) -> Result<(), RecoveryStoreError> {
+    let path = provenance_path(destination);
+    let mut file = create_private(&path)?;
+    let bytes = serde_json::to_vec(provenance).map_err(|error| {
+        RecoveryStoreError::Io(format!("backup provenance encoding failed: {error}"))
+    })?;
+    file.write_all(&bytes).map_err(|error| {
+        RecoveryStoreError::Io(format!("backup provenance write failed: {error}"))
+    })?;
+    file.sync_all()
+        .map_err(|error| RecoveryStoreError::Io(format!("backup provenance fsync failed: {error}")))
+}
+
+fn read_provenance(source: &Path) -> Result<BackupProvenance, RecoveryStoreError> {
+    let path = provenance_path(source);
+    let bytes = fs::read(&path).map_err(|error| {
+        RecoveryStoreError::Io(format!("backup provenance read failed: {error}"))
+    })?;
+    let provenance: BackupProvenance = serde_json::from_slice(&bytes).map_err(|error| {
+        RecoveryStoreError::Corrupt(format!("backup provenance is invalid: {error}"))
+    })?;
+    if provenance.source_path.is_empty() || provenance.authority_generation == 0 {
+        return Err(RecoveryStoreError::Corrupt(
+            "backup provenance is incomplete".to_owned(),
+        ));
+    }
+    Ok(provenance)
+}
+
+fn cleanup_failed_restore(destination: &Path) {
+    let _ = fs::remove_file(destination);
+    let _ = fs::remove_file(destination.with_extension("gateway-recovery.lock"));
+    let _ = fs::remove_file(destination.with_extension("db-wal"));
+    let _ = fs::remove_file(destination.with_extension("db-shm"));
+    let _ = fs::remove_file(provenance_path(destination));
 }
 
 fn create_private(path: &Path) -> Result<File, RecoveryStoreError> {

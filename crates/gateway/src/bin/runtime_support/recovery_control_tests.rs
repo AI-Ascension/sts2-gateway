@@ -9,7 +9,7 @@ use sts2_gateway::{MAX_RECOVERY_FRAME_BYTES, RECOVERY_SCHEMA_DIGEST};
 
 fn frame() -> Vec<u8> {
     format!(
-        r#"{{"contract":"watchdog-recovery-v1","schema_digest":"{RECOVERY_SCHEMA_DIGEST}","message_id":"message-1","correlation_id":"correlation-1","sent_at":"2026-09-06T23:00:00Z","actor":{{"principal_id":"principal-1","role":"gateway"}},"auth":{{"principal_id":"principal-1","capability":"host_fence","proof":"proof-1"}},"kind":"host_fence_request","payload":{{"boot":{{"deployment_id":"deployment-1"}}}}}}"#
+        r#"{{"contract":"watchdog-recovery-v1","schema_digest":"{RECOVERY_SCHEMA_DIGEST}","message_id":"00000000-0000-4000-8000-000000000001","correlation_id":"00000000-0000-4000-8000-000000000002","sent_at":"2026-09-06T23:00:00Z","actor":{{"principal_id":"00000000-0000-4000-8000-000000000003","role":"gateway"}},"auth":{{"principal_id":"00000000-0000-4000-8000-000000000003","capability":"host_fence","proof":"proof-1"}},"kind":"host_fence_request","payload":{{"boot":{{"deployment_id":"00000000-0000-4000-8000-000000000004","instance_id":"00000000-0000-4000-8000-000000000005","instance_incarnation":"00000000-0000-4000-8000-000000000006","boot_id":"00000000-0000-4000-8000-000000000007","authority_generation":1,"release":{{"release_digest":"0000000000000000000000000000000000000000000000000000000000000000","config_digest":"0000000000000000000000000000000000000000000000000000000000000000","profile_digest":"0000000000000000000000000000000000000000000000000000000000000000","runtime_v3_schema_digest":"8e99cea36b7ede97532348fd8efe302ca79260895265a7bf14ddf7e006d8ff63"}},"created_at":"2026-09-06T23:00:00Z","state":"FENCE_REQUIRED"}}}}}}"#
     )
     .into_bytes()
 }

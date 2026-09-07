@@ -29,6 +29,9 @@ impl RuntimeService {
                     );
                 }
             };
+        if self.recovery.is_some() && route == RuntimeV3GameplayRoute::DispatchAction {
+            return self.recovery_v3_dispatch(request, route, envelope);
+        }
         let correlation = request
             .headers
             .get("x-sts2-correlation-id")

@@ -11,17 +11,18 @@ use std::time::{Duration, Instant};
 
 use serde_json::{Value, json};
 use sts2_gateway::{
-    RuntimeV2Binding, RuntimeV2CombatPhase, RuntimeV2Ledger, RuntimeV2LedgerConfig,
-    RuntimeV2LedgerError, RuntimeV2Message, RuntimeV2Observation, RuntimeV2Status,
-    RuntimeV2TransportFault,
+    GatewayRecoveryStore, RecoveryBootContext, RecoveryHostFence, RecoveryLease,
+    RecoveryReleaseSet, RecoveryStoreConfig, RuntimeV2Binding, RuntimeV2CombatPhase,
+    RuntimeV2Ledger, RuntimeV2LedgerConfig, RuntimeV2LedgerError, RuntimeV2Message,
+    RuntimeV2Observation, RuntimeV2Status, RuntimeV2TransportFault,
 };
 
 use super::auth::{AuthFailure, AuthPolicy, AuthScope};
 use super::coop_reports::CoopReports;
 use super::forwarder::HttpRuntimeV2Forwarder;
 use super::http::{
-    HttpRequest, HttpResponse, MAX_BODY_BYTES, MAX_RESPONSE_BYTES, ReadError, read_request,
-    read_response, write_request, write_response,
+    HttpRequest, HttpResponse, MAX_BODY_BYTES, MAX_RESPONSE_BYTES, read_request, read_response,
+    write_request, write_response,
 };
 use super::journal;
 use super::metrics::RuntimeMetrics;
@@ -50,6 +51,14 @@ pub(crate) struct RuntimeService {
     _journal_lock: Option<journal::JournalLock>,
     metrics: RuntimeMetrics,
     coop_reports: Option<CoopReports>,
+    recovery: Option<GatewayRecoveryStore>,
+    recovery_boot: Option<RecoveryBootContext>,
+    recovery_fence: Option<RecoveryHostFence>,
+    recovery_lease: Option<RecoveryLease>,
+    recovery_lease_deadline: Option<Instant>,
+    recovery_clock_started: Instant,
+    recovery_clock_wall_millis: u64,
+    recovery_last_now_millis: u64,
 }
 
 struct RuntimeConfig {
@@ -66,6 +75,11 @@ struct RuntimeConfig {
     operation_capacity: usize,
     queue_capacity: usize,
     journal_path: Option<PathBuf>,
+    recovery_store_path: Option<PathBuf>,
+    recovery_deployment_id: Option<String>,
+    recovery_release: RecoveryReleaseSet,
+    recovery_ttl_seconds: u64,
+    recovery_renewal_interval_seconds: u64,
 }
 
 struct QueuedRequest {
@@ -85,8 +99,30 @@ mod coop;
 mod lease;
 #[path = "service_recovery.rs"]
 mod recovery;
+#[path = "service_recovery_dispatch.rs"]
+mod recovery_dispatch;
+#[path = "service_recovery_dispatch_host.rs"]
+mod recovery_dispatch_host;
+#[path = "service_recovery_dispatch_transport.rs"]
+mod recovery_dispatch_transport;
+#[path = "service_recovery_lease.rs"]
+mod recovery_lease;
+#[path = "service_recovery_ops.rs"]
+mod recovery_ops;
+#[path = "service_recovery_payload.rs"]
+mod recovery_payload;
+#[path = "service_recovery_receipt.rs"]
+mod recovery_receipt;
+#[path = "service_recovery_state.rs"]
+mod recovery_state;
+#[path = "service_recovery_v3.rs"]
+mod recovery_v3;
+#[path = "service_recovery_wire.rs"]
+mod recovery_wire;
 #[path = "service_routes.rs"]
 mod routes;
+#[path = "service_support.rs"]
+mod support;
 #[path = "service_v2.rs"]
 mod v2;
 #[path = "service_v3.rs"]
@@ -94,6 +130,10 @@ mod v3;
 
 use admission::{accept_requests, run_worker};
 use authorization::request_rejection;
+use support::{
+    json_bytes, json_error, json_overload, read_error_status, safe_identity, safe_operation_id,
+    unix_millis,
+};
 
 impl RuntimeService {
     pub(crate) fn from_environment() -> Result<Self, String> {
@@ -107,6 +147,34 @@ impl RuntimeService {
             .as_deref()
             .map(journal::JournalLock::acquire)
             .transpose()?;
+        let recovery_clock_started = Instant::now();
+        let recovery_clock_wall_millis = unix_millis();
+        let (recovery, recovery_boot) = if let (Some(path), Some(deployment_id)) = (
+            config.recovery_store_path.as_deref(),
+            config.recovery_deployment_id.as_deref(),
+        ) {
+            let store_config = RecoveryStoreConfig {
+                lease_ttl_seconds: config.recovery_ttl_seconds,
+                lease_renewal_interval_seconds: config.recovery_renewal_interval_seconds,
+                ..RecoveryStoreConfig::default()
+            };
+            let mut store = GatewayRecoveryStore::open_with_config(path, store_config)
+                .map_err(|error| format!("recovery store open failed: {error}"))?;
+            store
+                .integrity_check()
+                .map_err(|error| format!("recovery store integrity check failed: {error}"))?;
+            let boot = store
+                .start_boot(
+                    deployment_id,
+                    &config.instance_id,
+                    config.recovery_release.clone(),
+                    recovery_clock_wall_millis,
+                )
+                .map_err(|error| format!("recovery boot failed: {error}"))?;
+            (Some(store), Some(boot))
+        } else {
+            (None, None)
+        };
         let binding = RuntimeV2Binding::new(
             &config.instance_id,
             &config.session_id,
@@ -149,6 +217,14 @@ impl RuntimeService {
             runtime_v3: RuntimeV3GameplayForwarder::new(MAX_BODY_BYTES, MAX_RESPONSE_BYTES),
             metrics: RuntimeMetrics::default(),
             coop_reports,
+            recovery,
+            recovery_boot,
+            recovery_fence: None,
+            recovery_lease: None,
+            recovery_lease_deadline: None,
+            recovery_clock_started,
+            recovery_clock_wall_millis,
+            recovery_last_now_millis: recovery_clock_wall_millis,
         })
     }
 
@@ -166,6 +242,7 @@ impl RuntimeService {
         let admission_open = Arc::new(AtomicBool::new(true));
         let worker_open = Arc::clone(&admission_open);
         let auth_policy = self.config.auth_policy.clone();
+        let recovery_enabled = self.recovery.is_some();
         let metrics = self.metrics.clone();
         let instance_id = self.config.instance_id.clone();
         let worker = thread::Builder::new()
@@ -178,52 +255,13 @@ impl RuntimeService {
             admission_open,
             auth_policy,
             instance_id,
+            recovery_enabled,
             metrics,
         );
         match worker.join() {
             Ok(worker_result) => result.and(worker_result),
             Err(_) => Err(String::from("gateway worker panicked")),
         }
-    }
-}
-
-fn safe_identity(value: &str) -> bool {
-    !value.is_empty()
-        && value.len() <= 128
-        && !value.contains("..")
-        && value.bytes().all(|byte| {
-            byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.' | b':' | b'/')
-        })
-}
-
-fn safe_operation_id(value: &str) -> bool {
-    safe_identity(value) && !value.contains('/')
-}
-
-fn json_bytes(value: &Value) -> Vec<u8> {
-    match serde_json::to_vec(value) {
-        Ok(bytes) => bytes,
-        Err(_) => b"{\"error_code\":\"serialization_failed\"}".to_vec(),
-    }
-}
-
-fn json_error(code: &str) -> Vec<u8> {
-    json_bytes(&json!({ "error_code": code }))
-}
-
-fn json_overload(code: &str) -> Vec<u8> {
-    json_bytes(&json!({
-        "error_code": code,
-        "retryable": true,
-        "retry_after_ms": 1000
-    }))
-}
-
-fn read_error_status(error: ReadError) -> u16 {
-    match error {
-        ReadError::Timeout => 504,
-        ReadError::Malformed | ReadError::Oversized => 502,
-        ReadError::Unavailable => 503,
     }
 }
 

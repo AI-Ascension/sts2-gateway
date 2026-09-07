@@ -7,6 +7,7 @@ mod http;
 mod journal;
 mod metrics;
 mod recovery_control;
+mod recovery_frame;
 mod runtime_v3_gameplay;
 mod runtime_v3_gameplay_forwarder;
 mod runtime_v3_relations;

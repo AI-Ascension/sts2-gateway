@@ -33,6 +33,24 @@ pub(super) fn ensure_parent(path: &Path) -> Result<(), RecoveryStoreError> {
     Ok(())
 }
 
+/// Authority locks are path based. Refuse symlink/reparse aliases before either
+/// the lock or SQLite file is opened so a second spelling cannot acquire a
+/// second authority namespace.
+pub(super) fn reject_symlink_path(path: &Path) -> Result<(), RecoveryStoreError> {
+    let mut current = std::path::PathBuf::new();
+    for component in path.components() {
+        current.push(component);
+        if let Ok(metadata) = fs::symlink_metadata(&current)
+            && metadata.file_type().is_symlink()
+        {
+            return Err(RecoveryStoreError::InvalidInput(
+                "recovery store paths may not contain symlink aliases".to_owned(),
+            ));
+        }
+    }
+    Ok(())
+}
+
 pub(super) fn migrate(conn: &Connection) -> Result<(), RecoveryStoreError> {
     let version: i64 = conn
         .query_row("PRAGMA user_version", [], |row| row.get(0))

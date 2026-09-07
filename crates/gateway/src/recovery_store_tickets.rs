@@ -8,6 +8,9 @@ use super::super::recovery_types::{
     validate_wire,
 };
 use super::super::{GatewayRecoveryStore, random_uuid};
+use super::ticket_helpers::{
+    row_ticket, row_ticket_for_operation, valid_ticket_transition, validate_fence,
+};
 
 impl GatewayRecoveryStore {
     /// Creates the durable host admission ticket after dispatch has been
@@ -130,12 +133,33 @@ impl GatewayRecoveryStore {
             .map_err(super::map_sql_error)
     }
 
+    pub fn admission_ticket_for_operation(
+        &self,
+        instance_id: &str,
+        operation_id: &str,
+    ) -> Result<Option<RecoveryAdmissionTicket>, RecoveryStoreError> {
+        validate_uuid("instance_id", instance_id)?;
+        validate_uuid_v4("operation_id", operation_id)?;
+        row_ticket_for_operation(&self.conn, instance_id, operation_id)
+    }
+
     pub fn validate_admission_ticket(
         &self,
         proof: &RecoveryLeaseProof,
         fence: &RecoveryHostFence,
         ticket_id: &str,
         now_millis: u64,
+    ) -> Result<RecoveryAdmissionTicket, RecoveryStoreError> {
+        self.validate_admission_ticket_inner(proof, fence, ticket_id, now_millis, false)
+    }
+
+    fn validate_admission_ticket_inner(
+        &self,
+        proof: &RecoveryLeaseProof,
+        fence: &RecoveryHostFence,
+        ticket_id: &str,
+        now_millis: u64,
+        allow_terminal_operation: bool,
     ) -> Result<RecoveryAdmissionTicket, RecoveryStoreError> {
         validate_uuid_v4("ticket_id", ticket_id)?;
         validate_wire(now_millis, "now_millis")?;
@@ -154,6 +178,22 @@ impl GatewayRecoveryStore {
             return Err(RecoveryStoreError::StaleLease);
         }
         self.ensure_context(proof, now_millis)?;
+        let operation = super::operations::select_operation(
+            &self.conn,
+            &proof.instance_id,
+            &ticket.operation_id,
+        )?
+        .ok_or(RecoveryStoreError::OperationNotFound)?;
+        if operation.payload_digest != ticket.payload_digest
+            || operation.boot_id != ticket.boot_id
+            || operation.instance_incarnation != ticket.instance_incarnation
+            || operation.lease_epoch != ticket.lease_epoch
+        {
+            return Err(RecoveryStoreError::OperationConflict);
+        }
+        if !allow_terminal_operation && !operation.state.unresolved() {
+            return Err(RecoveryStoreError::InvalidTransition);
+        }
         if ticket.expires_at_millis <= now_millis {
             return Err(RecoveryStoreError::AdmissionTicketExpired);
         }
@@ -177,7 +217,44 @@ impl GatewayRecoveryStore {
         next_state: RecoveryTicketState,
         now_millis: u64,
     ) -> Result<RecoveryAdmissionTicket, RecoveryStoreError> {
-        let ticket = self.validate_admission_ticket(proof, fence, ticket_id, now_millis)?;
+        let ticket = self.validate_admission_ticket_inner(
+            proof,
+            fence,
+            ticket_id,
+            now_millis,
+            matches!(
+                next_state,
+                RecoveryTicketState::EffectWitnessRecorded
+                    | RecoveryTicketState::Settled
+                    | RecoveryTicketState::Rejected
+            ),
+        )?;
+        let operation = super::operations::select_operation(
+            &self.conn,
+            &proof.instance_id,
+            &ticket.operation_id,
+        )?
+        .ok_or(RecoveryStoreError::OperationNotFound)?;
+        if !operation.state.unresolved()
+            && !matches!(
+                (operation.state, next_state),
+                (
+                    RecoveryOperationState::Settled,
+                    RecoveryTicketState::Settled
+                ) | (
+                    RecoveryOperationState::Rejected,
+                    RecoveryTicketState::Rejected
+                ) | (
+                    RecoveryOperationState::Reconciled,
+                    RecoveryTicketState::EffectWitnessRecorded
+                ) | (
+                    RecoveryOperationState::Reconciled,
+                    RecoveryTicketState::Settled
+                )
+            )
+        {
+            return Err(RecoveryStoreError::InvalidTransition);
+        }
         if !valid_ticket_transition(ticket.state, next_state) {
             return Err(RecoveryStoreError::InvalidTransition);
         }
@@ -220,82 +297,4 @@ impl GatewayRecoveryStore {
             )
             .map_err(super::map_sql_error)
     }
-}
-
-fn validate_fence(fence: &RecoveryHostFence) -> Result<(), RecoveryStoreError> {
-    validate_uuid_v4("host_fence_id", &fence.host_fence_id)?;
-    validate_uuid("deployment_id", &fence.deployment_id)?;
-    validate_uuid("instance_id", &fence.instance_id)?;
-    validate_uuid_v4("instance_incarnation", &fence.instance_incarnation)?;
-    validate_uuid_v4("boot_id", &fence.boot_id)?;
-    validate_wire(fence.authority_generation, "authority_generation")?;
-    validate_wire(fence.fence_generation, "fence_generation")?;
-    validate_wire(fence.created_at_millis, "fence_created_at_millis")
-}
-
-fn valid_ticket_transition(from: RecoveryTicketState, to: RecoveryTicketState) -> bool {
-    matches!(
-        (from, to),
-        (RecoveryTicketState::Issued, RecoveryTicketState::Admitted)
-            | (RecoveryTicketState::Issued, RecoveryTicketState::Rejected)
-            | (RecoveryTicketState::Issued, RecoveryTicketState::Unknown)
-            | (
-                RecoveryTicketState::Admitted,
-                RecoveryTicketState::Executing
-            )
-            | (RecoveryTicketState::Admitted, RecoveryTicketState::Rejected)
-            | (RecoveryTicketState::Admitted, RecoveryTicketState::Unknown)
-            | (
-                RecoveryTicketState::Executing,
-                RecoveryTicketState::EffectWitnessRecorded
-            )
-            | (RecoveryTicketState::Executing, RecoveryTicketState::Settled)
-            | (
-                RecoveryTicketState::Executing,
-                RecoveryTicketState::Rejected
-            )
-            | (RecoveryTicketState::Executing, RecoveryTicketState::Unknown)
-            | (
-                RecoveryTicketState::EffectWitnessRecorded,
-                RecoveryTicketState::Settled
-            )
-            | (
-                RecoveryTicketState::EffectWitnessRecorded,
-                RecoveryTicketState::Unknown
-            )
-    )
-}
-
-fn row_ticket(row: &rusqlite::Row<'_>) -> rusqlite::Result<RecoveryAdmissionTicket> {
-    Ok(RecoveryAdmissionTicket {
-        ticket_id: row.get(0)?,
-        operation_id: row.get(1)?,
-        payload_digest: row.get(2)?,
-        boot_id: row.get(3)?,
-        instance_incarnation: row.get(4)?,
-        lease_epoch: super::row_u64(row, 5)?,
-        host_fence_id: row.get(6)?,
-        state: RecoveryTicketState::parse(&row.get::<_, String>(7)?)
-            .map_err(|_| rusqlite::Error::InvalidQuery)?,
-        issued_at_millis: super::row_u64(row, 8)?,
-        expires_at_millis: super::row_u64(row, 9)?,
-    })
-}
-
-fn row_ticket_for_operation(
-    source: &rusqlite::Connection,
-    instance_id: &str,
-    operation_id: &str,
-) -> Result<Option<RecoveryAdmissionTicket>, RecoveryStoreError> {
-    source
-        .query_row(
-            "SELECT ticket_id, operation_id, payload_digest, boot_id,
-                    instance_incarnation, lease_epoch, host_fence_id, state,
-                    issued_at_millis, expires_at_millis
-             FROM admission_tickets WHERE instance_id = ?1 AND operation_id = ?2",
-            rusqlite::params![instance_id, operation_id],
-            row_ticket,
-        )
-        .optional()
-        .map_err(super::map_sql_error)
 }

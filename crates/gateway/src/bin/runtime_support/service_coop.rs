@@ -6,7 +6,7 @@ use super::*;
 const SCHEMA_DIGEST: &str = "d410858cabbd38612345120c2196423130c7b21d788fd2b0d775cd82887087ec";
 
 impl RuntimeService {
-    pub(super) fn coop_synchronization(&self, request: &HttpRequest) -> (u16, Vec<u8>) {
+    pub(super) fn coop_synchronization(&mut self, request: &HttpRequest) -> (u16, Vec<u8>) {
         if let Err(error) = self.check_lease(request) {
             return error;
         }

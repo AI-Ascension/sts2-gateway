@@ -191,7 +191,7 @@ fn host_fence_control_route_bridges_without_a_gameplay_lease() -> Result<(), Str
         .recv_timeout(Duration::from_secs(2))
         .map_err(|error| error.to_string())?;
     assert_eq!(forwarded.method, "POST");
-    assert_eq!(forwarded.path, "/v1/recovery/host-fence");
+    assert_eq!(forwarded.path, "/api/v1/runtime/recovery");
     assert_eq!(forwarded.body, request.body);
     assert_eq!(
         forwarded.headers.get("authorization").map(String::as_str),
@@ -207,7 +207,7 @@ fn host_fence_control_route_bridges_without_a_gameplay_lease() -> Result<(), Str
 
 fn frame() -> Vec<u8> {
     format!(
-        r#"{{"contract":"watchdog-recovery-v1","schema_digest":"{}","message_id":"message-1","correlation_id":"correlation-1","sent_at":"2026-09-06T23:00:00Z","actor":{{"principal_id":"principal-1","role":"gateway"}},"auth":{{"principal_id":"principal-1","capability":"host_fence","proof":"proof-1"}},"kind":"host_fence_request","payload":{{"boot":{{"deployment_id":"deployment-1"}}}}}}"#,
+        r#"{{"contract":"watchdog-recovery-v1","schema_digest":"{}","message_id":"00000000-0000-4000-8000-000000000001","correlation_id":"00000000-0000-4000-8000-000000000002","sent_at":"2026-09-06T23:00:00Z","actor":{{"principal_id":"00000000-0000-4000-8000-000000000003","role":"gateway"}},"auth":{{"principal_id":"00000000-0000-4000-8000-000000000003","capability":"host_fence","proof":"proof-1"}},"kind":"host_fence_request","payload":{{"boot":{{"deployment_id":"00000000-0000-4000-8000-000000000004","instance_id":"00000000-0000-4000-8000-000000000005","instance_incarnation":"00000000-0000-4000-8000-000000000006","boot_id":"00000000-0000-4000-8000-000000000007","authority_generation":1,"release":{{"release_digest":"0000000000000000000000000000000000000000000000000000000000000000","config_digest":"0000000000000000000000000000000000000000000000000000000000000000","profile_digest":"0000000000000000000000000000000000000000000000000000000000000000","runtime_v3_schema_digest":"8e99cea36b7ede97532348fd8efe302ca79260895265a7bf14ddf7e006d8ff63"}},"created_at":"2026-09-06T23:00:00Z","state":"FENCE_REQUIRED"}}}}}}"#,
         sts2_gateway::RECOVERY_SCHEMA_DIGEST
     )
     .into_bytes()

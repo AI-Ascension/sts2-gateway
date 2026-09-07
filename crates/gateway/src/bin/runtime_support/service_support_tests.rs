@@ -17,6 +17,11 @@ pub(super) fn test_service() -> Result<RuntimeService, String> {
         operation_capacity: 8,
         queue_capacity: 8,
         journal_path: None,
+        recovery_store_path: None,
+        recovery_deployment_id: None,
+        recovery_release: RecoveryReleaseSet::unconfigured(),
+        recovery_ttl_seconds: 30,
+        recovery_renewal_interval_seconds: 10,
     };
     let binding = RuntimeV2Binding::new(
         &config.instance_id,
@@ -52,6 +57,14 @@ pub(super) fn test_service() -> Result<RuntimeService, String> {
         _journal_lock: None,
         metrics: super::super::metrics::RuntimeMetrics::default(),
         coop_reports: None,
+        recovery: None,
+        recovery_boot: None,
+        recovery_fence: None,
+        recovery_lease: None,
+        recovery_lease_deadline: None,
+        recovery_clock_started: Instant::now(),
+        recovery_clock_wall_millis: 0,
+        recovery_last_now_millis: 0,
     })
 }
 

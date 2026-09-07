@@ -162,10 +162,27 @@ impl GatewayRecoveryStore {
             ));
         }
         validate_witness_shape(operation_id, state, witness.as_ref())?;
+        // A witness generation is a gameplay post-state generation. It is not the
+        // host-fence generation, and it must therefore never be compared with the
+        // current fence's counter. The fence identity is bound to the original
+        // admission ticket below; direct store users without a ticket retain the
+        // current-fence fallback for the pre-ticket API.
+        let current_fence_id = self.current_fence()?.map(|fence| fence.host_fence_id);
         let tx = self.transaction()?;
         let operation = select_operation(&tx, instance_id, operation_id)?
             .ok_or(RecoveryStoreError::OperationNotFound)?;
         validate_witness_context(&operation, witness.as_ref())?;
+        if let Some(witness) = witness.as_ref() {
+            let ticket_fence_id =
+                super::ticket_helpers::row_ticket_for_operation(&tx, instance_id, operation_id)?
+                    .map(|ticket| ticket.host_fence_id);
+            let expected_fence_id = ticket_fence_id.or(current_fence_id);
+            if expected_fence_id.as_deref() != Some(witness.host_fence_id.as_str()) {
+                return Err(RecoveryStoreError::ContractMismatch(
+                    "effect witness does not match the operation host fence".to_owned(),
+                ));
+            }
+        }
         if !valid_transition(operation.state, state) {
             return Err(RecoveryStoreError::InvalidTransition);
         }

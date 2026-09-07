@@ -4,17 +4,23 @@ use std::collections::BTreeMap;
 use std::net::{SocketAddr, TcpStream};
 use std::time::{Duration, Instant};
 
-use sts2_gateway::{MAX_RECOVERY_FRAME_BYTES, RECOVERY_CONTRACT, RECOVERY_SCHEMA_DIGEST};
+use sts2_gateway::MAX_RECOVERY_FRAME_BYTES;
 
 use super::http::{HttpResponse, ReadError, read_response, write_request};
+use super::recovery_frame::{RecoveryFrame, RecoveryFrameError, RecoveryKind};
 
-pub(crate) const HOST_FENCE_PATH: &str = "/v1/recovery/host-fence";
+/// The mod-local recovery mux. The closed recovery frame carries the operation kind; the
+/// transport path is deliberately fixed so a caller cannot turn this bridge into an arbitrary
+/// downstream proxy.
+pub(crate) const RECOVERY_CONTROL_PATH: &str = "/api/v1/runtime/recovery";
+#[allow(dead_code)]
+pub(crate) const HOST_FENCE_PATH: &str = RECOVERY_CONTROL_PATH;
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(2);
 const EXCHANGE_TIMEOUT: Duration = Duration::from_secs(5);
 
-/// Downstream recovery control transport. The fixed host-fence endpoint is the only operation
-/// exposed here; boot and lease identities remain in the closed recovery frame body. In
-/// particular, this request never requires the old gameplay lease headers.
+/// Downstream recovery control transport. Boot, lease, operation, and witness identities remain
+/// in the closed recovery frame body. In particular, this request never requires the old gameplay
+/// lease headers.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct HttpRecoveryControlForwarder {
     mod_address: String,
@@ -40,16 +46,17 @@ impl HttpRecoveryControlForwarder {
         }
     }
 
-    /// Sends a validated `host_fence_request` recovery frame to the fixed mod route.
+    /// Sends a validated recovery request frame to the fixed mod recovery mux.
     ///
     /// The method is single-shot: after the request starts writing, every I/O failure is
     /// reported as an after-write uncertainty. Callers must reconcile the host-fence result
     /// through the recovery protocol rather than blindly retrying a mutation-bearing request.
-    pub(crate) fn forward_host_fence(
+    pub(crate) fn forward_frame(
         &self,
+        kind: RecoveryKind,
         frame: &[u8],
     ) -> Result<HttpResponse, RecoveryControlTransportFault> {
-        validate_frame(frame)?;
+        validate_frame(kind, frame)?;
         if !valid_token(&self.mod_token) {
             return Err(RecoveryControlTransportFault::InvalidConfiguration);
         }
@@ -78,7 +85,7 @@ impl HttpRecoveryControlForwarder {
         write_request(
             &mut stream,
             "POST",
-            HOST_FENCE_PATH,
+            RECOVERY_CONTROL_PATH,
             &headers,
             frame,
             expires,
@@ -86,62 +93,28 @@ impl HttpRecoveryControlForwarder {
         .map_err(|_| RecoveryControlTransportFault::DisconnectedAfterWrite)?;
         read_response(&mut stream, expires).map_err(map_read_error)
     }
+
+    pub(crate) fn forward_host_fence(
+        &self,
+        frame: &[u8],
+    ) -> Result<HttpResponse, RecoveryControlTransportFault> {
+        self.forward_frame(RecoveryKind::HostFence, frame)
+    }
 }
 
-fn validate_frame(frame: &[u8]) -> Result<(), RecoveryControlTransportFault> {
+fn validate_frame(kind: RecoveryKind, frame: &[u8]) -> Result<(), RecoveryControlTransportFault> {
     if frame.is_empty() {
         return Err(RecoveryControlTransportFault::InvalidFrame);
     }
     if frame.len() > MAX_RECOVERY_FRAME_BYTES {
         return Err(RecoveryControlTransportFault::RequestOversized);
     }
-    let value = super::strict_json::parse(frame)
-        .map_err(|_| RecoveryControlTransportFault::InvalidFrame)?;
-    let object = value
-        .as_object()
-        .ok_or(RecoveryControlTransportFault::InvalidFrame)?;
-    if object.len() != 9
-        || value["contract"].as_str() != Some(RECOVERY_CONTRACT)
-        || value["schema_digest"].as_str() != Some(RECOVERY_SCHEMA_DIGEST)
-        || value["kind"].as_str() != Some("host_fence_request")
-        || !value["message_id"].is_string()
-        || !value["correlation_id"].is_string()
-        || !value["sent_at"].is_string()
-        || !valid_actor(&value["actor"])
-        || !valid_auth(&value["auth"])
-        || !valid_boot_payload(&value["payload"])
-    {
-        return Err(RecoveryControlTransportFault::InvalidFrame);
-    }
-    Ok(())
-}
-
-fn valid_actor(value: &serde_json::Value) -> bool {
-    let Some(actor) = value.as_object() else {
-        return false;
-    };
-    actor.len() == 2
-        && actor["principal_id"].is_string()
-        && matches!(actor["role"].as_str(), Some("gateway" | "watchdog"))
-}
-
-fn valid_auth(value: &serde_json::Value) -> bool {
-    let Some(auth) = value.as_object() else {
-        return false;
-    };
-    auth.len() == 3
-        && auth["principal_id"].is_string()
-        && auth["capability"].as_str() == Some("host_fence")
-        && auth["proof"]
-            .as_str()
-            .is_some_and(|proof| !proof.is_empty())
-}
-
-fn valid_boot_payload(value: &serde_json::Value) -> bool {
-    let Some(payload) = value.as_object() else {
-        return false;
-    };
-    payload.len() == 1 && payload["boot"].is_object()
+    RecoveryFrame::parse(frame, kind)
+        .map(|_| ())
+        .map_err(|error| match error {
+            RecoveryFrameError::Oversized => RecoveryControlTransportFault::RequestOversized,
+            RecoveryFrameError::Invalid => RecoveryControlTransportFault::InvalidFrame,
+        })
 }
 
 fn valid_token(token: &str) -> bool {

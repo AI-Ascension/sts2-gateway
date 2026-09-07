@@ -82,6 +82,27 @@ pub(super) fn valid_transition(from: RecoveryOperationState, to: RecoveryOperati
         (from, to),
         (
             RecoveryOperationState::IntentRecorded,
+            RecoveryOperationState::IntentRecorded
+        ) | (
+            RecoveryOperationState::MayHaveBeenDispatched,
+            RecoveryOperationState::MayHaveBeenDispatched
+        ) | (
+            RecoveryOperationState::Accepted,
+            RecoveryOperationState::Accepted
+        ) | (
+            RecoveryOperationState::Settled,
+            RecoveryOperationState::Settled
+        ) | (
+            RecoveryOperationState::Rejected,
+            RecoveryOperationState::Rejected
+        ) | (
+            RecoveryOperationState::Unknown,
+            RecoveryOperationState::Unknown
+        ) | (
+            RecoveryOperationState::Reconciled,
+            RecoveryOperationState::Reconciled
+        ) | (
+            RecoveryOperationState::IntentRecorded,
             RecoveryOperationState::MayHaveBeenDispatched
         ) | (
             RecoveryOperationState::IntentRecorded,
@@ -130,6 +151,11 @@ pub(super) fn validate_witness_shape(
             "settled operation requires an operation-specific witness".to_owned(),
         ));
     }
+    if state == RecoveryOperationState::Reconciled && witness.is_none() {
+        return Err(RecoveryStoreError::ContractMismatch(
+            "reconciled operation requires an operation-specific witness".to_owned(),
+        ));
+    }
     if let Some(witness) = witness {
         if witness.operation_id != operation_id {
             return Err(RecoveryStoreError::ContractMismatch(
@@ -172,6 +198,7 @@ pub(super) fn validate_witness_context(
     if witness.payload_digest != operation.payload_digest
         || witness.boot_id != operation.boot_id
         || witness.instance_incarnation != operation.instance_incarnation
+        || witness.generation <= operation.expected_generation
     {
         return Err(RecoveryStoreError::ContractMismatch(
             "effect witness does not match the operation authority context".to_owned(),
