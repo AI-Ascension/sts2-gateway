@@ -140,6 +140,14 @@ are:
 The source/component checks do not establish a running mod, a valid host observation, a settled
 potion effect, a model-controlled episode, or compatibility with an arbitrary host version.
 
+### Dated Runtime-v4 settlement-fencing update — 2026-09-07
+
+The prior Runtime-v4 source/component record at commit `17b93bf35e5256f6adf690aa148fa57d4f56c523` remains retained above as the earlier evidence. The exact-head update at `aecc9fa44c825623b3e3bbb21d130e1fe6ac9468` binds nested settled observation `state_id` and `generation` to the outer response, and binds dispatch transition `before_generation` to the request generation.
+
+| Surface | Current evidence | Result |
+| --- | --- | --- |
+| `runtime-v4-expert` settlement fencing | Exact-head source/component review; 130 workspace tests, strict policy, format, Clippy, and three original regression cases passed | Source/component confirmed at `aecc9fa`; native host legality, settled host effects, provider execution, cross-consumer integration, deployment, and release remain unverified |
+
 ## Runtime-v3 and co-op row
 
 | Surface | Current evidence | Result |

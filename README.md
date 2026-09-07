@@ -123,6 +123,8 @@ end-to-end compatibility remain unverified.
 
 The exact Runtime-v4 source/component record is [documented in the compatibility matrix](docs/COMPATIBILITY.md#runtime-v4-expert-sourcecomponent-row).
 
+Dated source/component update (2026-09-07): at exact gateway source head `aecc9fa44c825623b3e3bbb21d130e1fe6ac9468`, the settled Runtime-v4 expert response fence binds nested observation `state_id` and `generation` to the outer response, and the dispatch transition `before_generation` to the request generation. Independent checks passed 130 workspace tests, formatting, strict policy, Clippy, and three original regression cases. Native host legality, settled effects, provider execution, cross-consumer integration, deployment, and release remain unverified.
+
 For opt-in coordinator-reported synchronization, supply `STS2_COOP_ROSTER` as a JSON array,
 for example `[{"peer_id":"local-1","role":"local"},{"peer_id":"ally-1","role":"ally"}]`.
 The configured coordinator submits bounded peer reports under control scope; the separate
