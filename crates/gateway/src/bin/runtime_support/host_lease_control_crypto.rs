@@ -12,7 +12,7 @@ use super::host_lease_control::HostLeaseFrameError;
 
 pub(super) fn grant_digest(grant: &Value) -> Result<String, HostLeaseFrameError> {
     let canonical = canonical_hcj1(grant)?;
-    Ok(hex_digest(&canonical))
+    Ok(hex_digest(&Sha256::digest(&canonical)))
 }
 
 pub(super) fn canonical_hcj1(value: &Value) -> Result<Vec<u8>, HostLeaseFrameError> {

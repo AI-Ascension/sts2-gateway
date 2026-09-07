@@ -65,6 +65,7 @@ pub(super) fn test_service() -> Result<RuntimeService, String> {
         recovery_fence: None,
         recovery_lease: None,
         recovery_lease_deadline: None,
+        recovery_lease_deadline_lease_id: None,
         recovery_host_grant: None,
         recovery_clock_started: Instant::now(),
         recovery_clock_wall_millis: 0,
@@ -78,10 +79,7 @@ pub(super) fn authenticated_request(path: &str) -> HttpRequest {
         String::from("authorization"),
         String::from("Bearer gateway-token"),
     );
-    headers.insert(
-        String::from("x-sts2-instance-id"),
-        String::from("instance-1"),
-    );
+    headers.insert("x-sts2-instance-id".to_owned(), "instance-1".to_owned());
     headers.insert(String::from("x-sts2-caller-id"), String::from("harness"));
     headers.insert(String::from("x-sts2-session-id"), String::from("session-1"));
     headers.insert(

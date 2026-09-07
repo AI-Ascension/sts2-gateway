@@ -90,7 +90,7 @@ pub(super) fn validate_frame_shape(
     } else {
         validate_request_payload(payload, kind)?;
         if payload["grant"]["gateway"]["principal_id"] != value["actor"]["principal_id"]
-            || payload["grant"]["instance_id"] != payload["grant"]["boot"]["instance_id"]
+            || payload["grant"]["gateway"]["instance_id"] != payload["grant"]["boot"]["instance_id"]
         {
             return Err(HostLeaseFrameError::Invalid);
         }

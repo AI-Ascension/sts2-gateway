@@ -76,7 +76,12 @@ impl GatewayRecoveryStore {
             .optional()
             .map_err(map_sql_error)?
             .ok_or(RecoveryStoreError::LeaseNotFound)?;
-        if ack_recorded_at_millis >= row.7 {
+        // Installation and renewal acknowledgments must be fresh relative to
+        // the gateway lease. A revoke acknowledgment is different: the
+        // gateway has already durably disabled the lease before sending it,
+        // so a delayed but authenticated revoke must still close the durable
+        // host binding after the lease's historical expiry.
+        if kind != HostAckKind::Revoke && ack_recorded_at_millis >= row.7 {
             return Err(RecoveryStoreError::LeaseExpired);
         }
         if row.1.as_deref() != Some(installation_id) || row.2.as_deref() != Some(grant_digest) {

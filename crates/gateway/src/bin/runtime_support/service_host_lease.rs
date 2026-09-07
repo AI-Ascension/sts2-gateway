@@ -290,6 +290,7 @@ impl RuntimeService {
             grant,
         });
         self.recovery_lease_deadline = Some(renewal_deadline);
+        self.recovery_lease_deadline_lease_id = Some(candidate.lease_id.clone());
         self.activate_recovery_lease(candidate.clone())?;
         Ok(candidate)
     }

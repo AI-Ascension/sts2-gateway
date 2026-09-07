@@ -271,12 +271,11 @@ impl RuntimeService {
         send_started: Instant,
         received_at: u64,
     ) -> Result<(), HostLeaseFailure> {
-        if self
-            .recovery_lease
-            .as_ref()
-            .is_some_and(|current| current.lease_id != lease.lease_id)
-        {
+        let same_lease =
+            self.recovery_lease_deadline_lease_id.as_deref() == Some(lease.lease_id.as_str());
+        if !same_lease {
             self.recovery_lease_deadline = None;
+            self.recovery_lease_deadline_lease_id = None;
         }
         if let Some(deadline) = self.recovery_lease_deadline {
             if received_at >= lease.expires_at_millis || Instant::now() >= deadline {
@@ -285,6 +284,10 @@ impl RuntimeService {
             }
             return Ok(());
         }
+        if same_lease {
+            return Err(HostLeaseFailure::expired());
+        }
+        self.recovery_lease_deadline_lease_id = Some(lease.lease_id.clone());
         self.recovery_lease_deadline = Some(lease_deadline(
             lease.expires_at_millis,
             lease.ttl_seconds,
