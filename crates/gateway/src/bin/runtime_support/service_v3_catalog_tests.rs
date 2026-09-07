@@ -68,11 +68,20 @@ pub(super) fn recovery_service() -> Result<(RuntimeService, RecoveryLease, PathB
         })
         .map_err(|error| error.to_string())?;
     let installation_id = Uuid::new_v4().to_string();
+    let grant = super::host_lease_helpers::grant_value(
+        &boot,
+        &fence,
+        &lease,
+        &service.config.caller_id,
+        &service.config.session_id,
+    );
+    let digest = super::super::host_lease_control::grant_digest(&grant)
+        .map_err(|error| format!("fixture grant digest: {error:?}"))?;
     store
         .prepare_host_lease_install(
             &lease.lease_id,
             &installation_id,
-            &"a".repeat(64),
+            &digest,
             &fence.host_fence_id,
             fence.fence_generation,
             now.saturating_add(3),
@@ -82,7 +91,7 @@ pub(super) fn recovery_service() -> Result<(RuntimeService, RecoveryLease, PathB
         .complete_host_lease_install(
             &lease.lease_id,
             &installation_id,
-            &"a".repeat(64),
+            &digest,
             1,
             &Uuid::new_v4().to_string(),
             now.saturating_add(4),

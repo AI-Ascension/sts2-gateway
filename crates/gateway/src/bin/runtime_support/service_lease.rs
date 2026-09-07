@@ -97,6 +97,7 @@ impl RuntimeService {
         if !pending_revoke_retry && let Err(error) = self.check_lease(request) {
             return error;
         }
+        self.allocation_cleanup_lease_id = None;
         if self.recovery.is_some() {
             let Some(lease) = self.recovery_lease.clone() else {
                 return (409, json_error("lease_not_active"));
@@ -166,18 +167,10 @@ impl RuntimeService {
             {
                 return Err(super::recovery_wire::recovery_store_error(error));
             }
-            let host_binding = match self.recovery.as_ref() {
-                Some(store) => match store.host_lease_binding(&lease.lease_id) {
-                    Ok(binding) => binding,
-                    Err(error) => {
-                        return Err(super::recovery_wire::recovery_store_error(error));
-                    }
-                },
-                None => None,
-            };
-            let host_ready = host_binding
-                .is_some_and(|binding| binding.state == RecoveryHostLeaseState::Installed);
-            if !host_ready {
+            if !self
+                .active_host_grant_matches(&lease)
+                .map_err(super::recovery_wire::recovery_store_error)?
+            {
                 return Err((503, json_error("recovery_host_lease_required")));
             }
             let expected_epoch = lease.lease_epoch.to_string();

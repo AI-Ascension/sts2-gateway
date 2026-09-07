@@ -152,6 +152,8 @@ impl RuntimeService {
         if !pending_revoke_retry && let Err(error) = self.check_lease(request) {
             return error;
         }
+        self.allocation_cleanup_lease_id = None;
+        self.shutdown_requested = true;
         if self.recovery.is_some() {
             let Some(lease) = self.recovery_lease.clone() else {
                 return (409, json_error("lease_not_active"));

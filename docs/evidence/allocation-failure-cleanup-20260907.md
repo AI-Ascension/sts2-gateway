@@ -70,3 +70,36 @@ provider, valued save, existing ACL or account configuration was changed.
 An uncertain host revoke stays uncertain; it is not an acknowledgment.
 See [ADR 0018](../decisions/0018-allocation-failure-admission.md) for ownership
 and the fail-closed compatibility rule.
+
+## Independent rejection and integrated repair
+
+The evidence above records the earlier candidate, not approval of the later
+implementation. Independent review reproduced three additional failures in
+test-only commit `1b578573d1d50e83dab4dc8c7b4b0dc4d3097844`. Root integrated the
+tests as `f81907adfc1deed38b2650b9c7468af797727a0e` and confirmed all three failed:
+delayed successful cleanup left fresh allocation permanently closed; expiry
+after durable installation left installed authority; an installed binding with
+a noncanonical grant digest could pass allocation validation.
+
+The repair retains exact-lease cleanup provenance across failed attempts,
+cleans up post-commit activation failure, and validates the canonical grant on
+ordinary, sideband, and allocation-response admission. The shared valid fixture
+now uses the correct grant digest; the negative test explicitly corrupts only
+its own SQLite row and checks rejection before cleanup. Test support was split
+without a size-policy exception. Expiry uses a consumed test-only post-commit
+fault, not a race against a sleeping SQLite lock holder.
+
+An additional signed TCP regression confirms delayed ACKs do not reopen admission
+after prior revocation, operator revocation, ordinary release, shutdown, an
+existing shutdown request, or a marker belonging to another lease. It verifies
+durable `HOST_REVOKED` while allocation remains closed in all six cases.
+
+Root validation of this repair, using the integration worktree's unique local
+`target` directory, passed formatting, diff checks, full workspace/all-target/
+all-feature locked tests (122 runtime tests), strict policy (211 sized files,
+zero warnings/errors), Clippy with warnings denied, and full workspace build.
+The debug runtime SHA-256 is
+`e9d982e61ac4d7ed23926d1e5dd7c46c2f699f0cab1d885bfc4fa0b70a3153c4`.
+These remain Linux component/synthetic-transport checks. Independent re-review,
+integrated release validation, and the native/live/service/soak axes remain
+unverified by this repair.

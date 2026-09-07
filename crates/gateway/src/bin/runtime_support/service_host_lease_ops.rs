@@ -25,6 +25,9 @@ impl RuntimeService {
         reason: &str,
         correlation: &str,
     ) -> Result<(), HostLeaseFailure> {
+        if reason != "shutdown" {
+            self.allocation_cleanup_lease_id = None;
+        }
         let lease = self
             .recovery
             .as_mut()
@@ -109,11 +112,16 @@ impl RuntimeService {
                 ack.recorded_at,
             )
             .map_err(map_store_error)?;
+        let may_allocate_fresh = self.allocation_cleanup_lease_id.as_deref()
+            == Some(lease.lease_id.as_str())
+            && !self.shutdown_requested;
+        self.allocation_cleanup_lease_id = None;
         self.recovery_lease = None;
         self.recovery_lease_deadline = None;
+        self.recovery_lease_deadline_lease_id = None;
         self.recovery_host_grant = None;
         self.lease_active = false;
-        self.lease_revoked = true;
+        self.lease_revoked = !may_allocate_fresh;
         Ok(())
     }
 

@@ -138,6 +138,7 @@ impl RuntimeService {
         self.recovery_boot = Some(boot.clone());
         self.recovery_fence = None;
         self.recovery_lease = None;
+        self.allocation_cleanup_lease_id = None;
         self.recovery_lease_deadline = None;
         self.recovery_host_grant = None;
         self.lease_active = false;

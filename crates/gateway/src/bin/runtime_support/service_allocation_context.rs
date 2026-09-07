@@ -1,13 +1,9 @@
 // SPDX-License-Identifier: MIT
 
 use serde_json::{Value, json};
-use sts2_gateway::{RecoveryHostLeaseState, RecoveryLease};
+use sts2_gateway::RecoveryLease;
 
 use super::{RuntimeService, json_bytes, json_error};
-
-// Use the accepted sideband reason for shutting down an unreturned allocation.
-// Correlation is a fresh transport UUID; installation/lease identity stays fixed.
-const ALLOCATION_FAILURE_REASON: &str = "shutdown";
 
 #[cfg(test)]
 use std::cell::Cell;
@@ -124,10 +120,10 @@ fn validate_durable_allocation(
     store
         .validate_lease(&lease.proof(), now)
         .map_err(super::recovery_wire::recovery_store_error)?;
-    let host_binding = store
-        .host_lease_binding(&lease.lease_id)
-        .map_err(super::recovery_wire::recovery_store_error)?;
-    if !host_binding.is_some_and(|binding| binding.state == RecoveryHostLeaseState::Installed) {
+    if !service
+        .active_host_grant_matches(lease)
+        .map_err(super::recovery_wire::recovery_store_error)?
+    {
         return Err((503, json_error("recovery_host_lease_required")));
     }
     Ok(())
@@ -137,28 +133,7 @@ fn allocation_response_failure(
     service: &mut RuntimeService,
     failure: (u16, Vec<u8>),
 ) -> (u16, Vec<u8>) {
-    let already_revoked = service.lease_revoked;
-    // Close every local admission path before trying a fallible durable write.
-    // A failed write can leave the durable lease ACTIVE; that is not permission
-    // to continue after this response has failed.
-    service.lease_active = false;
-    service.lease_revoked = true;
-    service.recovery_lease_deadline = None;
-    let Some(lease) = service.recovery_lease.clone() else {
-        return failure;
-    };
-    if service
-        .revoke_host_lease(
-            &lease.proof(),
-            ALLOCATION_FAILURE_REASON,
-            &uuid::Uuid::new_v4().to_string(),
-        )
-        .is_ok()
-    {
-        // Only acknowledged, durably recorded cleanup permits a fresh epoch.
-        // Never undo revocation/stop that preceded this failed response.
-        service.lease_revoked = already_revoked || service.shutdown_requested;
-    }
+    super::allocation_cleanup::cleanup_unreturned_allocation(service);
     failure
 }
 

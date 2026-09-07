@@ -41,6 +41,7 @@ pub(crate) struct RuntimeService {
     config: RuntimeConfig,
     lease_active: bool,
     lease_revoked: bool,
+    allocation_cleanup_lease_id: Option<String>,
     shutdown_requested: bool,
     runtime_v2: RuntimeV2Ledger<HttpRuntimeV2Forwarder>,
     runtime_v3: RuntimeV3GameplayForwarder,
@@ -91,6 +92,8 @@ struct QueuedRequest {
 
 #[path = "service_admission.rs"]
 mod admission;
+#[path = "service_allocation_cleanup.rs"]
+mod allocation_cleanup;
 #[path = "service_allocation_context.rs"]
 mod allocation_context;
 #[path = "service_authorization.rs"]
@@ -232,6 +235,7 @@ impl RuntimeService {
             config,
             lease_active: false,
             lease_revoked: false,
+            allocation_cleanup_lease_id: None,
             shutdown_requested: false,
             runtime_v2,
             runtime_v3: RuntimeV3GameplayForwarder::new(MAX_BODY_BYTES, MAX_RESPONSE_BYTES),

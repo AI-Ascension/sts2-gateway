@@ -3,7 +3,7 @@
 use serde_json::json;
 use sts2_gateway::{
     RecoveryBootContext, RecoveryHostFence, RecoveryHostLeaseState, RecoveryLease,
-    RecoveryLeaseProof, RecoveryStoreError,
+    RecoveryLeaseProof,
 };
 
 use super::super::host_lease_control::{
@@ -13,6 +13,9 @@ use super::host_lease_helpers::{
     grant_value, lease_deadline, map_frame_error, map_store_error, validate_ack,
 };
 use super::{HostLeaseGrant, HttpRequest, RuntimeService, json_error, safe_identity};
+
+#[path = "service_host_lease_readiness.rs"]
+mod readiness;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) struct HostLeaseFailure {
@@ -55,13 +58,6 @@ impl HostLeaseFailure {
 }
 
 impl RuntimeService {
-    pub(super) fn host_lease_ready(&self, lease_id: &str) -> Result<bool, RecoveryStoreError> {
-        self.recovery
-            .as_ref()
-            .ok_or(RecoveryStoreError::PersistenceUnavailable)?
-            .host_lease_is_ready(lease_id)
-    }
-
     /// A revoke request may be retried after the host response was lost. The
     /// local lease is already revoked at that point, so the ordinary mutation
     /// lease check cannot be used to authenticate the retry. Keep the retry
@@ -101,6 +97,20 @@ impl RuntimeService {
     }
 
     pub(super) fn install_host_lease(
+        &mut self,
+        boot: &RecoveryBootContext,
+        fence: &RecoveryHostFence,
+        lease: &RecoveryLease,
+        correlation: &str,
+    ) -> Result<RecoveryLease, HostLeaseFailure> {
+        let result = self.install_host_lease_inner(boot, fence, lease, correlation);
+        if let Err(failure) = result {
+            super::allocation_cleanup::failed_install(self, lease, failure);
+        }
+        result
+    }
+
+    fn install_host_lease_inner(
         &mut self,
         boot: &RecoveryBootContext,
         fence: &RecoveryHostFence,
@@ -171,6 +181,8 @@ impl RuntimeService {
         {
             return Err(map_store_error(error));
         }
+        #[cfg(test)]
+        super::allocation_cleanup::apply_expiry_after_install(self);
         self.recovery_host_grant = Some(HostLeaseGrant {
             installation_id,
             grant_digest: digest,
