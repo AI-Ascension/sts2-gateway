@@ -253,3 +253,17 @@ all recent connected reports agree, never backwards. These sequences belong to c
 convergence, not independently allocated per-game observation counters. The wire source is
 always `gateway_peer_reports`; no independent peer authentication or native-host agreement is
 claimed. No state is persisted or restored as synchronized after process restart.
+
+## Runtime-map visibility row
+
+| Surface | Producer pin | Current evidence | Result |
+| --- | --- | --- | --- |
+| `runtime-map-v1` artifact and schema | protocol commit `7c448bd8d7a695ada48830176f3d738286caafe4`, schema digest `ceab0d2dfc471d1ec36d12edaf4654b8c7fdced06548bf47265e11c63f98115b` | copied manifest, schema, conformance case, and three goldens with checksum validation | Source-derived artifact-copy integrity; producer and host compatibility unverified |
+| Gateway map snapshot route | `GET /v1/instances/{instance_id}/map-snapshot` to fixed downstream `GET /api/map/v1/snapshot` | exact route, lease/bodyless admission, schema/provenance/identity/generation checks, bounded graph and binding tests | Confirmed deterministic source/component behavior; live map observation and freshness unverified |
+
+The profile is additive and does not alter legacy Runtime-v1, Runtime-v2, Runtime-v3 gameplay, or
+coordinator-report routes. It carries visible nodes, directed edges, position, history, terminal
+references, and navigation bindings only. Hidden host state is outside the contract. Overlapping
+coordinates and disconnected visible components are preserved. The consumer rejects mixed
+protocol revisions, wrong schema digests, foreign or stale generations, malformed graphs, invalid
+action-option identity, and responses over 256 KiB; it does not retry or synthesize a map snapshot.

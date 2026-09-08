@@ -143,7 +143,7 @@ fn shutdown_drains_requests_until_admission_producer_exits() -> Result<(), Strin
         })
         .map_err(|e| e.to_string())?;
     assert_eq!(
-        super::read_response(
+        super::super::http::read_response(
             &mut shutdown_client,
             super::Instant::now() + Duration::from_secs(2)
         )
@@ -173,7 +173,7 @@ fn shutdown_drains_requests_until_admission_producer_exits() -> Result<(), Strin
         .map_err(|e| e.to_string())?;
     drop(sender);
     assert_eq!(
-        super::read_response(
+        super::super::http::read_response(
             &mut late_client,
             super::Instant::now() + Duration::from_secs(2)
         )

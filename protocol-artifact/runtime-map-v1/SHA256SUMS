@@ -1,0 +1,7 @@
+0d6bc5f9268b42c852b2d4fea120593d69c748cd6fccd73d5833c7658b662091  ../../conformance/cases/runtime-map-v1.json
+ceab0d2dfc471d1ec36d12edaf4654b8c7fdced06548bf47265e11c63f98115b  ../../schemas/runtime-map-v1.schema.json
+e4a1bb88587fc67e2279651baa06334a4f1bc76edad5aec34f662f5eea1f21cf  manifest.json
+ceab0d2dfc471d1ec36d12edaf4654b8c7fdced06548bf47265e11c63f98115b  schema.json
+31b0d8c2cea8611f3b5d67e471f0ddeacca37d0e48d2b27dfef8d905c3dd0ca4  golden/snapshot-request.json
+95152c6aee09c40eaba7fcb2ab704f881f013cf75865b18a56fdb96a392925c6  golden/snapshot-response.json
+bbb959f20a5293032072ee9ab30c9489807ad185cec7d740f15dd929a9bfa622  golden/visible-map.json
