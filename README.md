@@ -124,7 +124,7 @@ end-to-end compatibility remain unverified.
 
 The exact Runtime-v4 source/component record is [documented in the compatibility matrix](docs/COMPATIBILITY.md#runtime-v4-expert-sourcecomponent-row).
 
-Dated source/component update (2026-09-07): at exact gateway source head `aecc9fa44c825623b3e3bbb21d130e1fe6ac9468`, the settled Runtime-v4 expert response fence binds nested observation `state_id` and `generation` to the outer response, and the dispatch transition `before_generation` to the request generation. Independent checks passed 130 workspace tests, formatting, strict policy, Clippy, and three original regression cases. Native host legality, settled effects, provider execution, cross-consumer integration, deployment, and release remain unverified.
+Historical source/component update (2026-09-07): at exact gateway source head `aecc9fa44c825623b3e3bbb21d130e1fe6ac9468`, the settled Runtime-v4 expert response fence binds nested observation `state_id` and `generation` to the outer response, and the dispatch transition `before_generation` to the request generation. Independent checks passed 130 workspace tests, formatting, strict policy, Clippy, and three original regression cases. Native host legality, settled effects, provider execution, cross-consumer integration, deployment, and release remain unverified.
 
 For opt-in coordinator-reported synchronization, supply `STS2_COOP_ROSTER` as a JSON array,
 for example `[{"peer_id":"local-1","role":"local"},{"peer_id":"ally-1","role":"ally"}]`.
@@ -147,3 +147,11 @@ snapshot path. It validates the corrected visible-map artifact, identity/generat
 graph, and independent navigation bindings before returning data. The route is source/component
 evidence; live map freshness and visualizer rendering remain unverified. See
 [ADR 0017](docs/decisions/0017-runtime-map-read-route.md).
+
+Dated current-main source/component update (2026-09-08): merged gateway main
+`77782d5745a8c1f3399807d48138c5c7b511bff1` contains the bounded map route and its copied
+`runtime-map-v1` artifact. The producer pin is merged protocol main
+`b3d3034f32e68d70c9e681f906ee37d74db153c4` at schema digest
+`ceab0d2dfc471d1ec36d12edaf4654b8c7fdced06548bf47265e11c63f98115b`. This records current
+source/component identity and copied-artifact scope; live map freshness, native map visibility,
+navigation, gameplay, release, and publication remain unverified.
