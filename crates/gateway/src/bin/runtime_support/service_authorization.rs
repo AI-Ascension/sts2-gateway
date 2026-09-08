@@ -33,6 +33,13 @@ pub(super) fn required_scope(request: &HttpRequest, instance_id: &str) -> AuthSc
             | RuntimeV3GameplayRoute::Reobserve => AuthScope::Read,
         };
     }
+    if let Some(route) = RuntimeV4ExpertRoute::parse(&request.method, &request.path, instance_id) {
+        return if route.is_dispatch() {
+            AuthScope::Mutate
+        } else {
+            AuthScope::Read
+        };
+    }
     let action_path = format!("/v2/instances/{instance_id}/action");
     let legacy_action_path = format!("/v1/instances/{instance_id}/action");
     if request.method == "POST"

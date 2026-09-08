@@ -1,0 +1,7 @@
+{
+  "case_id": "CT-PROTO-RUNTIME-V4-EXPERT-ACTION-001",
+  "contract": "sts2.protocol/runtime-v4-expert-action",
+  "setup": {"live_runtime": false, "network": false, "provider": false, "proprietary_data": false},
+  "required": ["authenticated_identity", "generation_fence", "operation_identity", "fresh_settlement_witness"],
+  "unknown_rule": "A disconnect after admission is reconciled by operation_id and is never blind retried."
+}

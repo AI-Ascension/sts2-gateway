@@ -1,0 +1,14 @@
+{
+  "artifact": "sts2-protocol/runtime-v4-expert-action",
+  "protocol_version": "runtime-v4-expert-action",
+  "schema": "schema.json",
+  "schema_digest": "393318bda8c3522c0ecbacc78b95471a9f4dc3f825169d2048f4c74a7b7f2929",
+  "provenance": {
+    "source": "schemas/runtime-v4-expert-action.schema.json",
+    "generator": "hand-authored",
+    "license": "MIT"
+  },
+  "consumers": ["sts2-game-mod", "sts2-gateway", "sts2-harness", "sts2-mcp-server"],
+  "goldens": ["golden/action-request.json", "golden/action-settled.json"],
+  "checksums": "SHA256SUMS"
+}

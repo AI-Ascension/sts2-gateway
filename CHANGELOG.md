@@ -5,6 +5,13 @@ host compatibility and release publication.
 
 ## [Unreleased]
 
+- Tighten Runtime-v4 expert settlement fencing at source head `aecc9fa44c825623b3e3bbb21d130e1fe6ac9468`: bind nested observation `state_id` and `generation` to the outer response and dispatch transition `before_generation` to the request generation. Independent source/component checks pass; native host legality, settled effects, provider execution, cross-consumer integration, deployment, and release remain unverified.
+
+- Add the bounded Runtime-v4 expert-state, expert-action, and expert-reconcile gateway routes.
+  The source/component implementation validates the checked-in observation and action artifacts
+  at `17b93bf`; native host legality, settled effects, provider runs, and end-to-end compatibility
+  remain unverified.
+
 - Add opt-in coordinator-reported co-op synchronization: configured roster, control-scoped
   fenced reports, monotonic convergence and expiry, and a read-only response consumed by
   the executable MCP profile. Both routes avoid downstream game access. The copied protocol
