@@ -23,6 +23,8 @@ name = "production-lint-fixture"
 version = "0.0.0"
 edition = "2024"
 [workspace]
+[lints.rust]
+unsafe_code = "deny"
 [lints.clippy]
 unwrap_used = "deny"
 expect_used = "deny"
@@ -160,6 +162,27 @@ mod tests {
         tests.status.success(),
         "{}",
         String::from_utf8_lossy(&tests.stderr)
+    );
+    Ok(())
+}
+
+#[test]
+fn compiler_rejects_unsafe_code_outside_an_approved_boundary() -> TestResult {
+    let fixture = Fixture::new()?;
+    let output = fixture.production(
+        "pub fn value() -> u8 {\n    let mut output = 0;\n    unsafe { std::ptr::write(&mut output, 7); }\n    output\n}\n",
+    )?;
+    let diagnostic = format!(
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(!output.status.success(), "unsafe fixture was accepted");
+    assert!(
+        diagnostic.contains("unsafe_code")
+            || diagnostic.contains("unsafe-code")
+            || diagnostic.contains("usage of an `unsafe` block"),
+        "wrong unsafe-code failure: {diagnostic}"
     );
     Ok(())
 }
