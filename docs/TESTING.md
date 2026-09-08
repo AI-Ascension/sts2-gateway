@@ -21,6 +21,7 @@ cargo test --workspace --all-targets --all-features --locked
 (cd protocol-artifact/runtime-v1 && sha256sum -c SHA256SUMS)
 (cd protocol-artifact/runtime-v2 && sha256sum -c SHA256SUMS)
 (cd protocol-artifact/runtime-v3-gameplay && sha256sum -c SHA256SUMS)
+(cd protocol-artifact/runtime-map-v1 && sha256sum -c SHA256SUMS)
 ```
 
 The policy command comes first in the normal local sequence. CI runs the same commands with bounded
@@ -162,3 +163,20 @@ read/control credentials, verifies the full report lifecycle and lease rejection
 that a listening downstream trap received zero connections. It is run explicitly with this
 exact built gateway passed in `STS2_COOP_GATEWAY_BINARY`; see the MCP testing guide and
 the coordinated evidence record. It proves coordination transport, not native multiplayer.
+
+## Runtime-map visibility checks
+
+The `runtime-map-v1` consumer verifies protocol commit
+`7c448bd8d7a695ada48830176f3d738286caafe4` and schema digest
+`ceab0d2dfc471d1ec36d12edaf4654b8c7fdced06548bf47265e11c63f98115b` through the copied manifest,
+schema, conformance case, and golden checksum inventory. Forwarder tests cover the exact GET-only
+route, bodyless request, downstream path, response budget, provenance and digest, configured
+identity and epoch/generation fences, bounded graph topology, visited position/history/terminal
+references, and independent generation-bound action bindings. Invalid identity, stale generation,
+unknown fields, duplicate graph members, cycles, invalid action-option IDs, and oversized responses
+fail closed. Exact UTF-8 byte boundaries, C0/DEL/C1 controls, and timeout ordering are checked at
+the forwarder and service boundary. Overlapping coordinates and disconnected visible components
+remain accepted.
+
+These are deterministic source/component checks. They do not establish a running game-mod, host map
+freshness, map projection compatibility, visualizer behavior, or a gameplay navigation effect.

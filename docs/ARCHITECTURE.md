@@ -237,3 +237,20 @@ artifact for MCP without linking protocol Rust implementation. It neither calls 
 consults reported agreement for gameplay forwarding authority. Source labels remain explicit.
 The older numeric-ID `CoopSession` prototype is separate and is not wire-consumer evidence.
 ADR 0015 records trust, freshness, identity lifetime and deterministic verification.
+
+## Runtime-map visibility
+
+ADR 0017 adds the additive `runtime-map-v1` read route for a bounded visible campaign graph. The
+gateway owns the fixed `GET /v1/instances/{instance_id}/map-snapshot` path, bodyless request
+admission, existing lease and identity fences, the downstream `GET /api/map/v1/snapshot` path,
+and the 256 KiB response budget. The game-mod owns host observation and projection meaning; the
+gateway does not create map nodes or authorize navigation.
+
+The gateway validates the copied protocol artifact's exact provenance, digest, response kind,
+identity and generation relationships, then checks graph structure and generation-bound bindings
+before returning the response. It rejects arbitrary methods or paths, request bodies, foreign or
+stale envelopes, unknown fields, duplicate graph identities, invalid edges, cycles, invalid
+visited position/history/terminal references, and malformed bindings. Overlapping coordinates and
+disconnected visible components remain valid projection facts. This is a read-only
+transport/component guarantee. Live map freshness, host compatibility, and visualizer rendering
+require separate evidence.

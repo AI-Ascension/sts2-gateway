@@ -21,10 +21,13 @@ use super::coop_reports::CoopReports;
 use super::forwarder::HttpRuntimeV2Forwarder;
 use super::http::{
     HttpRequest, HttpResponse, MAX_BODY_BYTES, MAX_RESPONSE_BYTES, ReadError, read_request,
-    read_response, write_request, write_response,
+    read_response_with_limit, write_request, write_response,
 };
 use super::journal;
 use super::metrics::RuntimeMetrics;
+use super::runtime_map::RuntimeMapRoute;
+use super::runtime_map_forwarder::RuntimeMapForwardError;
+use super::runtime_map_forwarder::{MAX_MAP_RESPONSE_BYTES, RuntimeMapForwarder};
 use super::runtime_v3_gameplay::RuntimeV3GameplayRoute;
 use super::runtime_v3_gameplay_forwarder::{
     RuntimeV3GameplayForwardError, RuntimeV3GameplayForwarder,
@@ -49,6 +52,7 @@ pub(crate) struct RuntimeService {
     runtime_v2: RuntimeV2Ledger<HttpRuntimeV2Forwarder>,
     runtime_v3: RuntimeV3GameplayForwarder,
     runtime_v4_expert: RuntimeV4ExpertForwarder,
+    runtime_map: RuntimeMapForwarder,
     journal_path: Option<PathBuf>,
     _journal_lock: Option<journal::JournalLock>,
     metrics: RuntimeMetrics,
@@ -86,6 +90,8 @@ mod configuration;
 mod coop;
 #[path = "service_lease.rs"]
 mod lease;
+#[path = "service_map.rs"]
+mod map;
 #[path = "service_routes.rs"]
 mod routes;
 #[path = "service_v2.rs"]
@@ -151,6 +157,7 @@ impl RuntimeService {
             runtime_v2,
             runtime_v3: RuntimeV3GameplayForwarder::new(MAX_BODY_BYTES, MAX_RESPONSE_BYTES),
             runtime_v4_expert: RuntimeV4ExpertForwarder::new(MAX_BODY_BYTES, MAX_RESPONSE_BYTES),
+            runtime_map: RuntimeMapForwarder::new(MAX_MAP_RESPONSE_BYTES),
             metrics: RuntimeMetrics::default(),
             coop_reports,
         })
@@ -251,3 +258,7 @@ mod test_support;
 #[cfg(test)]
 #[path = "service_coop_tests.rs"]
 mod coop_tests;
+
+#[cfg(test)]
+#[path = "service_map_tests.rs"]
+mod map_tests;
