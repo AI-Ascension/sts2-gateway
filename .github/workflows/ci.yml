@@ -53,6 +53,16 @@ jobs:
         working-directory: protocol-artifact/coop-synchronization-v1
         run: sha256sum -c SHA256SUMS
 
+      - name: Verify every copied protocol artifact inventory
+        # Discovers every SHA256SUMS under protocol-artifact/ so a profile copied later
+        # (for example runtime-v4-expert or runtime-v4-expert-action) cannot be missed.
+        run: |
+          inventories=$(find protocol-artifact -mindepth 2 -name SHA256SUMS -type f | LC_ALL=C sort)
+          test -n "$inventories"
+          for inventory in $inventories; do
+            (cd "$(dirname "$inventory")" && sha256sum --check SHA256SUMS)
+          done
+
       - name: Run Clippy
         run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 
