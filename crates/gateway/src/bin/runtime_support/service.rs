@@ -92,6 +92,8 @@ mod coop;
 mod lease;
 #[path = "service_map.rs"]
 mod map;
+#[path = "service_receipt_query.rs"]
+mod receipt_query;
 #[path = "service_routes.rs"]
 mod routes;
 #[path = "service_v2.rs"]
@@ -258,6 +260,10 @@ mod test_support;
 #[cfg(test)]
 #[path = "service_coop_tests.rs"]
 mod coop_tests;
+
+#[cfg(test)]
+#[path = "service_receipt_query_tests.rs"]
+mod receipt_query_tests;
 
 #[cfg(test)]
 #[path = "service_map_tests.rs"]

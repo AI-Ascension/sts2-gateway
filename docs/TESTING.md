@@ -22,6 +22,7 @@ cargo test --workspace --all-targets --all-features --locked
 (cd protocol-artifact/runtime-v2 && sha256sum -c SHA256SUMS)
 (cd protocol-artifact/runtime-v3-gameplay && sha256sum -c SHA256SUMS)
 (cd protocol-artifact/runtime-map-v1 && sha256sum -c SHA256SUMS)
+(cd protocol-artifact/coop-receipt-query-v1 && sha256sum -c SHA256SUMS)
 ```
 
 The policy command comes first in the normal local sequence. CI runs the same commands with bounded
@@ -180,3 +181,13 @@ remain accepted.
 
 These are deterministic source/component checks. They do not establish a running game-mod, host map
 freshness, map projection compatibility, visualizer behavior, or a gameplay navigation effect.
+
+## Proposed retained receipt query checks
+
+The proposed receipt-query route validates every frozen accepted, settled, rejected, and unknown
+response golden, then rejects unsorted or foreign participants, numeric spelling and duplicate-key
+changes, generation lineage changes, fresh-observation evidence, status/receipt mismatches, settled
+generation regressions, action/effect mismatches, and response identity drift. The route test also
+verifies JSON content type and active-lease admission before any downstream forwarding. These checks
+establish only gateway source/component behavior; they do not establish a native producer, a live
+retained receipt, or cross-consumer recovery.

@@ -267,3 +267,27 @@ references, and navigation bindings only. Hidden host state is outside the contr
 coordinates and disconnected visible components are preserved. The consumer rejects mixed
 protocol revisions, wrong schema digests, foreign or stale generations, malformed graphs, invalid
 action-option identity, and responses over 256 KiB; it does not retry or synthesize a map snapshot.
+
+## Proposed retained receipt query
+
+The proposed `coop-receipt-query-v1` profile adds one read-only route:
+
+| Method/path suffix under `/v1/instances/{id}` | Scope | Downstream path | Status |
+| --- | --- | --- | --- |
+| `POST /coop/receipt-query` | read | `POST /api/v1/coop/native/receipt-query` | proposed, unadmitted |
+
+The route requires the existing authentication, caller, instance, session, MCP-session, active
+lease, epoch, and correlation fences. Before any downstream connection, it bounds the request,
+requires JSON content type, and validates the copied profile at schema digest
+`3e3eaedb93926b26025abb09d8028491e2632896753688c1182c698fed7d3f7c`, including exact provenance,
+canonical member order and UTF-8 encoding, duplicate-key rejection, repeated identity, sorted
+distinct participant IDs, and request generation lineage. The response must repeat the request
+identity and use `evidence_scope: retained_receipt`; accepted, settled, and rejected receipts
+must match their status, while unknown and recovery-required responses carry no receipt.
+
+The route forwards the validated neutral bytes to the fixed game-mod path and validates the bounded
+response before returning it. It never observes, reconciles, queues, retries, or authorizes a
+mutation. Invalid request data returns a client error; a downstream failure is returned as an
+unavailable error; an invalid or oversized downstream response is a `502`. The profile manifest
+intentionally keeps `consumers: []`; the route is source/component evidence only until the mod
+producer, MCP reader, harness recovery reader, and independent admission review are complete.
