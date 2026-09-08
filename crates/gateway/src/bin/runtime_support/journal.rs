@@ -166,10 +166,16 @@ mod tests {
     use super::{JournalLock, MAX_JOURNAL_BYTES, load, store};
 
     fn test_path() -> PathBuf {
+        // Test thread names contain `::`, which Windows rejects in file names.
+        let name: String = std::thread::current()
+            .name()
+            .unwrap_or("test")
+            .chars()
+            .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+            .collect();
         std::env::temp_dir().join(format!(
-            "sts2-runtime-v2-journal-{}-{}.json",
-            std::process::id(),
-            std::thread::current().name().unwrap_or("test")
+            "sts2-runtime-v2-journal-{}-{name}.json",
+            std::process::id()
         ))
     }
 
