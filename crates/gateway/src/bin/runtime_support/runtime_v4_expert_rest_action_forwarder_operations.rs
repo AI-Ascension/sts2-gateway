@@ -20,6 +20,10 @@ pub(super) struct OperationBinding {
     pub(super) lease_id: String,
     pub(super) lease_epoch: u64,
     pub(super) status: OperationStatus,
+    // Keep the selector catalog that admitted this operation. A later
+    // selection may advance the shared catalog before an accepted operation's
+    // reconciliation is replayed.
+    pub(super) selector_context: Option<(String, SelectorAdmission)>,
     pub(super) completed_selector: Option<(String, SelectorAdmission)>,
 }
 
@@ -80,6 +84,15 @@ impl RuntimeV4ExpertRestActionForwarder {
         let Some(lease_epoch) = value["lease_epoch"].as_u64() else {
             return false;
         };
+        let selector_context =
+            value["action"]["action"]["selection_id"]
+                .as_str()
+                .and_then(|selection_id| {
+                    self.selector_admissions
+                        .get(selection_id)
+                        .cloned()
+                        .map(|admission| (selection_id.to_owned(), admission))
+                });
         self.operation_bindings.insert(
             operation_id.to_owned(),
             OperationBinding {
@@ -91,6 +104,7 @@ impl RuntimeV4ExpertRestActionForwarder {
                 lease_id: lease_id.to_owned(),
                 lease_epoch,
                 status: OperationStatus::Pending,
+                selector_context,
                 completed_selector: None,
             },
         );

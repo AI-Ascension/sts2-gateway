@@ -71,13 +71,47 @@ impl RuntimeV4ExpertRestActionForwarder {
                 )) else {
                     return;
                 };
+                let operation_context = operation_id.and_then(|operation_id| {
+                    self.operation_bindings
+                        .get(operation_id)
+                        .and_then(|binding| binding.selector_context.as_ref())
+                        .cloned()
+                });
+                if self.operation_bindings.values().any(|binding| {
+                    binding
+                        .completed_selector
+                        .as_ref()
+                        .is_some_and(|(completed_id, _)| completed_id == &selection_id)
+                }) {
+                    if let Some(operation_id) = operation_id {
+                        self.release_selector_reservation(operation_id);
+                    }
+                    return;
+                }
                 if self.selector_admissions.len() < MAX_SELECTOR_ADMISSIONS
                     || self.selector_admissions.contains_key(&selection_id)
                 {
                     if let Some(operation_id) = operation_id {
                         self.release_selector_reservation(operation_id);
                     }
-                    self.selector_admissions.insert(selection_id, admission);
+                    if let Some(operation_id) = operation_id
+                        && operation_context.is_none()
+                        && let Some(binding) = self.operation_bindings.get_mut(operation_id)
+                    {
+                        let context = self
+                            .selector_admissions
+                            .get(&selection_id)
+                            .cloned()
+                            .unwrap_or_else(|| admission.clone());
+                        binding.selector_context = Some((selection_id.clone(), context));
+                    }
+                    let should_advance = self
+                        .selector_admissions
+                        .get(&selection_id)
+                        .is_none_or(|current| admission.generation > current.generation);
+                    if should_advance {
+                        self.selector_admissions.insert(selection_id, admission);
+                    }
                 }
             }
             Some("rest_option_selection_completed") => {

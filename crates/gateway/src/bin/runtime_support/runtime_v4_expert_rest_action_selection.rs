@@ -24,6 +24,13 @@ pub(crate) struct SelectorAdmission {
     pub(crate) legal_actions: BTreeMap<String, Value>,
 }
 
+impl SelectorAdmission {
+    #[cfg(test)]
+    pub(crate) fn selected_choice_ids(&self) -> &BTreeSet<String> {
+        &self.selected_choice_ids
+    }
+}
+
 pub(crate) fn admission_from_transition(transition: &Value) -> Option<(String, SelectorAdmission)> {
     let selector = transition["selector"].as_object()?;
     let selection_id = selector["selection_id"].as_str()?.to_owned();
@@ -184,6 +191,7 @@ pub(super) fn selector_valid(
         has_confirm |= legal["action"]["kind"] == "confirm_selection";
     }
     if reconciling
+        && transition["kind"] != "rest_option_selection_progressed"
         && admissions
             .get(selection_id)
             .is_some_and(|admission| admission.legal_actions != current_legal_actions)
@@ -224,8 +232,17 @@ fn selector_admission_generation_and_progress(
         return false;
     }
     if reconciling {
-        return admission.generation == transition["after_generation"].as_u64().unwrap_or(u64::MAX)
+        let at_progress_after = admission.generation
+            == transition["after_generation"].as_u64().unwrap_or(u64::MAX)
             && admission.selected_choice_ids == *selected_ids;
+        let at_progress_before = admission.generation
+            == transition["before_generation"].as_u64().unwrap_or(u64::MAX)
+            && admission.selected_choice_ids.is_subset(selected_ids)
+            && selected_ids.len() == admission.selected_choice_ids.len() + 1;
+        return match kind {
+            Some("rest_option_selection_progressed") => at_progress_before || at_progress_after,
+            _ => at_progress_after,
+        };
     }
     match kind {
         Some("rest_option_selection_requested") => {

@@ -160,12 +160,29 @@ impl RuntimeV4ExpertRestActionForwarder {
                 })
             });
         let mut fallback_admissions = None;
-        if let Some((selection_id, admission)) = self.completed_selector_for(route, request)
-            && !self.selector_admissions.contains_key(selection_id)
-        {
-            let mut admissions = self.selector_admissions.clone();
-            admissions.insert(selection_id.to_owned(), admission.clone());
-            fallback_admissions = Some(admissions);
+        let operation_id = route
+            .operation_id()
+            .or_else(|| request["operation_id"].as_str());
+        if let Some(operation_id) = operation_id {
+            let operation_context = self
+                .operation_bindings
+                .get(operation_id)
+                .and_then(|binding| binding.selector_context.as_ref());
+            let completed_context = self.completed_selector_for(route, request);
+            if operation_context.is_some() || completed_context.is_some() {
+                let mut admissions = self.selector_admissions.clone();
+                if let Some((selection_id, admission)) = completed_context {
+                    admissions.insert(selection_id.to_owned(), admission.clone());
+                }
+                // The admission captured when this operation was retained is
+                // authoritative for its reconciliation. A completion receipt
+                // is only a fallback for bindings that no longer have that
+                // operation context.
+                if let Some((selection_id, admission)) = operation_context {
+                    admissions.insert(selection_id.clone(), admission.clone());
+                }
+                fallback_admissions = Some(admissions);
+            }
         }
         let admissions = fallback_admissions
             .as_ref()
