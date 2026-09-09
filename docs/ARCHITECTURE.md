@@ -254,3 +254,22 @@ visited position/history/terminal references, and malformed bindings. Overlappin
 disconnected visible components remain valid projection facts. This is a read-only
 transport/component guarantee. Live map freshness, host compatibility, and visualizer rendering
 require separate evidence.
+
+## Runtime-v4 expert rest-action candidate
+
+[ADR 0019](decisions/0019-runtime-v4-expert-rest-action-route.md) adds the candidate
+`runtime-v4-expert-rest-action-v1` assignment envelope. The gateway owns the fixed
+`POST /v4/instances/{instance_id}/expert-rest-action` dispatch path and
+`GET /v4/instances/{instance_id}/expert-rest-actions/{operation_id}` reconciliation path,
+authenticated instance/session/lease/epoch/correlation fences, JSON size limits, and forwarding
+only to `/api/v4/runtime/expert-rest-action` or `/api/v4/runtime/expert-rest-actions/{operation_id}`.
+The game-mod remains authoritative for rest-site meaning and native host effects.
+
+The forwarder pins the candidate artifact digest
+`bb3555fae28eb1f79d08a15e9884696a579e4c20836f5016509f17e0f4c36fbd`, validates nested expert
+observations, generation-fenced transitions, typed selector catalogs, and option-specific effect
+witnesses, and keeps a bounded selector-admission catalog across response observations. A completed
+selector response may return to a `rest` observation, so its selected choices are checked against
+the earlier catalog. Missing prior admission, malformed or oversized payloads, identity drift, and
+unknown paths fail closed. This is source/component evidence for an unadmitted candidate; it does
+not establish a native producer, host settlement, MCP/harness consumption, or release behavior.

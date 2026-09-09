@@ -19,6 +19,13 @@ impl RuntimeService {
         {
             return self.runtime_v4_expert_request(request, route);
         }
+        if let Some(route) = RuntimeV4ExpertRestActionRoute::parse(
+            &request.method,
+            &request.path,
+            &self.config.instance_id,
+        ) {
+            return self.runtime_v4_expert_rest_action_request(request, route);
+        }
         if let Some(route) =
             RuntimeMapRoute::parse(&request.method, &request.path, &self.config.instance_id)
         {

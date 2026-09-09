@@ -13,6 +13,9 @@ mod runtime_v3_gameplay_forwarder;
 mod runtime_v3_relations;
 mod runtime_v4_expert;
 mod runtime_v4_expert_forwarder;
+mod runtime_v4_expert_rest_action;
+mod runtime_v4_expert_rest_action_forwarder;
+mod runtime_v4_expert_rest_action_semantics;
 mod service;
 mod strict_json;
 

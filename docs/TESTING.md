@@ -182,6 +182,23 @@ remain accepted.
 These are deterministic source/component checks. They do not establish a running game-mod, host map
 freshness, map projection compatibility, visualizer behavior, or a gameplay navigation effect.
 
+## Runtime-v4 expert rest-action checks
+
+The candidate `runtime-v4-expert-rest-action-v1` consumer pins schema digest
+`bb3555fae28eb1f79d08a15e9884696a579e4c20836f5016509f17e0f4c36fbd` and checks its copied
+`SHA256SUMS` inventory. Forwarder tests exercise fixed POST/GET route parsing, JSON content and
+body bounds, authenticated identity/lease/epoch/correlation matching, status mapping, nested expert
+observation identity, generation fences, option-specific effect witnesses, typed selector legal
+actions, and a bounded selector-admission catalog retained across response observations. All 16
+goldens are checked for dispatch and reconciliation, all 22 schema-valid mutation fixtures are
+rejected, and both serialized Smith and Mend producer-shaped lifecycles are checked message by
+message. Service tests verify exact downstream paths and malformed profile rejection before any
+downstream response is accepted.
+
+These tests establish only gateway source/component behavior for a candidate profile. The artifact
+has no admitted consumers; native producer serialization, host legality and effects, MCP/harness
+mapping, deployment, and live settlement remain unverified.
+
 ## Proposed retained receipt query checks
 
 The proposed receipt-query route validates every frozen accepted, settled, rejected, and unknown

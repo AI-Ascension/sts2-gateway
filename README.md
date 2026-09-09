@@ -77,6 +77,7 @@ cargo test --workspace --all-targets --all-features --locked
 (cd protocol-artifact/runtime-v2 && sha256sum -c SHA256SUMS)
 (cd protocol-artifact/runtime-v3-gameplay && sha256sum -c SHA256SUMS)
 (cd protocol-artifact/runtime-map-v1 && sha256sum -c SHA256SUMS)
+(cd protocol-artifact/runtime-v4-expert-rest-action && sha256sum -c SHA256SUMS)
 ```
 
 The first command is the local policy entrypoint and checks required paths, licenses, links,
@@ -95,6 +96,8 @@ commands do not launch a game process, MCP server, provider, or real host.
   records gateway ownership and dependency rules.
 - [docs/decisions/0002-sixth-target-protocol-boundary.md](docs/decisions/0002-sixth-target-protocol-boundary.md)
   records the current sixth-target protocol decision.
+- [docs/decisions/0019-runtime-v4-expert-rest-action-route.md](docs/decisions/0019-runtime-v4-expert-rest-action-route.md)
+  records the candidate Runtime-v4 expert rest-action transport boundary.
 - The staged gateway investigation prompt is a discovery input, not an implementation or runtime
 proof; it is maintained outside and is not copied into this repository.
 
@@ -147,3 +150,12 @@ snapshot path. It validates the corrected visible-map artifact, identity/generat
 graph, and independent navigation bindings before returning data. The route is source/component
 evidence; live map freshness and visualizer rendering remain unverified. See
 [ADR 0017](docs/decisions/0017-runtime-map-read-route.md).
+
+The candidate `runtime-v4-expert-rest-action-v1` profile adds fixed authenticated dispatch and
+read-only reconciliation routes for native rest-site options and selector follow-up actions. The
+gateway validates the exact candidate artifact, forwards only the fixed mod paths, and retains
+selector catalogs so completed choices must have prior admission context. The two serialized
+producer-shaped lifecycles and 22 mutation fixtures are deterministic source/component evidence;
+the profile remains unadmitted and does not establish a native producer, host effect, MCP or
+harness consumer, deployment, or release compatibility. See
+[ADR 0019](docs/decisions/0019-runtime-v4-expert-rest-action-route.md).

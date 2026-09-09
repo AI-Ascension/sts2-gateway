@@ -5,6 +5,16 @@ host compatibility and release publication.
 
 ## [Unreleased]
 
+- Add the candidate `runtime-v4-expert-rest-action-v1` dispatch and reconciliation routes at
+  `POST /v4/instances/{instance_id}/expert-rest-action` and
+  `GET /v4/instances/{instance_id}/expert-rest-actions/{operation_id}`. The gateway pins the
+  `expert-rest-action` artifact at schema digest
+  `bb3555fae28eb1f79d08a15e9884696a579e4c20836f5016509f17e0f4c36fbd`, enforces authenticated
+  lease and correlation fences, bounds fixed JSON forwarding, retains selector admission context,
+  and validates settled observation, transition, catalog, and effect-witness relationships. The
+  copied artifact remains a candidate with no admitted consumers; native producer, host settlement,
+  MCP/harness integration, deployment, and release evidence remain unverified.
+
 - Add the proposed, read-only `coop-receipt-query-v1` route at
   `POST /v1/instances/{instance_id}/coop/receipt-query`. The gateway validates the exact
   schema digest, provenance, canonical UTF-8 envelope, repeated identity, retained-receipt

@@ -259,3 +259,78 @@ fn route_forwards_only_the_fixed_path_and_returns_a_validated_receipt() -> Resul
         .map_err(|_| String::from("synthetic downstream panicked"))??;
     Ok(())
 }
+
+#[test]
+fn route_forwards_recovery_required_without_a_receipt() -> Result<(), String> {
+    let recovery_required = replace(
+        &replace(
+            UNKNOWN,
+            "\"status\":\"unknown\"",
+            "\"status\":\"recovery_required\"",
+        )?,
+        "\"error_code\":\"native_receipt_query_cache_miss\"",
+        "\"error_code\":\"native_receipt_query_observation_unavailable\"",
+    )?;
+    let listener = TcpListener::bind("127.0.0.1:0").map_err(|error| error.to_string())?;
+    listener
+        .set_nonblocking(true)
+        .map_err(|error| error.to_string())?;
+    let address = listener
+        .local_addr()
+        .map_err(|error| error.to_string())?
+        .to_string();
+    let worker_body = recovery_required.clone();
+    let worker = thread::spawn(move || -> Result<(), String> {
+        let expires = Instant::now() + Duration::from_secs(2);
+        let (mut stream, _) = loop {
+            match listener.accept() {
+                Ok(connection) => break connection,
+                Err(error) if error.kind() == ErrorKind::WouldBlock && Instant::now() < expires => {
+                    thread::sleep(Duration::from_millis(1));
+                }
+                Err(error) => return Err(error.to_string()),
+            }
+        };
+        let forwarded = read_request(&mut stream).map_err(|error| error.to_string())?;
+        if forwarded.method != "POST"
+            || forwarded.path != "/api/v1/coop/native/receipt-query"
+            || forwarded.body != REQUEST
+        {
+            return Err(String::from(
+                "forwarded recovery query changed at the gateway",
+            ));
+        }
+        write_response(&mut stream, 503, &worker_body).map_err(|error| error.to_string())?;
+        Ok(())
+    });
+
+    let mut service = test_service()?;
+    service.config.mod_address = address;
+    service.config.session_id = String::from("session-native-17");
+    service.config.lease_epoch = 9;
+    let mut request = authenticated_request(&service.coop_receipt_query_path());
+    request.method = String::from("POST");
+    request.headers.insert(
+        String::from("x-sts2-session-id"),
+        String::from("session-native-17"),
+    );
+    request
+        .headers
+        .insert(String::from("x-sts2-lease-epoch"), String::from("9"));
+    request.headers.insert(
+        String::from("x-sts2-correlation-id"),
+        String::from("corr:17:1"),
+    );
+    request.headers.insert(
+        String::from("content-type"),
+        String::from("application/json"),
+    );
+    request.body = REQUEST.to_vec();
+    let (status, body) = service.handle_request(&request);
+    assert_eq!(status, 503);
+    assert_eq!(body, recovery_required);
+    worker
+        .join()
+        .map_err(|_| String::from("synthetic downstream panicked"))??;
+    Ok(())
+}

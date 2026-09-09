@@ -140,6 +140,30 @@ are:
 The source/component checks do not establish a running mod, a valid host observation, a settled
 potion effect, a model-controlled episode, or compatibility with an arbitrary host version.
 
+## Runtime-v4 expert rest-action candidate row
+
+The gateway implements the HTTP assignment for the candidate
+`runtime-v4-expert-rest-action-v1` profile. The copied artifact remains `candidate` with an empty
+admitted-consumer list; the exact identity is:
+
+| artifact | schema digest | checked-in location |
+| --- | --- | --- |
+| Runtime-v4 expert rest action | `bb3555fae28eb1f79d08a15e9884696a579e4c20836f5016509f17e0f4c36fbd` | `protocol-artifact/runtime-v4-expert-rest-action/schema.json` |
+
+| Surface | Current evidence | Result |
+| --- | --- | --- |
+| `runtime-v4-expert-rest-action` dispatch/reconcile routes | Fixed route and method tests, exact request/response artifact validation, 16 goldens, 22 mutation rejections, and serialized Smith/Mend producer-shaped lifecycle checks | Source/component confirmed; native producer, host legality/effects, MCP/harness consumers, deployment, and release unverified |
+
+Dispatch is `POST /v4/instances/{instance_id}/expert-rest-action` with mutate scope and JSON
+content type. Reconciliation is `GET /v4/instances/{instance_id}/expert-rest-actions/{operation_id}`
+with read scope and an empty body. Both retain the existing lease and identity fences and forward
+only the fixed downstream paths. The consumer retains a bounded selector-admission catalog across
+responses; a completed selection with no prior valid catalog, an unlisted card/player, an invalid
+selector kind/count/catalog, or an inconsistent effect witness is rejected before the response is
+returned. A caller timeout or disconnect never retries a mutation; recovery uses the original
+operation identity. The profile is additive and does not alter Runtime-v1 through Runtime-v4 expert,
+map, co-op, or legacy routes.
+
 ### Dated Runtime-v4 settlement-fencing update — 2026-09-07
 
 The prior Runtime-v4 source/component record at commit `17b93bf35e5256f6adf690aa148fa57d4f56c523` remains retained above as the earlier evidence. The exact-head update at `aecc9fa44c825623b3e3bbb21d130e1fe6ac9468` binds nested settled observation `state_id` and `generation` to the outer response, and binds dispatch transition `before_generation` to the request generation.
