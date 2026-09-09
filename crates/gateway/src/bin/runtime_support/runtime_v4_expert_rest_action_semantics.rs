@@ -219,7 +219,7 @@ fn completed_effect_valid(value: &Value, transition: &Value) -> bool {
         "mend" => "mend_applied",
         _ => return false,
     };
-    if root["kind"] != expected || !evidence_has_effect(root, option) {
+    if root["kind"] != expected || !evidence_has_effect(value, root, option) {
         return false;
     }
     match transition["kind"].as_str() {
@@ -239,23 +239,19 @@ fn completed_effect_valid(value: &Value, transition: &Value) -> bool {
     }
 }
 
-fn evidence_has_effect(witness: &serde_json::Map<String, Value>, option: &str) -> bool {
+fn evidence_has_effect(
+    value: &Value,
+    witness: &serde_json::Map<String, Value>,
+    option: &str,
+) -> bool {
     let evidence = &witness["evidence"];
     match option {
-        "heal" | "mend" => {
-            evidence["kind"] == "hp_change"
-                && evidence["hp_after"].as_u64().is_some_and(|after| {
-                    evidence["hp_before"].as_u64().is_some_and(|before| {
-                        after > before
-                            && evidence["max_hp_after"]
-                                .as_u64()
-                                .is_some_and(|max_after| after <= max_after)
-                            && evidence["max_hp_before"]
-                                .as_u64()
-                                .is_some_and(|max_before| before <= max_before)
-                    })
-                })
-        }
+        "heal" => hp_evidence_has_effect(evidence),
+        "mend" => match evidence["kind"].as_str() {
+            Some("hp_change") => hp_evidence_has_effect(evidence),
+            Some("native_completion") => native_evidence_matches(value, evidence),
+            _ => false,
+        },
         "smith" => {
             evidence["kind"] == "card_change"
                 && evidence["upgraded_card_ids"]
@@ -280,13 +276,32 @@ fn evidence_has_effect(witness: &serde_json::Map<String, Value>, option: &str) -
                     .as_array()
                     .is_some_and(|ids| !ids.is_empty())
         }
-        "kindle" => evidence["kind"] == "native_completion",
-        "lift" => matches!(
-            evidence["kind"].as_str(),
-            Some("stat_change" | "native_completion")
-        ),
+        "kindle" => native_evidence_matches(value, evidence),
+        "lift" => match evidence["kind"].as_str() {
+            Some("stat_change") => true,
+            Some("native_completion") => native_evidence_matches(value, evidence),
+            _ => false,
+        },
         _ => false,
     }
+}
+
+fn hp_evidence_has_effect(evidence: &Value) -> bool {
+    let (Some(before), Some(after), Some(max_before), Some(max_after)) = (
+        evidence["hp_before"].as_u64(),
+        evidence["hp_after"].as_u64(),
+        evidence["max_hp_before"].as_u64(),
+        evidence["max_hp_after"].as_u64(),
+    ) else {
+        return false;
+    };
+    evidence["kind"] == "hp_change" && before <= max_before && after <= max_after && after > before
+}
+
+fn native_evidence_matches(value: &Value, evidence: &Value) -> bool {
+    evidence["kind"] == "native_completion"
+        && identity(&evidence["completion_id"])
+        && evidence["native_state_id"] == value["observation"]["state_id"]
 }
 
 fn identity(value: &Value) -> bool {
@@ -299,3 +314,7 @@ fn identity(value: &Value) -> bool {
             })
     })
 }
+
+#[cfg(test)]
+#[path = "runtime_v4_expert_rest_action_semantics_native_completion_tests.rs"]
+mod native_completion_tests;
