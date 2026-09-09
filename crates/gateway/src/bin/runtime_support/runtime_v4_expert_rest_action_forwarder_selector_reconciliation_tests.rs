@@ -345,7 +345,7 @@ fn delayed_first_progress_after_completed_selector_binding_eviction_does_not_res
 }
 
 #[test]
-fn forged_progress_legal_action_id_is_rejected() -> Result<(), String> {
+fn same_generation_forged_catalog_id_is_rejected() -> Result<(), String> {
     let mut forwarder = RuntimeV4ExpertRestActionForwarder::new(16 * 1024, 128 * 1024);
     let mut open_request = fixture("option-request", 10)?;
     open_request["operation_id"] = "forged-open".into();
@@ -355,32 +355,15 @@ fn forged_progress_legal_action_id_is_rejected() -> Result<(), String> {
     open_response["correlation_id"] = open_request["correlation_id"].clone();
     dispatch(&mut forwarder, &open_request, &open_response)?;
 
-    let mut select_request = fixture("first-request", 10)?;
-    select_request["operation_id"] = "forged-select".into();
-    select_request["correlation_id"] = "probe:forged:select".into();
-    request_only(&mut forwarder, &select_request)
-        .map_err(|error| format!("select request: {error:?}"))?;
-    let mut accepted = fixture("accepted", 10)?;
-    accepted["operation_id"] = select_request["operation_id"].clone();
-    accepted["correlation_id"] = select_request["correlation_id"].clone();
-    accepted["generation"] = select_request["generation"].clone();
-    accepted["state_id"] = select_request["state_id"].clone();
-    accepted["action"] = select_request["action"].clone();
-    forwarder
-        .validate_response(
-            &RuntimeV4ExpertRestActionRoute::Dispatch,
-            &select_request,
-            &headers(&select_request)?,
-            202,
-            &serde_json::to_vec(&accepted).map_err(|error| error.to_string())?,
-        )
-        .map_err(|error| format!("accepted response: {error:?}"))?;
-
-    let mut forged = fixture("progressed", 10)?;
-    forged["operation_id"] = select_request["operation_id"].clone();
-    forged["correlation_id"] = select_request["correlation_id"].clone();
-    forged["transition"]["selector"]["legal_actions"][0]["action_id"] = "forged:card-two".into();
-    let route = RuntimeV4ExpertRestActionRoute::Reconcile(String::from("forged-select"));
+    // The selector was admitted at after_generation 10. A reconciliation at
+    // that same generation must reproduce its exact catalog; action IDs are
+    // opaque and the rejection does not depend on their spelling.
+    let mut forged = fixture("requested", 10)?;
+    forged["operation_id"] = open_request["operation_id"].clone();
+    forged["correlation_id"] = open_request["correlation_id"].clone();
+    forged["transition"]["selector"]["legal_actions"][0]["action_id"] =
+        "opaque-rewrite:at:same-generation".into();
+    let route = RuntimeV4ExpertRestActionRoute::Reconcile(String::from("forged-open"));
     assert_eq!(
         forwarder.validate_response(
             &route,

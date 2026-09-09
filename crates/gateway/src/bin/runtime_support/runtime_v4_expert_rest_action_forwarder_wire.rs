@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use std::sync::OnceLock;
 
 use super::super::runtime_v4_expert_rest_action::RuntimeV4ExpertRestActionRoute;
-use super::super::runtime_v4_expert_rest_action_semantics::SelectorAdmission;
+use super::super::runtime_v4_expert_rest_action_semantics::{SelectorAdmission, SelectorLifecycle};
 
 pub(super) fn object_json(body: &[u8]) -> Option<Value> {
     let value = super::super::strict_json::parse(body).ok()?;
@@ -113,6 +113,12 @@ pub(super) fn action_admitted(
     let Some(admission) = admissions.get(selection_id) else {
         return false;
     };
+    let Some(lifecycle) = SelectorLifecycle::from_value(value) else {
+        return false;
+    };
+    if admission.lifecycle != lifecycle {
+        return false;
+    }
     let Some(generation) = value["generation"].as_u64() else {
         return false;
     };

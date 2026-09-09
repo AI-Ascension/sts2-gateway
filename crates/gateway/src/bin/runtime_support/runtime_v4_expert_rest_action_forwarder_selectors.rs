@@ -4,7 +4,7 @@ use serde_json::Value;
 
 use super::super::runtime_v4_expert_rest_action::RuntimeV4ExpertRestActionRoute;
 use super::super::runtime_v4_expert_rest_action_semantics::{
-    SelectorAdmission, admission_from_transition,
+    SelectorAdmission, SelectorLifecycle, admission_from_transition,
 };
 use super::RuntimeV4ExpertRestActionForwarder;
 
@@ -66,9 +66,13 @@ impl RuntimeV4ExpertRestActionForwarder {
             .and_then(Value::as_str);
         match kind {
             Some("rest_option_selection_requested" | "rest_option_selection_progressed") => {
-                let Some((selection_id, admission)) = admission_from_transition(&Value::Object(
-                    transition.cloned().unwrap_or_default(),
-                )) else {
+                let Some(lifecycle) = SelectorLifecycle::from_value(value) else {
+                    return;
+                };
+                let Some((selection_id, admission)) = admission_from_transition(
+                    &Value::Object(transition.cloned().unwrap_or_default()),
+                    lifecycle,
+                ) else {
                     return;
                 };
                 let operation_context = operation_id.and_then(|operation_id| {
@@ -77,12 +81,7 @@ impl RuntimeV4ExpertRestActionForwarder {
                         .and_then(|binding| binding.selector_context.as_ref())
                         .cloned()
                 });
-                if self.operation_bindings.values().any(|binding| {
-                    binding
-                        .completed_selector
-                        .as_ref()
-                        .is_some_and(|(completed_id, _)| completed_id == &selection_id)
-                }) {
+                if self.completed_selector_blocks(&selection_id, &admission) {
                     if let Some(operation_id) = operation_id {
                         self.release_selector_reservation(operation_id);
                     }
@@ -105,10 +104,15 @@ impl RuntimeV4ExpertRestActionForwarder {
                             .unwrap_or_else(|| admission.clone());
                         binding.selector_context = Some((selection_id.clone(), context));
                     }
-                    let should_advance = self
-                        .selector_admissions
-                        .get(&selection_id)
-                        .is_none_or(|current| admission.generation > current.generation);
+                    let should_advance =
+                        self.selector_admissions
+                            .get(&selection_id)
+                            .is_none_or(|current| {
+                                (current.lifecycle == admission.lifecycle
+                                    && admission.generation > current.generation)
+                                    || (current.lifecycle != admission.lifecycle
+                                        && !request.is_null())
+                            });
                     if should_advance {
                         self.selector_admissions.insert(selection_id, admission);
                     }
@@ -118,20 +122,57 @@ impl RuntimeV4ExpertRestActionForwarder {
                 let Some(selection_id) = value["transition"]["selection_id"].as_str() else {
                     return;
                 };
-                if let Some(admission) = self.selector_admissions.remove(selection_id) {
+                let Some(lifecycle) = SelectorLifecycle::from_value(value) else {
+                    return;
+                };
+                let Some(before_generation) = value["transition"]["before_generation"].as_u64()
+                else {
+                    return;
+                };
+                let operation_context = operation_id.and_then(|operation_id| {
+                    self.operation_bindings
+                        .get(operation_id)
+                        .and_then(|binding| binding.selector_context.as_ref())
+                        .cloned()
+                });
+                let current_matches_completion = self
+                    .selector_admissions
+                    .get(selection_id)
+                    .is_some_and(|current| {
+                        current.lifecycle == lifecycle
+                            && current.generation == before_generation
+                            && operation_context.as_ref().is_some_and(|(id, context)| {
+                                id == selection_id && context == current
+                            })
+                    });
+                if current_matches_completion
+                    && let Some(admission) = self.selector_admissions.remove(selection_id)
+                {
                     let completed = (selection_id.to_owned(), admission);
                     for binding in self.operation_bindings.values_mut() {
-                        if binding
-                            .selector_context
-                            .as_ref()
-                            .is_some_and(|(id, _)| id == selection_id)
-                            || binding
-                                .completed_selector
+                        let same_lifecycle =
+                            binding_lifecycle_matches(binding, &completed.1.lifecycle);
+                        let related =
+                            binding
+                                .selector_context
                                 .as_ref()
-                                .is_some_and(|(id, _)| id == selection_id)
-                            || binding.action["action"]["selection_id"].as_str()
-                                == Some(selection_id)
-                        {
+                                .is_some_and(|(id, context)| {
+                                    id == selection_id && context.lifecycle == completed.1.lifecycle
+                                })
+                                || binding.completed_selector.as_ref().is_some_and(
+                                    |(id, context)| {
+                                        id == selection_id
+                                            && context.lifecycle == completed.1.lifecycle
+                                    },
+                                )
+                                || binding.action["action"]["selection_id"].as_str()
+                                    == Some(selection_id)
+                                    && same_lifecycle;
+                        let compatible_tombstone = binding
+                            .completed_selector
+                            .as_ref()
+                            .is_none_or(|(_, context)| context.lifecycle == completed.1.lifecycle);
+                        if related && compatible_tombstone {
                             binding.completed_selector = Some(completed.clone());
                         }
                     }
@@ -155,4 +196,27 @@ impl RuntimeV4ExpertRestActionForwarder {
             self.release_selector_reservation(operation_id);
         }
     }
+
+    fn completed_selector_blocks(&self, selection_id: &str, candidate: &SelectorAdmission) -> bool {
+        self.operation_bindings.values().any(|binding| {
+            binding
+                .completed_selector
+                .as_ref()
+                .is_some_and(|(completed_id, tombstone)| {
+                    completed_id == selection_id
+                        && tombstone.lifecycle == candidate.lifecycle
+                        && candidate.generation <= tombstone.generation
+                })
+        })
+    }
+}
+
+fn binding_lifecycle_matches(
+    binding: &super::operations::OperationBinding,
+    lifecycle: &SelectorLifecycle,
+) -> bool {
+    binding.instance_id == lifecycle.instance_id
+        && binding.session_id == lifecycle.session_id
+        && binding.lease_id == lifecycle.lease_id
+        && binding.lease_epoch == lifecycle.lease_epoch
 }

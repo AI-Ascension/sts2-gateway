@@ -11,13 +11,16 @@ pub(crate) fn completed_selection_valid(
     transition: &Value,
     admissions: &BTreeMap<String, SelectorAdmission>,
 ) -> bool {
+    let Some(lifecycle) = super::SelectorLifecycle::from_value(value) else {
+        return false;
+    };
     let Some(selected) = transition["selected_choice_ids"].as_array() else {
         return false;
     };
     transition["remaining_count"] == 0
         && transition["completed"] == true
         && transition["required_count"].as_u64() == Some(selected.len() as u64)
-        && completion_matches_admission(transition, admissions)
+        && completion_matches_admission(transition, admissions, &lifecycle)
         // A completed response may return to `rest`; the retained admission
         // catalog binds durable choices after the selector is gone.
         && completed_selection_ids_are_valid(transition, admissions)
@@ -27,6 +30,7 @@ pub(crate) fn completed_selection_valid(
 fn completion_matches_admission(
     transition: &Value,
     admissions: &BTreeMap<String, SelectorAdmission>,
+    lifecycle: &super::SelectorLifecycle,
 ) -> bool {
     let Some(selection_id) = transition["selection_id"].as_str() else {
         return false;
@@ -43,7 +47,8 @@ fn completion_matches_admission(
     let Some(selected_ids) = ids_set(selected) else {
         return false;
     };
-    admission.option_id == transition["rest_option_id"].as_str().unwrap_or_default()
+    admission.lifecycle == *lifecycle
+        && admission.option_id == transition["rest_option_id"].as_str().unwrap_or_default()
         && admission.selection_kind == transition["selection_kind"].as_str().unwrap_or_default()
         && admission.required_count == transition["required_count"].as_u64().unwrap_or_default()
         && admission.generation == transition["before_generation"].as_u64().unwrap_or(u64::MAX)

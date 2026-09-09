@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 
 #[path = "runtime_v4_expert_rest_action_selection.rs"]
 mod selection;
-pub(super) use selection::{SelectorAdmission, admission_from_transition};
+pub(super) use selection::{SelectorAdmission, SelectorLifecycle, admission_from_transition};
 use selection::{completed_selection_valid, selector_valid};
 
 const MAX_GENERATION: u64 = 9_007_199_254_740_991;

@@ -2,16 +2,6 @@
 
 use serde_json::{Map, Value};
 
-pub(super) fn action_id_matches_kind(value: &Value, kind: &str) -> bool {
-    let Some(action_id) = value.as_str() else {
-        return false;
-    };
-    let Some(prefix) = action_id.split(':').next() else {
-        return false;
-    };
-    prefix == kind || prefix.replace('_', "-") == kind.replace('_', "-")
-}
-
 pub(super) fn visible_card(
     value: &Value,
     action: &Map<String, Value>,

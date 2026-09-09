@@ -13,56 +13,17 @@ use completion::ids_set;
 mod visibility;
 use visibility::{selected_action_is_visible, visible_card, visible_player};
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct SelectorAdmission {
-    pub(super) option_id: String,
-    pub(super) selection_kind: String,
-    pub(super) required_count: u64,
-    pub(crate) generation: u64,
-    pub(super) choice_ids: BTreeSet<String>,
-    pub(crate) selected_choice_ids: BTreeSet<String>,
-    pub(crate) legal_actions: BTreeMap<String, Value>,
-}
+#[path = "runtime_v4_expert_rest_action_selection_admission.rs"]
+mod admission;
+pub(crate) use admission::{SelectorAdmission, SelectorLifecycle, admission_from_transition};
 
-pub(crate) fn admission_from_transition(transition: &Value) -> Option<(String, SelectorAdmission)> {
-    let selector = transition["selector"].as_object()?;
-    let selection_id = selector["selection_id"].as_str()?.to_owned();
-    let option_id = transition["rest_option_id"].as_str()?.to_owned();
-    let selection_kind = selector["selection_kind"].as_str()?.to_owned();
-    let required_count = selector["required_count"].as_u64()?;
-    let generation = transition["after_generation"].as_u64()?;
-    let mut choice_ids = BTreeSet::new();
-    let mut selected_choice_ids = BTreeSet::new();
-    for choice in selector["selected_choice_ids"].as_array()? {
-        let choice = choice.as_str()?.to_owned();
-        if !selected_choice_ids.insert(choice.clone()) {
-            return None;
-        }
-        choice_ids.insert(choice);
+fn selection_choice_id(legal: &Value) -> Option<&str> {
+    let action = legal["action"].as_object()?;
+    match action.get("kind").and_then(Value::as_str) {
+        Some("select_card") => action.get("card_id")?.as_str(),
+        Some("select_player") => action.get("player_id")?.as_str(),
+        _ => None,
     }
-    let mut legal_actions = BTreeMap::new();
-    for legal in selector["legal_actions"].as_array()? {
-        let action_id = legal["action_id"].as_str()?.to_owned();
-        let action = legal["action"].clone();
-        if legal_actions.insert(action_id, action.clone()).is_some() {
-            return None;
-        }
-        if let Some(choice) = selection_choice_id(legal) {
-            choice_ids.insert(choice.to_owned());
-        }
-    }
-    Some((
-        selection_id,
-        SelectorAdmission {
-            option_id,
-            selection_kind,
-            required_count,
-            generation,
-            choice_ids,
-            selected_choice_ids,
-            legal_actions,
-        },
-    ))
 }
 
 pub(super) fn selector_valid(
@@ -72,6 +33,9 @@ pub(super) fn selector_valid(
     reconciling: bool,
 ) -> bool {
     let Some(selector) = transition["selector"].as_object() else {
+        return false;
+    };
+    let Some(lifecycle) = SelectorLifecycle::from_value(value) else {
         return false;
     };
     if selector.len() != 6 {
@@ -131,7 +95,8 @@ pub(super) fn selector_valid(
         return false;
     }
     if let Some(admission) = admissions.get(selection_id) {
-        if option != Some(admission.option_id.as_str())
+        if admission.lifecycle != lifecycle
+            || option != Some(admission.option_id.as_str())
             || admission.selection_kind != expected_kind
             || admission.required_count != required
             || !selector_admission_generation_and_progress(
@@ -182,12 +147,14 @@ pub(super) fn selector_valid(
         }
         has_confirm |= legal["action"]["kind"] == "confirm_selection";
     }
-    if reconciling
-        && transition["kind"] != "rest_option_selection_progressed"
-        && admissions
-            .get(selection_id)
-            .is_some_and(|admission| admission.legal_actions != current_legal_actions)
-    {
+    if admissions.get(selection_id).is_some_and(|admission| {
+        admission.generation == transition["after_generation"].as_u64().unwrap_or(u64::MAX)
+            && admission.legal_actions != current_legal_actions
+    }) {
+        // A reconciliation at an already admitted generation is a replay of
+        // the same catalog. The producer may rotate opaque action IDs while a
+        // selection advances to a new generation, but it cannot rewrite an
+        // already observed catalog at the same generation.
         return false;
     }
     let has_select = legal_actions.iter().any(|legal| {
@@ -262,7 +229,6 @@ fn valid_selection_action(
         return false;
     };
     if !identity(&legal["action_id"])
-        || !visibility::action_id_matches_kind(&legal["action_id"], kind)
         || !identity(action.get("selection_id").unwrap_or(&Value::Null))
         || !identity(action.get("rest_option_id").unwrap_or(&Value::Null))
         || action.get("selection_id") != selector.get("selection_id")
@@ -285,15 +251,6 @@ fn valid_selection_action(
                 && visible_player(value, action, selector)
         }
         _ => false,
-    }
-}
-
-fn selection_choice_id(legal: &Value) -> Option<&str> {
-    let action = legal["action"].as_object()?;
-    match action.get("kind").and_then(Value::as_str) {
-        Some("select_card") => action.get("card_id")?.as_str(),
-        Some("select_player") => action.get("player_id")?.as_str(),
-        _ => None,
     }
 }
 

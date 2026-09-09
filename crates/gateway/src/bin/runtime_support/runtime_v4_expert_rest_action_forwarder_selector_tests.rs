@@ -7,6 +7,8 @@ use std::collections::BTreeMap;
 
 #[path = "runtime_v4_expert_rest_action_forwarder_selector_mend_tests.rs"]
 mod mend_tests;
+#[path = "runtime_v4_expert_rest_action_forwarder_selector_opaque_tests.rs"]
+mod opaque_tests;
 #[path = "runtime_v4_expert_rest_action_forwarder_selector_reconciliation_tests.rs"]
 mod reconciliation_tests;
 
