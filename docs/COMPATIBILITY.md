@@ -282,7 +282,7 @@ claimed. No state is persisted or restored as synchronized after process restart
 
 | Surface | Producer pin | Current evidence | Result |
 | --- | --- | --- | --- |
-| `runtime-map-v1` artifact and schema | protocol commit `7c448bd8d7a695ada48830176f3d738286caafe4`, schema digest `ceab0d2dfc471d1ec36d12edaf4654b8c7fdced06548bf47265e11c63f98115b` | copied manifest, schema, conformance case, and three goldens with checksum validation | Source-derived artifact-copy integrity; producer and host compatibility unverified |
+| `runtime-map-v1` artifact and schema | merged protocol main commit `b3d3034f32e68d70c9e681f906ee37d74db153c4`, schema digest `ceab0d2dfc471d1ec36d12edaf4654b8c7fdced06548bf47265e11c63f98115b` | copied manifest, schema, conformance case, and three goldens with checksum validation | Source-derived artifact-copy integrity at gateway main `77782d5745a8c1f3399807d48138c5c7b511bff1`; producer and host compatibility unverified |
 | Gateway map snapshot route | `GET /v1/instances/{instance_id}/map-snapshot` to fixed downstream `GET /api/map/v1/snapshot` | exact route, lease/bodyless admission, schema/provenance/identity/generation checks, bounded graph and binding tests | Confirmed deterministic source/component behavior; live map observation and freshness unverified |
 
 The profile is additive and does not alter legacy Runtime-v1, Runtime-v2, Runtime-v3 gameplay, or

@@ -31,12 +31,17 @@ host compatibility and release publication.
 
 - Add the additive `runtime-map-v1` read-only snapshot route. The gateway forwards only
   `GET /api/map/v1/snapshot` after its existing lease and identity fences, validates the corrected
-  protocol artifact at commit `7c448bd8d7a695ada48830176f3d738286caafe4` and schema digest
+  protocol artifact at merged main commit `b3d3034f32e68d70c9e681f906ee37d74db153c4` and schema digest
   `ceab0d2dfc471d1ec36d12edaf4654b8c7fdced06548bf47265e11c63f98115b`, and bounds responses at
   256 KiB. Graph and binding validation preserves overlapping coordinates and disconnected visible
   components while rejecting stale, foreign, cyclic, duplicate, or malformed data. Payload text is
   bounded in UTF-8 bytes, excludes C0/DEL/C1 controls, and enforces elapsed timeout ordering. Live
   host map observation and visualizer compatibility remain unverified.
+
+- Record the merged current gateway main source head `77782d5745a8c1f3399807d48138c5c7b511bff1` for
+  the bounded `runtime-map-v1` route and copied-artifact consumer. This is source/component and
+  artifact-copy evidence; native map visibility, navigation, gameplay, release, and publication
+  remain unverified.
 
 - Add opt-in coordinator-reported co-op synchronization: configured roster, control-scoped
   fenced reports, monotonic convergence and expiry, and a read-only response consumed by

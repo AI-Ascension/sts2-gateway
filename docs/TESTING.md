@@ -167,8 +167,9 @@ the coordinated evidence record. It proves coordination transport, not native mu
 
 ## Runtime-map visibility checks
 
-The `runtime-map-v1` consumer verifies protocol commit
-`7c448bd8d7a695ada48830176f3d738286caafe4` and schema digest
+The `runtime-map-v1` consumer at merged gateway main
+`77782d5745a8c1f3399807d48138c5c7b511bff1` verifies merged protocol commit
+`b3d3034f32e68d70c9e681f906ee37d74db153c4` and schema digest
 `ceab0d2dfc471d1ec36d12edaf4654b8c7fdced06548bf47265e11c63f98115b` through the copied manifest,
 schema, conformance case, and golden checksum inventory. Forwarder tests cover the exact GET-only
 route, bodyless request, downstream path, response budget, provenance and digest, configured
