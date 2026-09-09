@@ -20,15 +20,8 @@ pub(crate) struct SelectorAdmission {
     pub(super) required_count: u64,
     pub(crate) generation: u64,
     pub(super) choice_ids: BTreeSet<String>,
-    pub(super) selected_choice_ids: BTreeSet<String>,
+    pub(crate) selected_choice_ids: BTreeSet<String>,
     pub(crate) legal_actions: BTreeMap<String, Value>,
-}
-
-impl SelectorAdmission {
-    #[cfg(test)]
-    pub(crate) fn selected_choice_ids(&self) -> &BTreeSet<String> {
-        &self.selected_choice_ids
-    }
 }
 
 pub(crate) fn admission_from_transition(transition: &Value) -> Option<(String, SelectorAdmission)> {
@@ -152,8 +145,7 @@ pub(super) fn selector_valid(
             return false;
         }
     } else if transition["kind"] != "rest_option_selection_requested" {
-        // Progress and completion are meaningful only after the gateway has
-        // observed the producer's selector catalog.
+        // Progress and completion require an observed selector catalog.
         return false;
     }
     let Some(legal_actions) = selector["legal_actions"].as_array() else {
