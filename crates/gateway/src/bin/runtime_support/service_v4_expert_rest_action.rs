@@ -27,11 +27,12 @@ impl RuntimeService {
         ) {
             Ok(envelope) => envelope,
             Err(error) => {
-                if error == RuntimeV4ExpertRestActionForwardError::OperationCapacity {
-                    return (
-                        429,
-                        json_overload("runtime_v4_expert_rest_action_operation_capacity"),
-                    );
+                if matches!(
+                    error,
+                    RuntimeV4ExpertRestActionForwardError::OperationCapacity
+                        | RuntimeV4ExpertRestActionForwardError::SelectorCapacity
+                ) {
+                    return (429, json_overload(request_error_code(error)));
                 }
                 return (
                     request_error_status(error),
@@ -76,6 +77,7 @@ fn request_error_status(error: RuntimeV4ExpertRestActionForwardError) -> u16 {
     match error {
         RuntimeV4ExpertRestActionForwardError::RequestBodyOversized => 413,
         RuntimeV4ExpertRestActionForwardError::OperationCapacity => 429,
+        RuntimeV4ExpertRestActionForwardError::SelectorCapacity => 429,
         RuntimeV4ExpertRestActionForwardError::RequestBodyRequired
         | RuntimeV4ExpertRestActionForwardError::RequestBodyForbidden
         | RuntimeV4ExpertRestActionForwardError::RequestBodyMalformed => 400,
@@ -100,6 +102,9 @@ fn request_error_code(error: RuntimeV4ExpertRestActionForwardError) -> &'static 
         }
         RuntimeV4ExpertRestActionForwardError::OperationCapacity => {
             "runtime_v4_expert_rest_action_operation_capacity"
+        }
+        RuntimeV4ExpertRestActionForwardError::SelectorCapacity => {
+            "runtime_v4_expert_rest_action_selector_capacity"
         }
         RuntimeV4ExpertRestActionForwardError::ResponseOversized => {
             "runtime_v4_expert_rest_action_response_oversized"

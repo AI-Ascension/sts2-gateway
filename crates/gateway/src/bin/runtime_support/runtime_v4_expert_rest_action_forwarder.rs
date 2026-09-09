@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 
 use serde_json::Value;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use super::runtime_v4_expert_rest_action::RuntimeV4ExpertRestActionRoute;
 
@@ -10,6 +10,9 @@ mod operations;
 #[cfg(test)]
 pub(super) use operations::MAX_OPERATION_BINDINGS;
 use operations::OperationBinding;
+#[path = "runtime_v4_expert_rest_action_forwarder_selectors.rs"]
+mod selectors;
+use selectors::request_needs_selector_reservation;
 
 #[path = "runtime_v4_expert_rest_action_observation.rs"]
 mod observation;
@@ -30,13 +33,12 @@ const NATIVE_IDENTITY_BYTES: usize = 128;
 
 use super::runtime_v4_expert_rest_action_semantics::SelectorAdmission;
 
-const MAX_SELECTOR_ADMISSIONS: usize = 128;
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct RuntimeV4ExpertRestActionForwarder {
     max_request_bytes: usize,
     max_response_bytes: usize,
     selector_admissions: BTreeMap<String, SelectorAdmission>,
+    selector_reservations: BTreeSet<String>,
     operation_bindings: BTreeMap<String, OperationBinding>,
 }
 
@@ -47,6 +49,7 @@ pub(crate) enum RuntimeV4ExpertRestActionForwardError {
     RequestBodyOversized,
     RequestBodyMalformed,
     OperationCapacity,
+    SelectorCapacity,
     ResponseOversized,
     ResponseMalformed,
 }
@@ -57,6 +60,7 @@ impl RuntimeV4ExpertRestActionForwarder {
             max_request_bytes,
             max_response_bytes,
             selector_admissions: BTreeMap::new(),
+            selector_reservations: BTreeSet::new(),
             operation_bindings: BTreeMap::new(),
         }
     }
@@ -116,10 +120,17 @@ impl RuntimeV4ExpertRestActionForwarder {
             {
                 return Err(RuntimeV4ExpertRestActionForwardError::RequestBodyMalformed);
             }
-            if !self.operation_bindings.contains_key(operation_id)
-                && !self.retain_operation_binding(operation_id, &value)
-            {
-                return Err(RuntimeV4ExpertRestActionForwardError::OperationCapacity);
+            if !self.operation_bindings.contains_key(operation_id) {
+                let needs_selector_reservation = request_needs_selector_reservation(&value);
+                if needs_selector_reservation && !self.reserve_selector_admission(operation_id) {
+                    return Err(RuntimeV4ExpertRestActionForwardError::SelectorCapacity);
+                }
+                if !self.retain_operation_binding(operation_id, &value) {
+                    if needs_selector_reservation {
+                        self.release_selector_reservation(operation_id);
+                    }
+                    return Err(RuntimeV4ExpertRestActionForwardError::OperationCapacity);
+                }
             }
         }
         Ok(value)
@@ -148,6 +159,17 @@ impl RuntimeV4ExpertRestActionForwarder {
                         .map(|binding| &binding.action)
                 })
             });
+        let mut fallback_admissions = None;
+        if let Some((selection_id, admission)) = self.completed_selector_for(route, request)
+            && !self.selector_admissions.contains_key(selection_id)
+        {
+            let mut admissions = self.selector_admissions.clone();
+            admissions.insert(selection_id.to_owned(), admission.clone());
+            fallback_admissions = Some(admissions);
+        }
+        let admissions = fallback_admissions
+            .as_ref()
+            .unwrap_or(&self.selector_admissions);
         if !response_identity_valid(&value, route, request, headers, expected_action)
             || !schema_valid(&value)
             || !super::runtime_v4_expert_rest_action_semantics::response_valid(
@@ -155,14 +177,14 @@ impl RuntimeV4ExpertRestActionForwarder {
                 request,
                 route.operation_id(),
                 status_code,
-                &self.selector_admissions,
+                admissions,
                 observation_valid,
             )
             || !self.reconciliation_binding_valid(route, &value)
         {
             return Err(RuntimeV4ExpertRestActionForwardError::ResponseMalformed);
         }
-        self.record_selector_admission(&value);
+        self.record_selector_admission(route, request, &value);
         self.record_operation_status(route, request, &value);
         Ok(())
     }
@@ -202,31 +224,6 @@ impl RuntimeV4ExpertRestActionForwarder {
         }
         Ok(candidate_status)
     }
-
-    fn record_selector_admission(&mut self, value: &Value) {
-        let Some(transition) = value["transition"].as_object() else {
-            return;
-        };
-        if !matches!(
-            transition.get("kind").and_then(Value::as_str),
-            Some("rest_option_selection_requested" | "rest_option_selection_progressed")
-        ) {
-            return;
-        }
-        let Some((selection_id, admission)) =
-            super::runtime_v4_expert_rest_action_semantics::admission_from_transition(
-                &Value::Object(transition.clone()),
-            )
-        else {
-            return;
-        };
-        if self.selector_admissions.len() >= MAX_SELECTOR_ADMISSIONS
-            && !self.selector_admissions.contains_key(&selection_id)
-        {
-            return;
-        }
-        self.selector_admissions.insert(selection_id, admission);
-    }
 }
 
 #[cfg(test)]
@@ -242,3 +239,6 @@ mod producer_tests;
 #[cfg(test)]
 #[path = "runtime_v4_expert_rest_action_forwarder_retention_tests.rs"]
 mod retention_tests;
+#[cfg(test)]
+#[path = "runtime_v4_expert_rest_action_forwarder_selector_tests.rs"]
+mod selector_tests;

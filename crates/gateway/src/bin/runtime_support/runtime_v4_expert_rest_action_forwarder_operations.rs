@@ -3,6 +3,7 @@
 use serde_json::Value;
 
 use super::super::runtime_v4_expert_rest_action::RuntimeV4ExpertRestActionRoute;
+use super::super::runtime_v4_expert_rest_action_semantics::SelectorAdmission;
 use super::RuntimeV4ExpertRestActionForwarder;
 
 // Keep enough active bindings for a complete native campaign burst while still
@@ -19,6 +20,7 @@ pub(super) struct OperationBinding {
     pub(super) lease_id: String,
     pub(super) lease_epoch: u64,
     pub(super) status: OperationStatus,
+    pub(super) completed_selector: Option<(String, SelectorAdmission)>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -89,6 +91,7 @@ impl RuntimeV4ExpertRestActionForwarder {
                 lease_id: lease_id.to_owned(),
                 lease_epoch,
                 status: OperationStatus::Pending,
+                completed_selector: None,
             },
         );
         true
