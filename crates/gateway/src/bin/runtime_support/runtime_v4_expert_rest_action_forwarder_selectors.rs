@@ -118,12 +118,28 @@ impl RuntimeV4ExpertRestActionForwarder {
                 let Some(selection_id) = value["transition"]["selection_id"].as_str() else {
                     return;
                 };
-                if let Some(operation_id) = operation_id
-                    && self.operation_bindings.contains_key(operation_id)
-                    && let Some(admission) = self.selector_admissions.remove(selection_id)
-                    && let Some(binding) = self.operation_bindings.get_mut(operation_id)
-                {
-                    binding.completed_selector = Some((selection_id.to_owned(), admission));
+                if let Some(admission) = self.selector_admissions.remove(selection_id) {
+                    let completed = (selection_id.to_owned(), admission);
+                    for binding in self.operation_bindings.values_mut() {
+                        if binding
+                            .selector_context
+                            .as_ref()
+                            .is_some_and(|(id, _)| id == selection_id)
+                            || binding
+                                .completed_selector
+                                .as_ref()
+                                .is_some_and(|(id, _)| id == selection_id)
+                            || binding.action["action"]["selection_id"].as_str()
+                                == Some(selection_id)
+                        {
+                            binding.completed_selector = Some(completed.clone());
+                        }
+                    }
+                    if let Some(operation_id) = operation_id
+                        && let Some(binding) = self.operation_bindings.get_mut(operation_id)
+                    {
+                        binding.completed_selector = Some(completed);
+                    }
                 }
             }
             _ => {}

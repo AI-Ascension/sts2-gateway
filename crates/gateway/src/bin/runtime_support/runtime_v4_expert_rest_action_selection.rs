@@ -202,8 +202,7 @@ pub(super) fn selector_valid(
     let mut catalog_ids = selected_ids;
     catalog_ids.extend(legal_choice_ids);
     if catalog_ids != visible_ids {
-        // Every currently visible choice must be represented by either the
-        // selector's selected set or a selectable legal action.
+        // Visible choices must be selected or selectable legal actions.
         return false;
     }
     (remaining == 0) == has_confirm
@@ -263,6 +262,7 @@ fn valid_selection_action(
         return false;
     };
     if !identity(&legal["action_id"])
+        || !visibility::action_id_matches_kind(&legal["action_id"], kind)
         || !identity(action.get("selection_id").unwrap_or(&Value::Null))
         || !identity(action.get("rest_option_id").unwrap_or(&Value::Null))
         || action.get("selection_id") != selector.get("selection_id")
