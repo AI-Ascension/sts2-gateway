@@ -31,6 +31,18 @@ impl RuntimeService {
         {
             return self.runtime_map_request(request, route);
         }
+        if request.method == "POST"
+            && request.path == self.seeded_run_start_path()
+            && request.content_type_is_json()
+        {
+            return self.seeded_run_start(request);
+        }
+        if request.method == "GET"
+            && request.body.is_empty()
+            && let Some(operation_id) = self.seeded_run_operation_id(&request.path)
+        {
+            return self.seeded_run_reconcile(request, operation_id);
+        }
         match (request.method.as_str(), request.path.as_str()) {
             ("GET", path) if path == self.coop_synchronization_path() => {
                 self.coop_synchronization(request)
