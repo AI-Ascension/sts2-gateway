@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 
 use super::super::runtime_v4_expert_rest_action_forwarder::RuntimeV4ExpertRestActionForwardError;
-use super::{HttpRequest, RuntimeService, RuntimeV4ExpertRestActionRoute, json_error};
+use super::{
+    HttpRequest, RuntimeService, RuntimeV4ExpertRestActionRoute, json_error, json_overload,
+};
 
 impl RuntimeService {
     pub(super) fn runtime_v4_expert_rest_action_request(
@@ -25,6 +27,12 @@ impl RuntimeService {
         ) {
             Ok(envelope) => envelope,
             Err(error) => {
+                if error == RuntimeV4ExpertRestActionForwardError::OperationCapacity {
+                    return (
+                        429,
+                        json_overload("runtime_v4_expert_rest_action_operation_capacity"),
+                    );
+                }
                 return (
                     request_error_status(error),
                     json_error(request_error_code(error)),
@@ -67,6 +75,7 @@ impl RuntimeService {
 fn request_error_status(error: RuntimeV4ExpertRestActionForwardError) -> u16 {
     match error {
         RuntimeV4ExpertRestActionForwardError::RequestBodyOversized => 413,
+        RuntimeV4ExpertRestActionForwardError::OperationCapacity => 429,
         RuntimeV4ExpertRestActionForwardError::RequestBodyRequired
         | RuntimeV4ExpertRestActionForwardError::RequestBodyForbidden
         | RuntimeV4ExpertRestActionForwardError::RequestBodyMalformed => 400,
@@ -88,6 +97,9 @@ fn request_error_code(error: RuntimeV4ExpertRestActionForwardError) -> &'static 
         }
         RuntimeV4ExpertRestActionForwardError::RequestBodyMalformed => {
             "runtime_v4_expert_rest_action_request_invalid"
+        }
+        RuntimeV4ExpertRestActionForwardError::OperationCapacity => {
+            "runtime_v4_expert_rest_action_operation_capacity"
         }
         RuntimeV4ExpertRestActionForwardError::ResponseOversized => {
             "runtime_v4_expert_rest_action_response_oversized"

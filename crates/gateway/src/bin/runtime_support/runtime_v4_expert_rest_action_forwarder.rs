@@ -5,6 +5,12 @@ use std::collections::BTreeMap;
 
 use super::runtime_v4_expert_rest_action::RuntimeV4ExpertRestActionRoute;
 
+#[path = "runtime_v4_expert_rest_action_forwarder_operations.rs"]
+mod operations;
+#[cfg(test)]
+pub(super) use operations::MAX_OPERATION_BINDINGS;
+use operations::OperationBinding;
+
 #[path = "runtime_v4_expert_rest_action_observation.rs"]
 mod observation;
 use observation::observation_valid;
@@ -31,7 +37,7 @@ pub(crate) struct RuntimeV4ExpertRestActionForwarder {
     max_request_bytes: usize,
     max_response_bytes: usize,
     selector_admissions: BTreeMap<String, SelectorAdmission>,
-    operation_actions: BTreeMap<String, Value>,
+    operation_bindings: BTreeMap<String, OperationBinding>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -40,6 +46,7 @@ pub(crate) enum RuntimeV4ExpertRestActionForwardError {
     RequestBodyForbidden,
     RequestBodyOversized,
     RequestBodyMalformed,
+    OperationCapacity,
     ResponseOversized,
     ResponseMalformed,
 }
@@ -50,7 +57,7 @@ impl RuntimeV4ExpertRestActionForwarder {
             max_request_bytes,
             max_response_bytes,
             selector_admissions: BTreeMap::new(),
-            operation_actions: BTreeMap::new(),
+            operation_bindings: BTreeMap::new(),
         }
     }
 
@@ -80,26 +87,40 @@ impl RuntimeV4ExpertRestActionForwarder {
         }
         if let Some(operation_id) = value["operation_id"].as_str() {
             let replay = self
-                .operation_actions
+                .operation_bindings
                 .get(operation_id)
-                .is_some_and(|action| action == &value["action"]);
+                .is_some_and(|binding| {
+                    binding.action == value["action"]
+                        && binding.generation == value["generation"].as_u64().unwrap_or(u64::MAX)
+                        && binding.state_id == value["state_id"]
+                        && binding.instance_id == value["instance_id"]
+                        && binding.session_id == value["session_id"]
+                        && binding.lease_id == value["lease_id"]
+                        && binding.lease_epoch == value["lease_epoch"].as_u64().unwrap_or(u64::MAX)
+                });
             if !replay && !action_admitted(&value, &self.selector_admissions) {
                 return Err(RuntimeV4ExpertRestActionForwardError::RequestBodyMalformed);
             }
             if self
-                .operation_actions
+                .operation_bindings
                 .get(operation_id)
-                .is_some_and(|action| action != &value["action"])
+                .is_some_and(|binding| {
+                    binding.action != value["action"]
+                        || binding.generation != value["generation"].as_u64().unwrap_or(u64::MAX)
+                        || binding.state_id != value["state_id"]
+                        || binding.instance_id != value["instance_id"]
+                        || binding.session_id != value["session_id"]
+                        || binding.lease_id != value["lease_id"]
+                        || binding.lease_epoch != value["lease_epoch"].as_u64().unwrap_or(u64::MAX)
+                })
             {
                 return Err(RuntimeV4ExpertRestActionForwardError::RequestBodyMalformed);
             }
-            if self.operation_actions.len() >= MAX_SELECTOR_ADMISSIONS
-                && !self.operation_actions.contains_key(operation_id)
+            if !self.operation_bindings.contains_key(operation_id)
+                && !self.retain_operation_binding(operation_id, &value)
             {
-                self.operation_actions.pop_first();
+                return Err(RuntimeV4ExpertRestActionForwardError::OperationCapacity);
             }
-            self.operation_actions
-                .insert(operation_id.to_owned(), value["action"].clone());
         }
         Ok(value)
     }
@@ -121,9 +142,11 @@ impl RuntimeV4ExpertRestActionForwarder {
             .as_object()
             .map(|_| &request["action"])
             .or_else(|| {
-                route
-                    .operation_id()
-                    .and_then(|operation_id| self.operation_actions.get(operation_id))
+                route.operation_id().and_then(|operation_id| {
+                    self.operation_bindings
+                        .get(operation_id)
+                        .map(|binding| &binding.action)
+                })
             });
         if !response_identity_valid(&value, route, request, headers, expected_action)
             || !schema_valid(&value)
@@ -135,10 +158,12 @@ impl RuntimeV4ExpertRestActionForwarder {
                 &self.selector_admissions,
                 observation_valid,
             )
+            || !self.reconciliation_binding_valid(route, &value)
         {
             return Err(RuntimeV4ExpertRestActionForwardError::ResponseMalformed);
         }
         self.record_selector_admission(&value);
+        self.record_operation_status(route, request, &value);
         Ok(())
     }
 
@@ -214,3 +239,6 @@ mod mutation_tests;
 #[cfg(test)]
 #[path = "runtime_v4_expert_rest_action_producer_tests.rs"]
 mod producer_tests;
+#[cfg(test)]
+#[path = "runtime_v4_expert_rest_action_forwarder_retention_tests.rs"]
+mod retention_tests;
