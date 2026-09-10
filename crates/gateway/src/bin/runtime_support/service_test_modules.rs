@@ -28,3 +28,6 @@ mod test_support;
 
 #[path = "service_coop_tests.rs"]
 mod coop_tests;
+
+#[path = "service_coop_native_tests.rs"]
+mod coop_native_tests;

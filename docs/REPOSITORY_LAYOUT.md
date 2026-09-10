@@ -67,3 +67,17 @@ crates/gateway/src/bin/runtime_support/runtime_v4_expert_rest_action*  fixed rou
 The profile is a candidate protocol copy with no admitted consumers. The gateway owns only the
 transport and bounded validation; rest-site rules, native producer serialization, host effects,
 MCP mapping, and harness behavior remain outside this target.
+
+## Native co-op additions
+
+```text
+protocol-artifact/coop-native-v1/           accepted manifest, schema, goldens, producer and consumer records
+schemas/coop-native-v1.schema.json          verbatim protocol-owned source-path mirror
+conformance/cases/coop-native-v1.json       implementation-neutral consumer case
+crates/gateway/src/bin/runtime_support/coop_native*  fixed route and closed-envelope validation
+crates/gateway/src/bin/runtime_support/service_coop_native.rs  lease-fenced downstream bridge
+```
+
+The gateway owns only the route, transport, identity, lease, and response relation checks. Native
+peer admission, legal game actions, shared effects, checksum production, and rejoin authority stay
+in the game-mod host boundary.

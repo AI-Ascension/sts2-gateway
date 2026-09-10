@@ -20,6 +20,8 @@ use sts2_gateway::{
 };
 
 use super::auth::{AuthFailure, AuthPolicy, AuthScope};
+use super::coop_native::CoopNativeRoute;
+use super::coop_native_forwarder::CoopNativeForwarder;
 use super::coop_reports::CoopReports;
 use super::forwarder::HttpRuntimeV2Forwarder;
 use super::http::{HttpRequest, MAX_BODY_BYTES, MAX_RESPONSE_BYTES, read_request, write_response};
@@ -55,6 +57,7 @@ pub(crate) struct RuntimeService {
     shutdown_requested: bool,
     runtime_v2: RuntimeV2Ledger<HttpRuntimeV2Forwarder>,
     runtime_v3: RuntimeV3GameplayForwarder,
+    coop_native: CoopNativeForwarder,
     recovery_catalog: recovery_catalog::RecoveryCatalogCache,
     runtime_v4_expert: RuntimeV4ExpertForwarder,
     runtime_v4_expert_rest_action: RuntimeV4ExpertRestActionForwarder,
@@ -117,6 +120,8 @@ mod authorization;
 mod configuration;
 #[path = "service_coop.rs"]
 mod coop;
+#[path = "service_coop_native.rs"]
+mod coop_native_service;
 #[path = "service_host_lease.rs"]
 mod host_lease;
 #[path = "service_host_lease_helpers.rs"]

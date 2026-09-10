@@ -18,6 +18,11 @@ impl RuntimeService {
             return self.runtime_v3_request(request, route);
         }
         if let Some(route) =
+            CoopNativeRoute::parse(&request.method, &request.path, &self.config.instance_id)
+        {
+            return self.coop_native_request(request, route);
+        }
+        if let Some(route) =
             RuntimeV4ExpertRoute::parse(&request.method, &request.path, &self.config.instance_id)
         {
             return self.runtime_v4_expert_request(request, route);
