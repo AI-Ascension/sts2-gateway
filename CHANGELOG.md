@@ -25,6 +25,11 @@ host compatibility and release publication.
   install, renew, and revoke acknowledgments. Protected grant persistence,
   fail-closed admission, and operation identity reconciliation are included;
   managed-host settlement and live deployment remain unverified.
+
+- Keep a persisted `INSTALLED` host-install row historical across a gateway
+  process restart. Mutation admission and idempotent install replay now require
+  the exact current-process grant cache; a missing or mismatched cache fails
+  closed until a fresh host acknowledgment is obtained.
 - Add the candidate `runtime-v4-expert-rest-action-v1` dispatch and reconciliation routes at
   `POST /v4/instances/{instance_id}/expert-rest-action` and
   `GET /v4/instances/{instance_id}/expert-rest-actions/{operation_id}`. The gateway pins the

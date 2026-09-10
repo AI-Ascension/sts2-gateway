@@ -164,7 +164,10 @@ impl RuntimeService {
                 return Err(HostLeaseFailure::unknown());
             }
             if binding.state == RecoveryHostLeaseState::Installed {
-                if binding.grant_digest.as_deref() != Some(digest.as_str()) {
+                if !self
+                    .active_host_grant_matches(lease)
+                    .map_err(map_store_error)?
+                {
                     return Err(HostLeaseFailure::unknown());
                 }
                 return Ok((installation_id, grant, digest, true));
