@@ -1,0 +1,28 @@
+{
+  "artifact": "sts2-protocol/seeded-run-v1",
+  "protocol_version": "seeded-run-v1",
+  "schema": "schema.json",
+  "schema_digest": "5c659f344be78f84e8d783986925d462714f933cac95d18943358992f7d3e2b8",
+  "provenance": {
+    "source": "schemas/seeded-run-v1.schema.json",
+    "generator": "hand-authored",
+    "license": "MIT"
+  },
+  "consumers": [
+    "sts2-game-mod",
+    "sts2-gateway",
+    "sts2-harness",
+    "sts2-mcp-server"
+  ],
+  "goldens": [
+    "golden/start-request.json",
+    "golden/start-accepted.json",
+    "golden/start-settled.json",
+    "golden/start-rejected.json",
+    "golden/start-unknown.json",
+    "golden/start-cancelled.json",
+    "golden/reconcile-request.json",
+    "golden/reconcile-settled.json"
+  ],
+  "checksums": "SHA256SUMS"
+}

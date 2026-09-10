@@ -40,6 +40,28 @@ pub(super) fn test_service() -> Result<RuntimeService, String> {
         ),
     )
     .map_err(|error| error.to_string())?;
+    let seeded_binding = SeededRunBinding::new(
+        &config.instance_id,
+        &config.session_id,
+        &config.lease_id,
+        config.lease_epoch,
+        0,
+    )
+    .map_err(|error| error.to_string())?;
+    let seeded_run = SeededRunLedger::new(
+        SeededRunLedgerConfig::new(config.operation_capacity),
+        seeded_binding,
+        HttpSeededRunForwarder::new(
+            &config.mod_address,
+            &config.mod_token,
+            &config.instance_id,
+            &config.caller_id,
+            &config.session_id,
+            &config.lease_id,
+            config.lease_epoch,
+        ),
+    )
+    .map_err(|error| error.to_string())?;
 
     Ok(RuntimeService {
         config,
@@ -54,6 +76,7 @@ pub(super) fn test_service() -> Result<RuntimeService, String> {
             MAX_RESPONSE_BYTES,
         ),
         runtime_map: RuntimeMapForwarder::new(MAX_MAP_RESPONSE_BYTES),
+        seeded_run,
         journal_path: None,
         _journal_lock: None,
         metrics: super::super::metrics::RuntimeMetrics::default(),

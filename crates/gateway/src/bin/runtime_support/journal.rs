@@ -12,6 +12,10 @@ const JOURNAL_FORMAT_VERSION: u32 = 1;
 const MAX_JOURNAL_BYTES: usize = 4 * 1024 * 1024;
 static TEMPORARY_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
+#[path = "seeded_journal.rs"]
+mod seeded_journal;
+pub(crate) use seeded_journal::{seeded_load, seeded_store};
+
 pub(crate) struct JournalLock {
     file: File,
 }

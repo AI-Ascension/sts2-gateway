@@ -13,7 +13,7 @@ use serde_json::{Value, json};
 use sts2_gateway::{
     RuntimeV2Binding, RuntimeV2CombatPhase, RuntimeV2Ledger, RuntimeV2LedgerConfig,
     RuntimeV2LedgerError, RuntimeV2Message, RuntimeV2Observation, RuntimeV2Status,
-    RuntimeV2TransportFault,
+    RuntimeV2TransportFault, SeededRunBinding, SeededRunLedger, SeededRunLedgerConfig,
 };
 
 use super::auth::{AuthFailure, AuthPolicy, AuthScope};
@@ -36,6 +36,7 @@ use super::runtime_v4_expert::RuntimeV4ExpertRoute;
 use super::runtime_v4_expert_forwarder::RuntimeV4ExpertForwarder;
 use super::runtime_v4_expert_rest_action::RuntimeV4ExpertRestActionRoute;
 use super::runtime_v4_expert_rest_action_forwarder::RuntimeV4ExpertRestActionForwarder;
+use super::seeded_run_forwarder::HttpSeededRunForwarder;
 
 const DEFAULT_LISTEN_ADDRESS: &str = "127.0.0.1:15525";
 const DEFAULT_MOD_ADDRESS: &str = "127.0.0.1:15526";
@@ -56,6 +57,7 @@ pub(crate) struct RuntimeService {
     runtime_v4_expert: RuntimeV4ExpertForwarder,
     runtime_v4_expert_rest_action: RuntimeV4ExpertRestActionForwarder,
     runtime_map: RuntimeMapForwarder,
+    seeded_run: SeededRunLedger<HttpSeededRunForwarder>,
     journal_path: Option<PathBuf>,
     _journal_lock: Option<journal::JournalLock>,
     metrics: RuntimeMetrics,
@@ -99,6 +101,8 @@ mod map;
 mod receipt_query;
 #[path = "service_routes.rs"]
 mod routes;
+#[path = "service_seeded_run.rs"]
+mod seeded_run;
 #[path = "service_v2.rs"]
 mod v2;
 #[path = "service_v3.rs"]
@@ -140,6 +144,36 @@ impl RuntimeService {
             &config.lease_id,
             config.lease_epoch,
         );
+        let seeded_binding = SeededRunBinding::new(
+            &config.instance_id,
+            &config.session_id,
+            &config.lease_id,
+            config.lease_epoch,
+            0,
+        )
+        .map_err(|error| format!("seeded-run binding is invalid: {error}"))?;
+        let seeded_forwarder = HttpSeededRunForwarder::new(
+            &config.mod_address,
+            &config.mod_token,
+            &config.instance_id,
+            &config.caller_id,
+            &config.session_id,
+            &config.lease_id,
+            config.lease_epoch,
+        );
+        let mut seeded_run = SeededRunLedger::new(
+            SeededRunLedgerConfig::new(config.operation_capacity),
+            seeded_binding,
+            seeded_forwarder,
+        )
+        .map_err(|error| format!("seeded-run ledger is invalid: {error}"))?;
+        if let Some(path) = config.journal_path.as_deref()
+            && let Some(state) = journal::seeded_load(path)?
+        {
+            seeded_run
+                .restore_state(state)
+                .map_err(|error| format!("seeded-run journal state is invalid: {error}"))?;
+        }
         let mut runtime_v2 = RuntimeV2Ledger::new(
             RuntimeV2LedgerConfig::new(config.operation_capacity),
             binding,
@@ -169,6 +203,7 @@ impl RuntimeService {
                 MAX_RESPONSE_BYTES,
             ),
             runtime_map: RuntimeMapForwarder::new(MAX_MAP_RESPONSE_BYTES),
+            seeded_run,
             metrics: RuntimeMetrics::default(),
             coop_reports,
         })
