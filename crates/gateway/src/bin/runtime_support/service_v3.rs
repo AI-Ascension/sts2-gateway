@@ -29,6 +29,9 @@ impl RuntimeService {
                     );
                 }
             };
+        if self.recovery.is_some() && route == RuntimeV3GameplayRoute::DispatchAction {
+            return self.recovery_v3_dispatch(request, route, envelope);
+        }
         let correlation = request
             .headers
             .get("x-sts2-correlation-id")
@@ -54,7 +57,42 @@ impl RuntimeService {
                     .runtime_v3
                     .validate_response(route, &envelope, &response.body)
                 {
-                    Ok(()) => (response.status, response.body),
+                    Ok(()) => {
+                        if let Some(lease) = self.recovery_lease.clone() {
+                            // Only a schema-, relation-, and authority-context-validated
+                            // response can change the state-scoped recovery catalog. State and
+                            // reobserve responses establish freshness but never become the
+                            // executable catalog themselves.
+                            let catalog_update = match route {
+                                RuntimeV3GameplayRoute::LegalActions => self
+                                    .capture_recovery_catalog(
+                                        &lease,
+                                        response.status,
+                                        &response.body,
+                                    ),
+                                RuntimeV3GameplayRoute::State
+                                | RuntimeV3GameplayRoute::Reobserve => self
+                                    .observe_recovery_catalog(
+                                        &lease,
+                                        route,
+                                        response.status,
+                                        &response.body,
+                                    ),
+                                RuntimeV3GameplayRoute::DispatchAction
+                                | RuntimeV3GameplayRoute::WaitForTransition
+                                | RuntimeV3GameplayRoute::Recover => self.observe_recovery_catalog(
+                                    &lease,
+                                    route,
+                                    response.status,
+                                    &response.body,
+                                ),
+                            };
+                            if !catalog_update {
+                                return (502, json_error("runtime_v3_catalog_observation_invalid"));
+                            }
+                        }
+                        (response.status, response.body)
+                    }
                     Err(error) => (502, json_error(runtime_v3_error_code(error))),
                 }
             }

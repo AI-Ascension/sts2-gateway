@@ -2,6 +2,11 @@
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
+#[path = "auth_environment.rs"]
+mod environment;
+
+use environment::{env_or_default, optional_token, optional_u64, required};
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum AuthScope {
     Read,
@@ -28,6 +33,8 @@ struct Credential {
 pub(crate) struct AuthPolicy {
     current: Credential,
     previous: Option<Credential>,
+    recovery_current: Option<Credential>,
+    recovery_previous: Option<Credential>,
 }
 
 impl AuthPolicy {
@@ -57,7 +64,46 @@ impl AuthPolicy {
                 "STS2_GATEWAY_TOKEN_PREVIOUS must differ from the current token",
             ));
         }
-        Ok(Self { current, previous })
+        let recovery_current = optional_token("STS2_RECOVERY_TOKEN")?
+            .map(|token| {
+                Credential::from_environment(
+                    token,
+                    "STS2_RECOVERY_TOKEN_EXPIRES_AT",
+                    "STS2_RECOVERY_TOKEN_SCOPE",
+                    "read,mutate,control",
+                )
+            })
+            .transpose()?;
+        let recovery_previous = optional_token("STS2_RECOVERY_TOKEN_PREVIOUS")?
+            .map(|token| {
+                Credential::from_environment(
+                    token,
+                    "STS2_RECOVERY_TOKEN_PREVIOUS_EXPIRES_AT",
+                    "STS2_RECOVERY_TOKEN_PREVIOUS_SCOPE",
+                    "read,mutate,control",
+                )
+            })
+            .transpose()?;
+        if recovery_previous.is_some() && recovery_current.is_none() {
+            return Err(String::from(
+                "STS2_RECOVERY_TOKEN is required when a previous recovery token is configured",
+            ));
+        }
+        if recovery_previous.as_ref().is_some_and(|credential| {
+            recovery_current
+                .as_ref()
+                .is_some_and(|current| current.bearer == credential.bearer)
+        }) {
+            return Err(String::from(
+                "STS2_RECOVERY_TOKEN_PREVIOUS must differ from the current recovery token",
+            ));
+        }
+        Ok(Self {
+            current,
+            previous,
+            recovery_current,
+            recovery_previous,
+        })
     }
 
     #[cfg(test)]
@@ -69,6 +115,12 @@ impl AuthPolicy {
                 scopes: 0b111,
             },
             previous: None,
+            recovery_current: Some(Credential {
+                bearer: format!("Bearer {token}"),
+                expires_at: None,
+                scopes: 0b111,
+            }),
+            recovery_previous: None,
         }
     }
 
@@ -91,6 +143,12 @@ impl AuthPolicy {
                 expires_at: current_expires_at,
                 scopes: scope_bits,
             },
+            recovery_current: Some(Credential {
+                bearer: format!("Bearer {current}"),
+                expires_at: current_expires_at,
+                scopes: scope_bits,
+            }),
+            recovery_previous: previous.clone(),
             previous,
         })
     }
@@ -100,30 +158,30 @@ impl AuthPolicy {
         provided: Option<&str>,
         scope: AuthScope,
     ) -> Result<(), AuthFailure> {
-        let Some(provided) = provided else {
+        authorize_credentials(
+            provided,
+            scope,
+            unix_seconds(),
+            &self.current,
+            self.previous.as_ref(),
+        )
+    }
+
+    pub(crate) fn authorize_recovery(
+        &self,
+        provided: Option<&str>,
+        scope: AuthScope,
+    ) -> Result<(), AuthFailure> {
+        let Some(current) = self.recovery_current.as_ref() else {
             return Err(AuthFailure::Missing);
         };
-        let now = unix_seconds();
-        let current_match =
-            constant_time_equal(provided.as_bytes(), self.current.bearer.as_bytes());
-        let previous_match = self.previous.as_ref().is_some_and(|credential| {
-            constant_time_equal(provided.as_bytes(), credential.bearer.as_bytes())
-        });
-        let credential = match (current_match, previous_match, self.previous.as_ref()) {
-            (true, _, _) => &self.current,
-            (false, true, Some(previous)) => previous,
-            _ => return Err(AuthFailure::Invalid),
-        };
-        if credential
-            .expires_at
-            .is_some_and(|expires_at| now >= expires_at)
-        {
-            return Err(AuthFailure::Expired);
-        }
-        if !credential.allows(scope) {
-            return Err(AuthFailure::Scope);
-        }
-        Ok(())
+        authorize_credentials(
+            provided,
+            scope,
+            unix_seconds(),
+            current,
+            self.recovery_previous.as_ref(),
+        )
     }
 
     #[cfg(test)]
@@ -133,30 +191,39 @@ impl AuthPolicy {
         scope: AuthScope,
         now: u64,
     ) -> Result<(), AuthFailure> {
-        let Some(provided) = provided else {
-            return Err(AuthFailure::Missing);
-        };
-        let current_match =
-            constant_time_equal(provided.as_bytes(), self.current.bearer.as_bytes());
-        let previous_match = self.previous.as_ref().is_some_and(|credential| {
-            constant_time_equal(provided.as_bytes(), credential.bearer.as_bytes())
-        });
-        let credential = match (current_match, previous_match, self.previous.as_ref()) {
-            (true, _, _) => &self.current,
-            (false, true, Some(previous)) => previous,
-            _ => return Err(AuthFailure::Invalid),
-        };
-        if credential
-            .expires_at
-            .is_some_and(|expires_at| now >= expires_at)
-        {
-            return Err(AuthFailure::Expired);
-        }
-        if !credential.allows(scope) {
-            return Err(AuthFailure::Scope);
-        }
-        Ok(())
+        authorize_credentials(provided, scope, now, &self.current, self.previous.as_ref())
     }
+}
+
+fn authorize_credentials(
+    provided: Option<&str>,
+    scope: AuthScope,
+    now: u64,
+    current: &Credential,
+    previous: Option<&Credential>,
+) -> Result<(), AuthFailure> {
+    let Some(provided) = provided else {
+        return Err(AuthFailure::Missing);
+    };
+    let current_match = constant_time_equal(provided.as_bytes(), current.bearer.as_bytes());
+    let previous_match = previous.is_some_and(|credential| {
+        constant_time_equal(provided.as_bytes(), credential.bearer.as_bytes())
+    });
+    let credential = match (current_match, previous_match, previous) {
+        (true, _, _) => current,
+        (false, true, Some(previous)) => previous,
+        _ => return Err(AuthFailure::Invalid),
+    };
+    if credential
+        .expires_at
+        .is_some_and(|expires_at| now >= expires_at)
+    {
+        return Err(AuthFailure::Expired);
+    }
+    if !credential.allows(scope) {
+        return Err(AuthFailure::Scope);
+    }
+    Ok(())
 }
 
 impl Credential {
@@ -183,40 +250,6 @@ impl Credential {
             AuthScope::Control => 0b100,
         };
         self.scopes & required != 0
-    }
-}
-
-fn required(name: &str) -> Result<String, String> {
-    std::env::var(name).map_err(|_| format!("{name} is required"))
-}
-
-fn optional_token(name: &str) -> Result<Option<String>, String> {
-    match std::env::var(name) {
-        Ok(value) if value.is_empty() => Err(format!("{name} must not be empty")),
-        Ok(value) => Ok(Some(value)),
-        Err(std::env::VarError::NotPresent) => Ok(None),
-        Err(std::env::VarError::NotUnicode(_)) => Err(format!("{name} is not valid UTF-8")),
-    }
-}
-
-fn optional_u64(name: &str) -> Result<Option<u64>, String> {
-    match std::env::var(name) {
-        Ok(value) if value.is_empty() => Err(format!("{name} must not be empty")),
-        Ok(value) => value
-            .parse::<u64>()
-            .map(Some)
-            .map_err(|_| format!("{name} must be an unsigned Unix timestamp")),
-        Err(std::env::VarError::NotPresent) => Ok(None),
-        Err(std::env::VarError::NotUnicode(_)) => Err(format!("{name} is not valid UTF-8")),
-    }
-}
-
-fn env_or_default(name: &str, default: &str) -> Result<String, String> {
-    match std::env::var(name) {
-        Ok(value) if !value.is_empty() => Ok(value),
-        Ok(_) => Err(format!("{name} must not be empty")),
-        Err(std::env::VarError::NotPresent) => Ok(String::from(default)),
-        Err(std::env::VarError::NotUnicode(_)) => Err(format!("{name} is not valid UTF-8")),
     }
 }
 
@@ -261,47 +294,5 @@ fn constant_time_equal(left: &[u8], right: &[u8]) -> bool {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{AuthFailure, AuthPolicy, AuthScope};
-
-    #[test]
-    fn current_token_requires_scope_and_expiry() -> Result<(), String> {
-        let policy = AuthPolicy::test_with_previous("current", Some(100), None, "read,mutate")?;
-        assert_eq!(
-            policy.authorize_at(Some("Bearer current"), AuthScope::Read, 99),
-            Ok(())
-        );
-        assert_eq!(
-            policy.authorize_at(Some("Bearer current"), AuthScope::Control, 99),
-            Err(AuthFailure::Scope)
-        );
-        assert_eq!(
-            policy.authorize_at(Some("Bearer current"), AuthScope::Read, 100),
-            Err(AuthFailure::Expired)
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn previous_token_is_accepted_during_rotation_until_expiry() -> Result<(), String> {
-        let policy = AuthPolicy::test_with_previous(
-            "current",
-            Some(200),
-            Some(("previous", Some(100))),
-            "read",
-        )?;
-        assert_eq!(
-            policy.authorize_at(Some("Bearer previous"), AuthScope::Read, 99),
-            Ok(())
-        );
-        assert_eq!(
-            policy.authorize_at(Some("Bearer previous"), AuthScope::Read, 100),
-            Err(AuthFailure::Expired)
-        );
-        assert_eq!(
-            policy.authorize_at(Some("Bearer missing"), AuthScope::Read, 99),
-            Err(AuthFailure::Invalid)
-        );
-        Ok(())
-    }
-}
+#[path = "auth_tests.rs"]
+mod tests;

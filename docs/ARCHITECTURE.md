@@ -216,6 +216,14 @@ work without redispatch, and historical receipts cannot rewind current observati
 durable boot epoch, or concrete process supervisor; the co-op and supervisor library seams are
 local prototypes and are not connected to runtime admission or co-op wire serialization.
 
+The adapter also exposes `POST /v1/recovery/host-fence` as a control-scoped,
+fixed bridge for the additive `watchdog-recovery-v1` sideband. It validates the
+closed host-fence request shape and forwards it once to the configured mod
+endpoint with the mod credential and no old gameplay lease headers. This
+allows a new boot/fence handshake to precede lease acquisition; the bridge is
+transport evidence only until the mod/host consumer proves atomic fence
+replacement. See [ADR 0016](decisions/0016-recovery-host-fence-bridge.md).
+
 Both gateway and mod endpoint settings require numeric loopback `IP:port` socket addresses;
 wildcard/non-loopback addresses and DNS hostnames fail configuration. This plaintext attached lane
 does not expose a remote mode. HTTP frames and downstream exchanges use absolute deadlines.

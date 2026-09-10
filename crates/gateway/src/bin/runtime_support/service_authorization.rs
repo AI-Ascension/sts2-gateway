@@ -6,19 +6,40 @@ pub(super) fn request_rejection(
     request: &HttpRequest,
     auth_policy: &AuthPolicy,
     instance_id: &str,
+    recovery_enabled: bool,
 ) -> Option<(u16, Vec<u8>)> {
     if !headers_are_allowed(&request.headers) {
         return Some((400, json_error("unsupported_header")));
     }
-    match auth_policy.authorize(
-        request.headers.get("authorization").map(String::as_str),
-        required_scope(request, instance_id),
-    ) {
+    let provided = request.headers.get("authorization").map(String::as_str);
+    let scope = required_scope(request, instance_id);
+    let result = if recovery_enabled && is_recovery_path(request) {
+        auth_policy.authorize_recovery(provided, scope)
+    } else {
+        auth_policy.authorize(provided, scope)
+    };
+    match result {
         Ok(()) => None,
         Err(AuthFailure::Missing | AuthFailure::Invalid) => Some((401, json_error("unauthorized"))),
         Err(AuthFailure::Expired) => Some((401, json_error("token_expired"))),
         Err(AuthFailure::Scope) => Some((403, json_error("insufficient_scope"))),
     }
+}
+
+pub(super) fn is_recovery_path(request: &HttpRequest) -> bool {
+    request.method == "POST"
+        && matches!(
+            request.path.as_str(),
+            "/v1/recovery/bootstrap"
+                | "/v1/recovery/host-fence"
+                | "/v1/recovery/lease/acquire"
+                | "/v1/recovery/lease/renew"
+                | "/v1/recovery/lease/revoke"
+                | "/v1/recovery/operation/intent"
+                | "/v1/recovery/operation/dispatch"
+                | "/v1/recovery/operation/lookup"
+                | "/v1/recovery/operation/reconcile"
+        )
 }
 
 pub(super) fn required_scope(request: &HttpRequest, instance_id: &str) -> AuthScope {
@@ -71,11 +92,38 @@ pub(super) fn required_scope(request: &HttpRequest, instance_id: &str) -> AuthSc
     let release_path = format!("/v1/instances/{instance_id}/release");
     let shutdown_path = format!("/v2/instances/{instance_id}/shutdown");
     let coop_report_path = format!("/v1/instances/{instance_id}/coop/peer-report");
+    let host_fence_path = "/v1/recovery/host-fence";
+    let bootstrap_path = "/v1/recovery/bootstrap";
+    let lease_acquire_path = "/v1/recovery/lease/acquire";
+    let lease_renew_path = "/v1/recovery/lease/renew";
+    let lease_revoke_path = "/v1/recovery/lease/revoke";
+    let operation_intent_path = "/v1/recovery/operation/intent";
+    let operation_dispatch_path = "/v1/recovery/operation/dispatch";
+    let operation_lookup_path = "/v1/recovery/operation/lookup";
+    let operation_reconcile_path = "/v1/recovery/operation/reconcile";
+    if request.method == "POST" {
+        if request.path == operation_lookup_path {
+            return AuthScope::Read;
+        }
+        if request.path == operation_intent_path || request.path == operation_dispatch_path {
+            return AuthScope::Mutate;
+        }
+        if request.path == bootstrap_path
+            || request.path == host_fence_path
+            || request.path == lease_acquire_path
+            || request.path == lease_renew_path
+            || request.path == lease_revoke_path
+            || request.path == operation_reconcile_path
+        {
+            return AuthScope::Control;
+        }
+    }
     if request.method == "POST"
         && (request.path == allocate_path
             || request.path == release_path
             || request.path == shutdown_path
-            || request.path == coop_report_path)
+            || request.path == coop_report_path
+            || request.path == host_fence_path)
     {
         return AuthScope::Control;
     }
@@ -100,6 +148,7 @@ pub(super) fn headers_are_allowed(headers: &BTreeMap<String, String>) -> bool {
                 | "x-sts2-lease-epoch"
                 | "x-sts2-workflow-boot-epoch"
                 | "x-sts2-correlation-id"
+                | "x-sts2-recovery-capability"
         )
     })
 }

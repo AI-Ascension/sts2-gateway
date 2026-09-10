@@ -3,9 +3,15 @@
 mod auth;
 mod coop_reports;
 mod forwarder;
+mod host_lease_control;
+mod host_lease_control_crypto;
+mod host_lease_control_frames;
+mod host_lease_control_grant;
 mod http;
 mod journal;
 mod metrics;
+mod recovery_control;
+mod recovery_frame;
 mod runtime_map;
 mod runtime_map_forwarder;
 mod runtime_v3_gameplay;

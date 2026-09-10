@@ -1,0 +1,30 @@
+# Host lease-control artifact provenance
+
+These files are the byte-exact neutral `watchdog-host-lease-control-v1`
+artifact accepted for the gateway and managed-host consumers. They are copied
+as contract data, not implementation code. The public proof key in
+`proof-vectors.json` is test-only and is not a deployment credential.
+
+The following SHA-256 values pin every committed artifact file:
+
+```text
+1dd25a5520c655fb8107475c1a510830bcce4a157f726e9f7b15122070ffddef  PROOF_PROFILE.md
+f6afa676b512990e5e6cd8c83023d7bd6214db976f32c98ecdca630861b17a99  README.md
+85b0bb28175e98482774f2d492e886eadcf778b3cb24046d9f8f6cdfcb8801f5  fixtures/README.md
+ed2fc929282cb365d1c8e258d54c842333d458a62b918dfa7ecc30ed0f5be33c  fixtures/invalid/unknown-field.json
+205b7200659bde53e9f13b6f044d51373ef056a6023de5ab34fd27501e474241  fixtures/semantic-invalid/expired-renewal.json
+c19db14e8939d817601b07202d0bb15c2b91b6a921c2e0bf3b241e7714a47d75  fixtures/semantic-invalid/grant-context-mismatch.json
+72f7f34f6934af7777e49ef07272e6fabbf3c14e99d7a91264291da2463e0f3d  fixtures/semantic-invalid/grant-digest-mismatch.json
+85b0531629ddb6557a9d77ff92ecd276b9aaa0dd9ac62af89f763258f924968f  fixtures/valid/lease-install-duplicate-response.json
+6841a38946e5464590ecbe51e7c4379c4960ac62bc75de1384bace382db1cf23  fixtures/valid/lease-install-request.json
+581c69bbdd5aa9ac81022f7a5d1e76af75ca3f7ae6042fb0383e9a92c8282c8e  fixtures/valid/lease-install-response.json
+2f1df8a3df283abda8588ad7df5ad217bfc982a7e767e9e26486b606e2d1b073  fixtures/valid/lease-renew-duplicate-response.json
+25f5cdf63f0b3f3881567aa4f900005613a212fac1c0bc3659e3fdf445501623  fixtures/valid/lease-renew-request.json
+010f02c0e4f4a2c9c936c99faaf3e01bdffce153d72c23a228fe8f34f26c510e  fixtures/valid/lease-renew-response.json
+23d42ec3dcc79d2bb131deb8303cee964c2dfd269e4aca11c0ba02ade0d3886b  fixtures/valid/lease-revoke-duplicate-response.json
+4e2c7f4ba7c3c6399d8816a49540eb9082f950be298831d1848efe8d0f8c773a  fixtures/valid/lease-revoke-request.json
+8ad61f51ca464a8a067aaece9b59f09d356fb71ed57cfc782f25fad2c43a69bc  fixtures/valid/lease-revoke-response.json
+e22faf0f7d3cd313a007b65e52058b3c255153d5778dd8124055c283adf977f9  frame.schema.json
+17552a4cd001ce9e622535fafdedfc8d5d7f9b93ffdfa5696ae7689d3aaf84b1  manifest.json
+942c5c8ad07705ae43ff5fc44309b1aaa474bd7cb48152f2384117922a4abb30  proof-vectors.json
+```

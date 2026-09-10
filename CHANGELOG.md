@@ -5,6 +5,10 @@ host compatibility and release publication.
 
 ## [Unreleased]
 
+- Add the authenticated, fixed-route host lease-control consumer for gateway-issued
+  install, renew, and revoke acknowledgments. Protected grant persistence,
+  fail-closed admission, and operation identity reconciliation are included;
+  managed-host settlement and live deployment remain unverified.
 - Add the candidate `runtime-v4-expert-rest-action-v1` dispatch and reconciliation routes at
   `POST /v4/instances/{instance_id}/expert-rest-action` and
   `GET /v4/instances/{instance_id}/expert-rest-actions/{operation_id}`. The gateway pins the
@@ -79,6 +83,14 @@ host compatibility and release publication.
 
 ### Fixed
 
+- Validate recovery allocation authority against the current lease, durable fence,
+  installed host binding and monotonic deadline. Failed responses close local
+  admission before fallible revocation; busy storage cannot reopen mutation.
+  Confirmed host cleanup permits a fresh epoch without clearing prior stop intent.
+  Bind delayed cleanup permission to the exact failed allocation; reject installed
+  grant digest mismatch and retire a lease when activation expires after its
+  durable host installation acknowledgment.
+
 - Default MCP transport identity independently to `mcp-session-1` to match MCP and harness
   configuration; retain validated explicit overrides and the complete session fence.
 
@@ -142,6 +154,11 @@ host compatibility and release publication.
   These corrections do not implement durable restart epochs, lease TTL/renewal, or a real host.
 
 ### Added
+
+- Add the fixed, authenticated `POST /v1/recovery/host-fence` bridge for the
+  additive recovery sideband. The bounded downstream request carries the new
+  boot/fence identity in its closed frame and does not require or forward an
+  old gameplay lease; transport uncertainty remains explicit.
 
 - Record the owner-accepted `jsonschema` product dependency and its conditions in ADR 0015;
   add a self-check test that the embedded Runtime-v3 schema compiles and admits a golden request.

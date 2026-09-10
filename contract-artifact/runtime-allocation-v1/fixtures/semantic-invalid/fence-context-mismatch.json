@@ -1,0 +1,23 @@
+{
+  "contract": "watchdog-runtime-allocation-v1",
+  "schema_digest": "ee967a95e79fb2f157ce58d2b6d857de42b75f1f5ebfeb82dd9672e3b0f7670b",
+  "context": {
+    "deployment_id": "00000000-0000-4000-8000-000000000001",
+    "instance_id": "00000000-0000-4000-8000-000000000002",
+    "instance_incarnation": "00000000-0000-4000-8000-000000000003",
+    "boot_id": "00000000-0000-4000-8000-000000000004",
+    "authority_generation": 7,
+    "lease_id": "00000000-0000-4000-8000-000000000006",
+    "lease_epoch": 3
+  },
+  "current_fence": {
+    "host_fence_id": "00000000-0000-4000-8000-000000000005",
+    "deployment_id": "00000000-0000-4000-8000-000000000001",
+    "instance_id": "00000000-0000-4000-8000-000000000002",
+    "instance_incarnation": "00000000-0000-4000-8000-000000000003",
+    "boot_id": "00000000-0000-4000-8000-000000000007",
+    "authority_generation": 7,
+    "fence_generation": 4,
+    "created_at": "2026-09-07T00:00:01Z"
+  }
+}
