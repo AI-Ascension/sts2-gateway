@@ -19,6 +19,13 @@ impl RuntimeService {
         {
             return self.runtime_v4_expert_request(request, route);
         }
+        if let Some(route) = RuntimeV4ExpertRestActionRoute::parse(
+            &request.method,
+            &request.path,
+            &self.config.instance_id,
+        ) {
+            return self.runtime_v4_expert_rest_action_request(request, route);
+        }
         if let Some(route) =
             RuntimeMapRoute::parse(&request.method, &request.path, &self.config.instance_id)
         {
@@ -29,6 +36,9 @@ impl RuntimeService {
                 self.coop_synchronization(request)
             }
             ("POST", path) if path == self.coop_report_path() => self.coop_peer_report(request),
+            ("POST", path) if path == self.coop_receipt_query_path() => {
+                self.coop_receipt_query(request)
+            }
             ("GET", "/health/ready") if request.body.is_empty() => self.health(),
             ("POST", "/v1/sessions/allocate")
                 if request.content_type_is_json() && !request.body.is_empty() =>

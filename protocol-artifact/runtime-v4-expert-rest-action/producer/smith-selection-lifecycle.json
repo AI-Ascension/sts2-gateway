@@ -1,0 +1,704 @@
+{
+  "fixture_version": "runtime-v4-expert-rest-action-producer-fixture-v1",
+  "protocol_version": "runtime-v4-expert-rest-action-v1",
+  "profile": "expert-rest-action",
+  "schema_digest": "bb3555fae28eb1f79d08a15e9884696a579e4c20836f5016509f17e0f4c36fbd",
+  "provenance": {
+    "artifact": "sts2-protocol/runtime-v4-expert-rest-action",
+    "source": "schemas/runtime-v4-expert-rest-action-v1.schema.json",
+    "generator": "hand-authored"
+  },
+  "producer": {
+    "kind": "managed_source_only",
+    "implementation": "experiments/managed-rust-interop/game-loader/RuntimeV4ExpertRestActionSupport.cs",
+    "host": "synthetic SmithHost/MendHost",
+    "capture": "RuntimeV4ExpertRestActionSupport.Handle action admission and operation reconciliation"
+  },
+  "consumer_context": "stateful operation store retains selector admission catalog across response observations",
+  "fixture_id": "producer/smith-selection-lifecycle-v1",
+  "lifecycle": "rest_option -\u003E selection_requested -\u003E selection_progressed -\u003E selection_completed",
+  "messages": [
+    {
+      "step": "option-request",
+      "request": {
+        "protocol_version": "runtime-v4-expert-rest-action-v1",
+        "schema_digest": "bb3555fae28eb1f79d08a15e9884696a579e4c20836f5016509f17e0f4c36fbd",
+        "provenance": {
+          "artifact": "sts2-protocol/runtime-v4-expert-rest-action",
+          "source": "schemas/runtime-v4-expert-rest-action-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "profile": "expert-rest-action",
+        "correlation_id": "corr:rest:producer:smith",
+        "instance_id": "instance:1",
+        "session_id": "session:1",
+        "lease_id": "lease:1",
+        "lease_epoch": 4,
+        "generation": 9,
+        "state_id": "live:9",
+        "operation_id": "rest-op:producer:smith:parent",
+        "kind": "action_request",
+        "action": {
+          "action_id": "rest-option:9:smith",
+          "action": {
+            "kind": "rest_option",
+            "rest_option_id": "smith"
+          }
+        },
+        "status": null,
+        "observation": null,
+        "transition": null,
+        "effect_witness": null,
+        "error_code": null
+      },
+      "response": {
+        "protocol_version": "runtime-v4-expert-rest-action-v1",
+        "schema_digest": "bb3555fae28eb1f79d08a15e9884696a579e4c20836f5016509f17e0f4c36fbd",
+        "provenance": {
+          "artifact": "sts2-protocol/runtime-v4-expert-rest-action",
+          "source": "schemas/runtime-v4-expert-rest-action-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "profile": "expert-rest-action",
+        "correlation_id": "corr:rest:producer:smith",
+        "instance_id": "instance:1",
+        "session_id": "session:1",
+        "lease_id": "lease:1",
+        "lease_epoch": 4,
+        "generation": 10,
+        "state_id": "live:10",
+        "operation_id": "rest-op:producer:smith:parent",
+        "kind": "action_response",
+        "action": {
+          "action_id": "rest-option:9:smith",
+          "action": {
+            "kind": "rest_option",
+            "rest_option_id": "smith"
+          }
+        },
+        "status": "settled",
+        "observation": {
+          "protocol_version": "runtime-v4-expert",
+          "schema_digest": "0ee034d5da83f34e9fa0ba23038738d56ef8cfccb1c6e752af3ab63d212c8e42",
+          "provenance": {
+            "artifact": "sts2-protocol/runtime-v4-expert",
+            "source": "schemas/runtime-v4-expert.schema.json",
+            "generator": "hand-authored"
+          },
+          "profile": "expert-state",
+          "state_id": "live:10",
+          "generation": 10,
+          "visible_seed": "synthetic-visible-seed",
+          "run": {
+            "character_id": "ironclad",
+            "act": 1,
+            "location": "rest:1"
+          },
+          "player": {
+            "hp": 64,
+            "max_hp": 80,
+            "block": null,
+            "energy": 0,
+            "gold": 99,
+            "hand": [],
+            "deck": [],
+            "discard": [],
+            "exhaust": [],
+            "powers": [],
+            "statuses": [],
+            "relics": [],
+            "potions": [],
+            "potion_slots": null,
+            "max_potion_slots": null
+          },
+          "state": {
+            "state": "selection",
+            "choices": [
+              {
+                "choice_id": "card:1",
+                "label": "Strike",
+                "kind": "selection",
+                "domain": null
+              },
+              {
+                "choice_id": "card:2",
+                "label": "Bash",
+                "kind": "selection",
+                "domain": null
+              }
+            ]
+          },
+          "legal_actions": [
+            {
+              "action_id": "select_card:10:card:1",
+              "action": {
+                "kind": "select_card",
+                "selection_id": "selection:10",
+                "card_id": "card:1"
+              }
+            },
+            {
+              "action_id": "cancel_selection:10",
+              "action": {
+                "kind": "cancel_selection",
+                "selection_id": "selection:10"
+              }
+            }
+          ]
+        },
+        "transition": {
+          "before_generation": 9,
+          "after_generation": 10,
+          "rest_option_id": "smith",
+          "kind": "rest_option_selection_requested",
+          "selector": {
+            "selection_id": "selection:10:smith",
+            "selection_kind": "card",
+            "required_count": 2,
+            "selected_choice_ids": [],
+            "remaining_count": 2,
+            "legal_actions": [
+              {
+                "action_id": "select_card:10:smith:card:1",
+                "action": {
+                  "kind": "select_card",
+                  "selection_id": "selection:10:smith",
+                  "rest_option_id": "smith",
+                  "card_id": "card:1"
+                }
+              },
+              {
+                "action_id": "select_card:10:smith:card:2",
+                "action": {
+                  "kind": "select_card",
+                  "selection_id": "selection:10:smith",
+                  "rest_option_id": "smith",
+                  "card_id": "card:2"
+                }
+              },
+              {
+                "action_id": "cancel_selection:10:smith",
+                "action": {
+                  "kind": "cancel_selection",
+                  "selection_id": "selection:10:smith",
+                  "rest_option_id": "smith"
+                }
+              }
+            ]
+          },
+          "effect_witness": null
+        },
+        "effect_witness": null,
+        "error_code": null
+      }
+    },
+    {
+      "step": "first-choice",
+      "request": {
+        "protocol_version": "runtime-v4-expert-rest-action-v1",
+        "schema_digest": "bb3555fae28eb1f79d08a15e9884696a579e4c20836f5016509f17e0f4c36fbd",
+        "provenance": {
+          "artifact": "sts2-protocol/runtime-v4-expert-rest-action",
+          "source": "schemas/runtime-v4-expert-rest-action-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "profile": "expert-rest-action",
+        "correlation_id": "corr:rest:producer:smith",
+        "instance_id": "instance:1",
+        "session_id": "session:1",
+        "lease_id": "lease:1",
+        "lease_epoch": 4,
+        "generation": 10,
+        "state_id": "live:10",
+        "operation_id": "rest-op:producer:smith:first",
+        "kind": "action_request",
+        "action": {
+          "action_id": "select_card:10:smith:card:1",
+          "action": {
+            "kind": "select_card",
+            "selection_id": "selection:10:smith",
+            "rest_option_id": "smith",
+            "card_id": "card:1"
+          }
+        },
+        "status": null,
+        "observation": null,
+        "transition": null,
+        "effect_witness": null,
+        "error_code": null
+      },
+      "response": {
+        "protocol_version": "runtime-v4-expert-rest-action-v1",
+        "schema_digest": "bb3555fae28eb1f79d08a15e9884696a579e4c20836f5016509f17e0f4c36fbd",
+        "provenance": {
+          "artifact": "sts2-protocol/runtime-v4-expert-rest-action",
+          "source": "schemas/runtime-v4-expert-rest-action-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "profile": "expert-rest-action",
+        "correlation_id": "corr:rest:producer:smith",
+        "instance_id": "instance:1",
+        "session_id": "session:1",
+        "lease_id": "lease:1",
+        "lease_epoch": 4,
+        "generation": 11,
+        "state_id": "live:11",
+        "operation_id": "rest-op:producer:smith:first",
+        "kind": "action_response",
+        "action": {
+          "action_id": "select_card:10:smith:card:1",
+          "action": {
+            "kind": "select_card",
+            "selection_id": "selection:10:smith",
+            "rest_option_id": "smith",
+            "card_id": "card:1"
+          }
+        },
+        "status": "settled",
+        "observation": {
+          "protocol_version": "runtime-v4-expert",
+          "schema_digest": "0ee034d5da83f34e9fa0ba23038738d56ef8cfccb1c6e752af3ab63d212c8e42",
+          "provenance": {
+            "artifact": "sts2-protocol/runtime-v4-expert",
+            "source": "schemas/runtime-v4-expert.schema.json",
+            "generator": "hand-authored"
+          },
+          "profile": "expert-state",
+          "state_id": "live:11",
+          "generation": 11,
+          "visible_seed": "synthetic-visible-seed",
+          "run": {
+            "character_id": "ironclad",
+            "act": 1,
+            "location": "rest:1"
+          },
+          "player": {
+            "hp": 64,
+            "max_hp": 80,
+            "block": null,
+            "energy": 0,
+            "gold": 99,
+            "hand": [],
+            "deck": [],
+            "discard": [],
+            "exhaust": [],
+            "powers": [],
+            "statuses": [],
+            "relics": [],
+            "potions": [],
+            "potion_slots": null,
+            "max_potion_slots": null
+          },
+          "state": {
+            "state": "selection",
+            "choices": [
+              {
+                "choice_id": "card:1",
+                "label": "Strike",
+                "kind": "selection",
+                "domain": null
+              },
+              {
+                "choice_id": "card:2",
+                "label": "Bash",
+                "kind": "selection",
+                "domain": null
+              }
+            ]
+          },
+          "legal_actions": [
+            {
+              "action_id": "select_card:11:card:1",
+              "action": {
+                "kind": "select_card",
+                "selection_id": "selection:11",
+                "card_id": "card:1"
+              }
+            },
+            {
+              "action_id": "cancel_selection:11",
+              "action": {
+                "kind": "cancel_selection",
+                "selection_id": "selection:11"
+              }
+            }
+          ]
+        },
+        "transition": {
+          "before_generation": 10,
+          "after_generation": 11,
+          "rest_option_id": "smith",
+          "kind": "rest_option_selection_progressed",
+          "selection_id": "selection:10:smith",
+          "selection_kind": "card",
+          "required_count": 2,
+          "selected_choice_ids": [
+            "card:1"
+          ],
+          "remaining_count": 1,
+          "selector": {
+            "selection_id": "selection:10:smith",
+            "selection_kind": "card",
+            "required_count": 2,
+            "selected_choice_ids": [
+              "card:1"
+            ],
+            "remaining_count": 1,
+            "legal_actions": [
+              {
+                "action_id": "select_card:11:smith:card:2",
+                "action": {
+                  "kind": "select_card",
+                  "selection_id": "selection:10:smith",
+                  "rest_option_id": "smith",
+                  "card_id": "card:2"
+                }
+              },
+              {
+                "action_id": "cancel_selection:11:smith",
+                "action": {
+                  "kind": "cancel_selection",
+                  "selection_id": "selection:10:smith",
+                  "rest_option_id": "smith"
+                }
+              }
+            ]
+          },
+          "effect_witness": null
+        },
+        "effect_witness": null,
+        "error_code": null
+      }
+    },
+    {
+      "step": "second-choice",
+      "request": {
+        "protocol_version": "runtime-v4-expert-rest-action-v1",
+        "schema_digest": "bb3555fae28eb1f79d08a15e9884696a579e4c20836f5016509f17e0f4c36fbd",
+        "provenance": {
+          "artifact": "sts2-protocol/runtime-v4-expert-rest-action",
+          "source": "schemas/runtime-v4-expert-rest-action-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "profile": "expert-rest-action",
+        "correlation_id": "corr:rest:producer:smith",
+        "instance_id": "instance:1",
+        "session_id": "session:1",
+        "lease_id": "lease:1",
+        "lease_epoch": 4,
+        "generation": 11,
+        "state_id": "live:11",
+        "operation_id": "rest-op:producer:smith:second",
+        "kind": "action_request",
+        "action": {
+          "action_id": "select_card:11:smith:card:2",
+          "action": {
+            "kind": "select_card",
+            "selection_id": "selection:10:smith",
+            "rest_option_id": "smith",
+            "card_id": "card:2"
+          }
+        },
+        "status": null,
+        "observation": null,
+        "transition": null,
+        "effect_witness": null,
+        "error_code": null
+      },
+      "response": {
+        "protocol_version": "runtime-v4-expert-rest-action-v1",
+        "schema_digest": "bb3555fae28eb1f79d08a15e9884696a579e4c20836f5016509f17e0f4c36fbd",
+        "provenance": {
+          "artifact": "sts2-protocol/runtime-v4-expert-rest-action",
+          "source": "schemas/runtime-v4-expert-rest-action-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "profile": "expert-rest-action",
+        "correlation_id": "corr:rest:producer:smith",
+        "instance_id": "instance:1",
+        "session_id": "session:1",
+        "lease_id": "lease:1",
+        "lease_epoch": 4,
+        "generation": 12,
+        "state_id": "live:12",
+        "operation_id": "rest-op:producer:smith:second",
+        "kind": "action_response",
+        "action": {
+          "action_id": "select_card:11:smith:card:2",
+          "action": {
+            "kind": "select_card",
+            "selection_id": "selection:10:smith",
+            "rest_option_id": "smith",
+            "card_id": "card:2"
+          }
+        },
+        "status": "settled",
+        "observation": {
+          "protocol_version": "runtime-v4-expert",
+          "schema_digest": "0ee034d5da83f34e9fa0ba23038738d56ef8cfccb1c6e752af3ab63d212c8e42",
+          "provenance": {
+            "artifact": "sts2-protocol/runtime-v4-expert",
+            "source": "schemas/runtime-v4-expert.schema.json",
+            "generator": "hand-authored"
+          },
+          "profile": "expert-state",
+          "state_id": "live:12",
+          "generation": 12,
+          "visible_seed": "synthetic-visible-seed",
+          "run": {
+            "character_id": "ironclad",
+            "act": 1,
+            "location": "rest:1"
+          },
+          "player": {
+            "hp": 64,
+            "max_hp": 80,
+            "block": null,
+            "energy": 0,
+            "gold": 99,
+            "hand": [],
+            "deck": [],
+            "discard": [],
+            "exhaust": [],
+            "powers": [],
+            "statuses": [],
+            "relics": [],
+            "potions": [],
+            "potion_slots": null,
+            "max_potion_slots": null
+          },
+          "state": {
+            "state": "selection",
+            "choices": [
+              {
+                "choice_id": "card:1",
+                "label": "Strike",
+                "kind": "selection",
+                "domain": null
+              },
+              {
+                "choice_id": "card:2",
+                "label": "Bash",
+                "kind": "selection",
+                "domain": null
+              }
+            ]
+          },
+          "legal_actions": [
+            {
+              "action_id": "select_card:12:card:1",
+              "action": {
+                "kind": "select_card",
+                "selection_id": "selection:12",
+                "card_id": "card:1"
+              }
+            },
+            {
+              "action_id": "cancel_selection:12",
+              "action": {
+                "kind": "cancel_selection",
+                "selection_id": "selection:12"
+              }
+            }
+          ]
+        },
+        "transition": {
+          "before_generation": 11,
+          "after_generation": 12,
+          "rest_option_id": "smith",
+          "kind": "rest_option_selection_progressed",
+          "selection_id": "selection:10:smith",
+          "selection_kind": "card",
+          "required_count": 2,
+          "selected_choice_ids": [
+            "card:1",
+            "card:2"
+          ],
+          "remaining_count": 0,
+          "selector": {
+            "selection_id": "selection:10:smith",
+            "selection_kind": "card",
+            "required_count": 2,
+            "selected_choice_ids": [
+              "card:1",
+              "card:2"
+            ],
+            "remaining_count": 0,
+            "legal_actions": [
+              {
+                "action_id": "confirm_selection:12:smith",
+                "action": {
+                  "kind": "confirm_selection",
+                  "selection_id": "selection:10:smith",
+                  "rest_option_id": "smith"
+                }
+              },
+              {
+                "action_id": "cancel_selection:12:smith",
+                "action": {
+                  "kind": "cancel_selection",
+                  "selection_id": "selection:10:smith",
+                  "rest_option_id": "smith"
+                }
+              }
+            ]
+          },
+          "effect_witness": null
+        },
+        "effect_witness": null,
+        "error_code": null
+      }
+    },
+    {
+      "step": "confirm",
+      "request": {
+        "protocol_version": "runtime-v4-expert-rest-action-v1",
+        "schema_digest": "bb3555fae28eb1f79d08a15e9884696a579e4c20836f5016509f17e0f4c36fbd",
+        "provenance": {
+          "artifact": "sts2-protocol/runtime-v4-expert-rest-action",
+          "source": "schemas/runtime-v4-expert-rest-action-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "profile": "expert-rest-action",
+        "correlation_id": "corr:rest:producer:smith",
+        "instance_id": "instance:1",
+        "session_id": "session:1",
+        "lease_id": "lease:1",
+        "lease_epoch": 4,
+        "generation": 12,
+        "state_id": "live:12",
+        "operation_id": "rest-op:producer:smith:confirm",
+        "kind": "action_request",
+        "action": {
+          "action_id": "confirm_selection:12:smith",
+          "action": {
+            "kind": "confirm_selection",
+            "selection_id": "selection:10:smith",
+            "rest_option_id": "smith"
+          }
+        },
+        "status": null,
+        "observation": null,
+        "transition": null,
+        "effect_witness": null,
+        "error_code": null
+      },
+      "response": {
+        "protocol_version": "runtime-v4-expert-rest-action-v1",
+        "schema_digest": "bb3555fae28eb1f79d08a15e9884696a579e4c20836f5016509f17e0f4c36fbd",
+        "provenance": {
+          "artifact": "sts2-protocol/runtime-v4-expert-rest-action",
+          "source": "schemas/runtime-v4-expert-rest-action-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "profile": "expert-rest-action",
+        "correlation_id": "corr:rest:producer:smith",
+        "instance_id": "instance:1",
+        "session_id": "session:1",
+        "lease_id": "lease:1",
+        "lease_epoch": 4,
+        "generation": 13,
+        "state_id": "live:13",
+        "operation_id": "rest-op:producer:smith:confirm",
+        "kind": "action_response",
+        "action": {
+          "action_id": "confirm_selection:12:smith",
+          "action": {
+            "kind": "confirm_selection",
+            "selection_id": "selection:10:smith",
+            "rest_option_id": "smith"
+          }
+        },
+        "status": "settled",
+        "observation": {
+          "protocol_version": "runtime-v4-expert",
+          "schema_digest": "0ee034d5da83f34e9fa0ba23038738d56ef8cfccb1c6e752af3ab63d212c8e42",
+          "provenance": {
+            "artifact": "sts2-protocol/runtime-v4-expert",
+            "source": "schemas/runtime-v4-expert.schema.json",
+            "generator": "hand-authored"
+          },
+          "profile": "expert-state",
+          "state_id": "live:13",
+          "generation": 13,
+          "visible_seed": "synthetic-visible-seed",
+          "run": {
+            "character_id": "ironclad",
+            "act": 1,
+            "location": "rest:1"
+          },
+          "player": {
+            "hp": 64,
+            "max_hp": 80,
+            "block": null,
+            "energy": 0,
+            "gold": 99,
+            "hand": [],
+            "deck": [],
+            "discard": [],
+            "exhaust": [],
+            "powers": [],
+            "statuses": [],
+            "relics": [],
+            "potions": [],
+            "potion_slots": null,
+            "max_potion_slots": null
+          },
+          "state": {
+            "state": "rest",
+            "choices": []
+          },
+          "legal_actions": []
+        },
+        "transition": {
+          "before_generation": 12,
+          "after_generation": 13,
+          "rest_option_id": "smith",
+          "kind": "rest_option_selection_completed",
+          "selection_id": "selection:10:smith",
+          "selection_kind": "card",
+          "required_count": 2,
+          "selected_choice_ids": [
+            "card:1",
+            "card:2"
+          ],
+          "remaining_count": 0,
+          "completed": true,
+          "effect_witness": {
+            "version": "rest-effect-witness-v1",
+            "kind": "smith_applied",
+            "operation_id": "rest-op:producer:smith:confirm",
+            "rest_option_id": "smith",
+            "generation": 13,
+            "evidence": {
+              "kind": "card_change",
+              "added_card_ids": [],
+              "removed_card_ids": [],
+              "upgraded_card_ids": [
+                "card:1",
+                "card:2"
+              ]
+            }
+          }
+        },
+        "effect_witness": {
+          "version": "rest-effect-witness-v1",
+          "kind": "smith_applied",
+          "operation_id": "rest-op:producer:smith:confirm",
+          "rest_option_id": "smith",
+          "generation": 13,
+          "evidence": {
+            "kind": "card_change",
+            "added_card_ids": [],
+            "removed_card_ids": [],
+            "upgraded_card_ids": [
+              "card:1",
+              "card:2"
+            ]
+          }
+        },
+        "error_code": null
+      }
+    }
+  ]
+}

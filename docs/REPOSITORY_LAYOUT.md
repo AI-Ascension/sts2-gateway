@@ -54,3 +54,16 @@ crates/gateway/src/bin/runtime_support/runtime_map*  fixed route and response va
 These are inert contract data and gateway-owned transport validation. The protocol owner remains
 responsible for the neutral model and conformance meaning; the game-mod remains responsible for
 host observation and projection.
+
+## Runtime-v4 expert rest-action additions
+
+```text
+protocol-artifact/runtime-v4-expert-rest-action/  candidate manifest, schema, goldens, mutations, producers, checksums
+schemas/runtime-v4-expert-rest-action-v1.schema.json  protocol-owned source-path mirror
+conformance/cases/runtime-v4-expert-rest-action-v1.json  implementation-neutral consumer case
+crates/gateway/src/bin/runtime_support/runtime_v4_expert_rest_action*  fixed route, forwarder, and semantic checks
+```
+
+The profile is a candidate protocol copy with no admitted consumers. The gateway owns only the
+transport and bounded validation; rest-site rules, native producer serialization, host effects,
+MCP mapping, and harness behavior remain outside this target.

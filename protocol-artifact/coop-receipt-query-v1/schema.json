@@ -1,0 +1,576 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sts2-coop-receipt-query-v1",
+  "title": "STS2 neutral retained receipt query",
+  "description": "A transport-neutral request for one immutable operation identity and a response that reports only retained receipt evidence.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/request"
+    },
+    {
+      "$ref": "#/$defs/response"
+    }
+  ],
+  "$defs": {
+    "identity": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.:/-]{1,128}(?![\\s\\S])"
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "generation": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact",
+        "source",
+        "generator"
+      ],
+      "properties": {
+        "artifact": {
+          "const": "sts2-protocol/coop-receipt-query-v1"
+        },
+        "source": {
+          "const": "schemas/coop-receipt-query-v1.schema.json"
+        },
+        "generator": {
+          "const": "hand-authored"
+        }
+      }
+    },
+    "location": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "act_index",
+        "room_id",
+        "coord"
+      ],
+      "properties": {
+        "act_index": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "room_id": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": -2147483648,
+              "maximum": 2147483647
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "coord": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "col",
+                "row"
+              ],
+              "properties": {
+                "col": {
+                  "type": "integer",
+                  "minimum": -2147483648,
+                  "maximum": 2147483647
+                },
+                "row": {
+                  "type": "integer",
+                  "minimum": -2147483648,
+                  "maximum": 2147483647
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "participants": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 4,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/identity"
+      }
+    },
+    "base": {
+      "type": "object",
+      "required": [
+        "protocol_version",
+        "schema_digest",
+        "provenance",
+        "correlation_id",
+        "instance_id",
+        "session_id",
+        "lease_id",
+        "lease_epoch"
+      ],
+      "properties": {
+        "protocol_version": {
+          "const": "coop-receipt-query-v1"
+        },
+        "schema_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "correlation_id": {
+          "$ref": "#/$defs/identity"
+        },
+        "instance_id": {
+          "$ref": "#/$defs/identity"
+        },
+        "session_id": {
+          "$ref": "#/$defs/identity"
+        },
+        "lease_id": {
+          "$ref": "#/$defs/identity"
+        },
+        "lease_epoch": {
+          "$ref": "#/$defs/generation"
+        }
+      }
+    },
+    "query_identity": {
+      "type": "object",
+      "required": [
+        "operation_id",
+        "action_kind",
+        "action_fingerprint",
+        "run_id",
+        "location",
+        "actor_id",
+        "authority_id",
+        "authority_epoch",
+        "expected_host_generation",
+        "before_host_generation",
+        "participant_ids"
+      ],
+      "properties": {
+        "operation_id": {
+          "$ref": "#/$defs/identity"
+        },
+        "action_kind": {
+          "enum": [
+            "end_turn",
+            "play_card"
+          ]
+        },
+        "action_fingerprint": {
+          "$ref": "#/$defs/digest"
+        },
+        "run_id": {
+          "$ref": "#/$defs/identity"
+        },
+        "location": {
+          "$ref": "#/$defs/location"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/identity"
+        },
+        "authority_id": {
+          "$ref": "#/$defs/identity"
+        },
+        "authority_epoch": {
+          "$ref": "#/$defs/identity"
+        },
+        "expected_host_generation": {
+          "$ref": "#/$defs/generation"
+        },
+        "before_host_generation": {
+          "$ref": "#/$defs/generation"
+        },
+        "participant_ids": {
+          "$ref": "#/$defs/participants"
+        }
+      }
+    },
+    "receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "after_host_generation",
+        "checkpoint_id",
+        "state_digest",
+        "effect_id",
+        "effect_kind",
+        "error_code"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "accepted",
+            "settled",
+            "rejected"
+          ]
+        },
+        "after_host_generation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/generation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "checkpoint_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/identity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "state_digest": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/digest"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "effect_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/identity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "effect_kind": {
+          "anyOf": [
+            {
+              "enum": [
+                "end_turn_settled",
+                "play_card_settled"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error_code": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/identity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "request": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/base"
+        },
+        {
+          "$ref": "#/$defs/query_identity"
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "status",
+            "evidence_scope",
+            "receipt",
+            "error_code"
+          ],
+          "properties": {
+            "kind": {
+              "const": "receipt_query_request"
+            },
+            "status": {
+              "type": "null"
+            },
+            "evidence_scope": {
+              "type": "null"
+            },
+            "receipt": {
+              "type": "null"
+            },
+            "error_code": {
+              "type": "null"
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "response_rules": {
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "accepted"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "receipt"
+            ],
+            "properties": {
+              "receipt": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/receipt"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "status": {
+                        "const": "accepted"
+                      },
+                      "after_host_generation": {
+                        "type": "null"
+                      },
+                      "checkpoint_id": {
+                        "type": "null"
+                      },
+                      "state_digest": {
+                        "type": "null"
+                      },
+                      "effect_id": {
+                        "type": "null"
+                      },
+                      "effect_kind": {
+                        "type": "null"
+                      },
+                      "error_code": {
+                        "type": "null"
+                      }
+                    }
+                  }
+                ]
+              },
+              "error_code": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "settled"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "receipt"
+            ],
+            "properties": {
+              "receipt": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/receipt"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "status": {
+                        "const": "settled"
+                      },
+                      "after_host_generation": {
+                        "$ref": "#/$defs/generation"
+                      },
+                      "checkpoint_id": {
+                        "$ref": "#/$defs/identity"
+                      },
+                      "state_digest": {
+                        "$ref": "#/$defs/digest"
+                      },
+                      "effect_id": {
+                        "$ref": "#/$defs/identity"
+                      },
+                      "effect_kind": {
+                        "enum": [
+                          "end_turn_settled",
+                          "play_card_settled"
+                        ]
+                      },
+                      "error_code": {
+                        "type": "null"
+                      }
+                    }
+                  }
+                ]
+              },
+              "error_code": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "rejected"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "receipt"
+            ],
+            "properties": {
+              "receipt": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/receipt"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "status": {
+                        "const": "rejected"
+                      },
+                      "after_host_generation": {
+                        "type": "null"
+                      },
+                      "checkpoint_id": {
+                        "type": "null"
+                      },
+                      "state_digest": {
+                        "type": "null"
+                      },
+                      "effect_id": {
+                        "type": "null"
+                      },
+                      "effect_kind": {
+                        "type": "null"
+                      },
+                      "error_code": {
+                        "$ref": "#/$defs/identity"
+                      }
+                    }
+                  }
+                ]
+              },
+              "error_code": {
+                "$ref": "#/$defs/identity"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "unknown",
+                  "recovery_required"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "receipt": {
+                "type": "null"
+              },
+              "error_code": {
+                "$ref": "#/$defs/identity"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "response": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/base"
+        },
+        {
+          "$ref": "#/$defs/query_identity"
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "status",
+            "evidence_scope",
+            "receipt",
+            "error_code"
+          ],
+          "properties": {
+            "kind": {
+              "const": "receipt_query_response"
+            },
+            "status": {
+              "enum": [
+                "accepted",
+                "settled",
+                "rejected",
+                "unknown",
+                "recovery_required"
+              ]
+            },
+            "evidence_scope": {
+              "const": "retained_receipt"
+            },
+            "receipt": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/receipt"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "error_code": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/identity"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "$ref": "#/$defs/response_rules"
+        }
+      ],
+      "unevaluatedProperties": false
+    }
+  },
+  "$comment": "All object members are closed. Canonical JSON is UTF-8 with no duplicate keys, no non-integer numeric spellings, no insignificant whitespace, and the documented member order. Consumers must validate the exact schema_digest and provenance, reject unknown profiles, kinds, statuses, members, duplicate keys, and mismatched repeated identity. Semantic rules not expressible in Draft 2020-12 are: expected_host_generation equals before_host_generation for the current native producer; participant_ids are sorted ascending, contain actor_id and the original host participant, and remain 2..4; a settled receipt has after_host_generation greater than before_host_generation and receipt identity/status/effect_kind match the request/action; a rejected receipt is replayable only with definite prequeue proof; retained_receipt is historical cache evidence and never a fresh reconciliation observation. The adapter must resolve opaque participant and actor IDs to native IDs only at the mod boundary; transport sender and authentication are outside this profile. Native checksum ID/value and PacketWriter details remain mod-owned."
+}

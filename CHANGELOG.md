@@ -5,7 +5,24 @@ host compatibility and release publication.
 
 ## [Unreleased]
 
-- Tighten Runtime-v4 expert settlement fencing at historical source head `aecc9fa44c825623b3e3bbb21d130e1fe6ac9468`: bind nested observation `state_id` and `generation` to the outer response and dispatch transition `before_generation` to the request generation. Independent source/component checks pass; native host legality, settled effects, provider execution, cross-consumer integration, deployment, and release remain unverified.
+- Add the candidate `runtime-v4-expert-rest-action-v1` dispatch and reconciliation routes at
+  `POST /v4/instances/{instance_id}/expert-rest-action` and
+  `GET /v4/instances/{instance_id}/expert-rest-actions/{operation_id}`. The gateway pins the
+  `expert-rest-action` artifact at schema digest
+  `bb3555fae28eb1f79d08a15e9884696a579e4c20836f5016509f17e0f4c36fbd`, enforces authenticated
+  lease and correlation fences, bounds fixed JSON forwarding, retains selector admission context,
+  and validates settled observation, transition, catalog, and effect-witness relationships. The
+  copied artifact remains a candidate with no admitted consumers; native producer, host settlement,
+  MCP/harness integration, deployment, and release evidence remain unverified.
+
+- Add the proposed, read-only `coop-receipt-query-v1` route at
+  `POST /v1/instances/{instance_id}/coop/receipt-query`. The gateway validates the exact
+  schema digest, provenance, canonical UTF-8 envelope, repeated identity, retained-receipt
+  semantics, and active lease before forwarding only `/api/v1/coop/native/receipt-query`.
+  The copied profile remains `proposed_unadmitted` with no admitted consumers; native host
+  compatibility, live receipt production, and cross-consumer replay remain unverified.
+
+- Tighten Runtime-v4 expert settlement fencing at source head `aecc9fa44c825623b3e3bbb21d130e1fe6ac9468`: bind nested observation `state_id` and `generation` to the outer response and dispatch transition `before_generation` to the request generation. Independent source/component checks pass; native host legality, settled effects, provider execution, cross-consumer integration, deployment, and release remain unverified.
 
 - Add the bounded Runtime-v4 expert-state, expert-action, and expert-reconcile gateway routes.
   The source/component implementation validates the checked-in observation and action artifacts

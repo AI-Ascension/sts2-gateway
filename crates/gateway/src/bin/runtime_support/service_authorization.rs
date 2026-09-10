@@ -40,6 +40,15 @@ pub(super) fn required_scope(request: &HttpRequest, instance_id: &str) -> AuthSc
             AuthScope::Read
         };
     }
+    if let Some(route) =
+        RuntimeV4ExpertRestActionRoute::parse(&request.method, &request.path, instance_id)
+    {
+        return if route.is_dispatch() {
+            AuthScope::Mutate
+        } else {
+            AuthScope::Read
+        };
+    }
     if RuntimeMapRoute::parse(&request.method, &request.path, instance_id).is_some() {
         return AuthScope::Read;
     }

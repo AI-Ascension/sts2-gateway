@@ -1,0 +1,32 @@
+{
+  "protocol_version": "runtime-v4-expert-rest-action-v1",
+  "schema_digest": "bb3555fae28eb1f79d08a15e9884696a579e4c20836f5016509f17e0f4c36fbd",
+  "provenance": {
+    "artifact": "sts2-protocol/runtime-v4-expert-rest-action",
+    "source": "schemas/runtime-v4-expert-rest-action-v1.schema.json",
+    "generator": "hand-authored"
+  },
+  "profile": "expert-rest-action",
+  "correlation_id": "corr:rest:5",
+  "instance_id": "instance:1",
+  "session_id": "session:1",
+  "lease_id": "lease:1",
+  "lease_epoch": 4,
+  "generation": 12,
+  "state_id": "live:12",
+  "operation_id": "rest-select:12:smith:confirm",
+  "kind": "action_request",
+  "action": {
+    "action_id": "confirm_selection:12:smith",
+    "action": {
+      "kind": "confirm_selection",
+      "selection_id": "selection:10:smith",
+      "rest_option_id": "smith"
+    }
+  },
+  "status": null,
+  "observation": null,
+  "transition": null,
+  "effect_witness": null,
+  "error_code": null
+}

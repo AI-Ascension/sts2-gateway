@@ -16,6 +16,8 @@ The accepted gateway scope is:
 - lease issuance/renewal/revocation, lease epochs, stale-operation fencing, and idempotency rules;
 - the bounded Runtime-v2 operation ledger, fixed `end_turn` forwarding seam, retained receipts, and
   explicit accepted/settled/rejected/unknown/cancelled outcomes;
+- fixed candidate Runtime-v4 expert rest-action transport and reconciliation routes with bounded
+  selector-admission validation;
 - caller authentication and authorization for control and fixed data routes;
 - fixed method/path/header/body allowlists and target revalidation;
 - per-instance isolation, bounded queues/payloads, backpressure, and sanitized diagnostics; and
@@ -78,3 +80,14 @@ attached binary has no verified host-capable mod adapter and therefore makes no 
 claim. Source/build, controlled component-network, and exact-host v1 forwarding evidence are confirmed
 independently; process supervision, general lifecycle, v2 settlement, and broader host/platform
 compatibility remain `unverified`.
+
+## Candidate Runtime-v4 rest actions
+
+The attached adapter provides the gateway assignment for the candidate
+`runtime-v4-expert-rest-action-v1` profile. It accepts only the fixed dispatch and reconciliation
+paths, applies the existing authentication and lease fences, forwards bounded JSON to the fixed mod
+paths, and validates exact artifact identity plus settled observation, transition, selector, and
+effect-witness relationships. Selector admission catalogs are retained for the service lifetime so
+a completed choice must have appeared in an earlier valid selector response. This transport remains
+an unadmitted source/component integration: the game-mod owns native option meaning and host effects,
+and no producer, MCP, harness, deployment, or live settlement claim follows from these tests.

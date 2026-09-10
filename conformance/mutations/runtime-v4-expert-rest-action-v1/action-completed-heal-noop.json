@@ -1,0 +1,135 @@
+{
+  "protocol_version": "runtime-v4-expert-rest-action-v1",
+  "schema_digest": "bb3555fae28eb1f79d08a15e9884696a579e4c20836f5016509f17e0f4c36fbd",
+  "provenance": {
+    "artifact": "sts2-protocol/runtime-v4-expert-rest-action",
+    "source": "schemas/runtime-v4-expert-rest-action-v1.schema.json",
+    "generator": "hand-authored"
+  },
+  "profile": "expert-rest-action",
+  "correlation_id": "corr:rest:1",
+  "instance_id": "instance:1",
+  "session_id": "session:1",
+  "lease_id": "lease:1",
+  "lease_epoch": 4,
+  "generation": 8,
+  "state_id": "live:8",
+  "operation_id": "rest-op:7:heal",
+  "kind": "action_response",
+  "action": {
+    "action_id": "rest-option:7:heal",
+    "action": {
+      "kind": "rest_option",
+      "rest_option_id": "heal"
+    }
+  },
+  "status": "settled",
+  "observation": {
+    "protocol_version": "runtime-v4-expert",
+    "schema_digest": "0ee034d5da83f34e9fa0ba23038738d56ef8cfccb1c6e752af3ab63d212c8e42",
+    "provenance": {
+      "artifact": "sts2-protocol/runtime-v4-expert",
+      "source": "schemas/runtime-v4-expert.schema.json",
+      "generator": "hand-authored"
+    },
+    "profile": "expert-state",
+    "state_id": "live:8",
+    "generation": 8,
+    "visible_seed": "synthetic-visible-seed",
+    "run": {
+      "character_id": "ironclad",
+      "act": 1,
+      "location": "rest:1"
+    },
+    "player": {
+      "hp": 80,
+      "max_hp": 80,
+      "block": null,
+      "energy": 0,
+      "gold": 99,
+      "hand": [],
+      "deck": [],
+      "discard": [],
+      "exhaust": [],
+      "powers": [],
+      "statuses": [],
+      "relics": [
+        {
+          "relic_id": "relic:burning-blood",
+          "name": "Burning Blood"
+        }
+      ],
+      "potions": [],
+      "potion_slots": 0,
+      "max_potion_slots": 3
+    },
+    "state": {
+      "state": "rest",
+      "choices": [
+        {
+          "choice_id": "rest:smith",
+          "label": "Smith",
+          "kind": "rest",
+          "domain": null
+        },
+        {
+          "choice_id": "rest:proceed",
+          "label": "Proceed",
+          "kind": "rest",
+          "domain": null
+        }
+      ]
+    },
+    "legal_actions": [
+      {
+        "action_id": "rest-option:8:smith",
+        "action": {
+          "kind": "rest_option",
+          "rest_option_id": "smith"
+        }
+      },
+      {
+        "action_id": "proceed:8",
+        "action": {
+          "kind": "proceed"
+        }
+      }
+    ]
+  },
+  "transition": {
+    "kind": "rest_option_completed",
+    "before_generation": 7,
+    "after_generation": 8,
+    "rest_option_id": "heal",
+    "completed": true,
+    "effect_witness": {
+      "version": "rest-effect-witness-v1",
+      "kind": "heal_applied",
+      "operation_id": "rest-op:7:heal",
+      "rest_option_id": "heal",
+      "generation": 8,
+      "evidence": {
+        "kind": "hp_change",
+        "hp_before": 64,
+        "hp_after": 64,
+        "max_hp_before": 80,
+        "max_hp_after": 80
+      }
+    }
+  },
+  "effect_witness": {
+    "version": "rest-effect-witness-v1",
+    "kind": "heal_applied",
+    "operation_id": "rest-op:7:heal",
+    "rest_option_id": "heal",
+    "generation": 8,
+    "evidence": {
+      "kind": "hp_change",
+      "hp_before": 64,
+      "hp_after": 64,
+      "max_hp_before": 80,
+      "max_hp_after": 80
+    }
+  },
+  "error_code": null
+}

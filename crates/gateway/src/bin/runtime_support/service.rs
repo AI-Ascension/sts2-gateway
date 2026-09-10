@@ -34,6 +34,8 @@ use super::runtime_v3_gameplay_forwarder::{
 };
 use super::runtime_v4_expert::RuntimeV4ExpertRoute;
 use super::runtime_v4_expert_forwarder::RuntimeV4ExpertForwarder;
+use super::runtime_v4_expert_rest_action::RuntimeV4ExpertRestActionRoute;
+use super::runtime_v4_expert_rest_action_forwarder::RuntimeV4ExpertRestActionForwarder;
 
 const DEFAULT_LISTEN_ADDRESS: &str = "127.0.0.1:15525";
 const DEFAULT_MOD_ADDRESS: &str = "127.0.0.1:15526";
@@ -52,6 +54,7 @@ pub(crate) struct RuntimeService {
     runtime_v2: RuntimeV2Ledger<HttpRuntimeV2Forwarder>,
     runtime_v3: RuntimeV3GameplayForwarder,
     runtime_v4_expert: RuntimeV4ExpertForwarder,
+    runtime_v4_expert_rest_action: RuntimeV4ExpertRestActionForwarder,
     runtime_map: RuntimeMapForwarder,
     journal_path: Option<PathBuf>,
     _journal_lock: Option<journal::JournalLock>,
@@ -92,6 +95,8 @@ mod coop;
 mod lease;
 #[path = "service_map.rs"]
 mod map;
+#[path = "service_receipt_query.rs"]
+mod receipt_query;
 #[path = "service_routes.rs"]
 mod routes;
 #[path = "service_v2.rs"]
@@ -100,6 +105,8 @@ mod v2;
 mod v3;
 #[path = "service_v4_expert.rs"]
 mod v4_expert;
+#[path = "service_v4_expert_rest_action.rs"]
+mod v4_expert_rest_action;
 
 use admission::{accept_requests, run_worker};
 use authorization::request_rejection;
@@ -157,6 +164,10 @@ impl RuntimeService {
             runtime_v2,
             runtime_v3: RuntimeV3GameplayForwarder::new(MAX_BODY_BYTES, MAX_RESPONSE_BYTES),
             runtime_v4_expert: RuntimeV4ExpertForwarder::new(MAX_BODY_BYTES, MAX_RESPONSE_BYTES),
+            runtime_v4_expert_rest_action: RuntimeV4ExpertRestActionForwarder::new(
+                MAX_BODY_BYTES,
+                MAX_RESPONSE_BYTES,
+            ),
             runtime_map: RuntimeMapForwarder::new(MAX_MAP_RESPONSE_BYTES),
             metrics: RuntimeMetrics::default(),
             coop_reports,
@@ -260,5 +271,13 @@ mod test_support;
 mod coop_tests;
 
 #[cfg(test)]
+#[path = "service_receipt_query_tests.rs"]
+mod receipt_query_tests;
+
+#[cfg(test)]
 #[path = "service_map_tests.rs"]
 mod map_tests;
+
+#[cfg(test)]
+#[path = "service_v4_expert_rest_action_tests.rs"]
+mod v4_expert_rest_action_tests;
