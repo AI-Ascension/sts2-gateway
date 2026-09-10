@@ -7,6 +7,9 @@ use super::*;
 use serde_json::Value;
 use std::collections::BTreeMap;
 
+#[path = "coop_native_forwarder_recovery_tests.rs"]
+mod recovery_tests;
+
 const OBSERVATION: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../protocol-artifact/coop-native-v1/golden/observation-response.json"
@@ -311,6 +314,25 @@ fn settled_and_recovery_relations_are_fenced() {
                 CoopNativeRoute::Recover,
                 Some(&recovered_request),
                 &recovered_headers,
+                200,
+                &bytes,
+            )
+            .is_err()
+    );
+}
+
+#[test]
+fn recovery_request_echo_is_rejected_as_a_response() {
+    let forwarder = CoopNativeForwarder::new(16 * 1024, 128 * 1024);
+    let request = value(RECOVER_REQUEST);
+    let headers = headers(&request);
+    let bytes = serde_json::to_vec(&request).unwrap();
+    assert!(
+        forwarder
+            .validate_response(
+                CoopNativeRoute::Recover,
+                Some(&request),
+                &headers,
                 200,
                 &bytes,
             )
