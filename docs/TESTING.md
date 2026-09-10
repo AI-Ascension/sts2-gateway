@@ -24,6 +24,7 @@ cargo test --workspace --all-targets --all-features --locked
 (cd protocol-artifact/seeded-run-v1 && sha256sum -c SHA256SUMS)
 (cd protocol-artifact/runtime-map-v1 && sha256sum -c SHA256SUMS)
 (cd protocol-artifact/coop-receipt-query-v1 && sha256sum -c SHA256SUMS)
+(cd protocol-artifact/coop-native-v1 && sha256sum -c SHA256SUMS)
 ```
 
 The policy command comes first in the normal local sequence. CI runs the same commands with bounded
@@ -159,6 +160,16 @@ host or downstream runtime compatibility.
 The combined Exo/component adapter tests every v3 route with read, mutate and control credentials
 and verifies the MCP-session fence on all six routes before request-body decoding. Existing
 Runtime-v2 journal, queue, authentication and lease regressions remain in the same full suite.
+
+## Accepted native co-op consumer checks
+
+The `coop-native-v1` consumer copies the protocol schema, manifest, conformance case, producer
+capture, and all seventeen golden envelopes. Its forwarder tests reject duplicate and unknown
+members, mismatched identity or lease headers, wrong route kinds, stale settled effect lineage,
+wrong recovery kinds, and unbounded producer errors. Service tests exercise the observation and
+local-action routes against synthetic loopback downstreams and assert the exact game-mod paths,
+body, credential, and response bytes. These checks establish component serialization and gateway
+transport behavior only; they do not establish a native STS2 host, peer convergence, or gameplay.
 
 ## MCP-session configuration
 

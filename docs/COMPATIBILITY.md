@@ -119,10 +119,19 @@ Runtime-v3 profile is integrated at the current gateway main against the accepte
 its source/component boundary remains separate from native host legality, provider execution,
 deployment, and release evidence.
 
+The accepted `coop-native-v1` profile is copied from protocol main at the producer-bound digest
+`2f3bc99e53080fa11b39592b64fb0ab964a16f568719a2622d0b2caf766ab629`. The gateway consumer confirms
+the seventeen strict producer goldens, six route/method pairs, fixed downstream paths, identity and
+lease fences, bounded producer errors, settled effect generation relations, and rejoin/reconcile
+kind relations. This is source/component evidence. It does not establish native host legality,
+two-peer settlement, checksum agreement, model/provider execution, deployment identity, or release
+compatibility.
+
 | Adapter | Downstream | Current evidence | Result |
 | --- | --- | --- | --- |
 | `sts2-gateway-runtime` | Attached loopback runtime-v1 listener | Rust gates, synthetic TCP lane, and authorized exact-host trace | Attached forwarding and lease path confirmed for STS2 v0.107.1 Windows x86-64; general lifecycle and gameplay unverified |
 | Runtime-v2 ledger and attached adapter | Owner-local ledger plus fixed synthetic TCP downstream | Rust gates, byte-level artifact verification, deterministic fault tests, and isolated component restart trace | Fixed state/action/operation forwarding, bounded optional journal recovery with exclusive path ownership, exact bearer check, and synthetic route behavior confirmed; live downstream action settlement, lease-epoch rotation, multi-instance isolation, and host compatibility unverified |
+| `coop-native-v1` gateway consumer | Six fixed instance-scoped routes to the managed mod's native co-op paths | Copied artifact checksums, seventeen strict goldens, route/identity/lease/relation tests, and synthetic fixed-path forwarding | Source/component boundary confirmed; native peer admission, host legality/effects, two-peer settlement, checksum convergence, rejoin, deployment, and release compatibility unverified |
 
 The adapters' fixed configurations are sprint boundaries, not general lifecycle support claims. The
 attached Runtime-v2 process accepts an optional bounded version-1 journal and a retained-operation

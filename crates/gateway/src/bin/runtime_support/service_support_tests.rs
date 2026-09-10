@@ -79,6 +79,7 @@ pub(super) fn test_service() -> Result<RuntimeService, String> {
         shutdown_requested: false,
         runtime_v2,
         runtime_v3: RuntimeV3GameplayForwarder::new(MAX_BODY_BYTES, MAX_RESPONSE_BYTES),
+        coop_native: CoopNativeForwarder::new(MAX_BODY_BYTES, MAX_RESPONSE_BYTES),
         recovery_catalog: recovery_catalog::RecoveryCatalogCache::default(),
         runtime_v4_expert: RuntimeV4ExpertForwarder::new(MAX_BODY_BYTES, MAX_RESPONSE_BYTES),
         runtime_v4_expert_rest_action: RuntimeV4ExpertRestActionForwarder::new(

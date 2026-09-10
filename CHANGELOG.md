@@ -5,6 +5,15 @@ host compatibility and release publication.
 
 ## [Unreleased]
 
+- Add the accepted `coop-native-v1` gateway consumer. The six fixed instance-scoped routes
+  validate the copied closed schema and authenticated identity/lease headers before forwarding
+  only the matching game-mod observation, legal-catalog, action, vote, rejoin, or recovery path.
+  Settled effects, receipts, generations, peer observations, and recovery lineage are checked at
+  the gateway boundary; bounded producer admission errors remain explicit. This is
+  source/component evidence at schema digest
+  `2f3bc99e53080fa11b39592b64fb0ab964a16f568719a2622d0b2caf766ab629`; native host settlement,
+  two-peer gameplay, provider execution, deployment, and release compatibility remain unverified.
+
 - Add the authenticated, fixed-route host lease-control consumer for gateway-issued
   install, renew, and revoke acknowledgments. Protected grant persistence,
   fail-closed admission, and operation identity reconciliation are included;

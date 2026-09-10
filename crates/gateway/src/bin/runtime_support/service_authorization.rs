@@ -54,6 +54,15 @@ pub(super) fn required_scope(request: &HttpRequest, instance_id: &str) -> AuthSc
             | RuntimeV3GameplayRoute::Reobserve => AuthScope::Read,
         };
     }
+    if let Some(route) = CoopNativeRoute::parse(&request.method, &request.path, instance_id) {
+        return if route.is_control() {
+            AuthScope::Control
+        } else if route.is_mutation() {
+            AuthScope::Mutate
+        } else {
+            AuthScope::Read
+        };
+    }
     if let Some(route) = RuntimeV4ExpertRoute::parse(&request.method, &request.path, instance_id) {
         return if route.is_dispatch() {
             AuthScope::Mutate

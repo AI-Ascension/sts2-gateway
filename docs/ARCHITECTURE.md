@@ -228,6 +228,17 @@ Both gateway and mod endpoint settings require numeric loopback `IP:port` socket
 wildcard/non-loopback addresses and DNS hostnames fail configuration. This plaintext attached lane
 does not expose a remote mode. HTTP frames and downstream exchanges use absolute deadlines.
 
+### Accepted native co-op consumer
+
+[ADR 0021](decisions/0021-coop-native-gateway-consumer.md) adds the additive
+`coop-native-v1` consumer. The gateway owns six exact instance-scoped route/method pairs and
+forwards only the matching fixed game-mod paths. The forwarder consumes the copied schema,
+rejects duplicate or unknown members, binds every envelope to the caller's identity and lease
+headers, and checks operation, catalog, effect, receipt, generation, and recovery relationships.
+Read, mutation, and control scopes remain distinct. Native peer admission, game legality, native
+checksums, shared effects, and rejoin authority remain game-mod responsibilities. Component
+fixtures and synthetic transport checks do not establish live multiplayer settlement.
+
 ## Seeded-run gateway boundary
 
 ADR 0018 adds the additive `seeded-run-v1` gateway seam. The attached service owns the fixed

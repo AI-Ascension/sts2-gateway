@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 
 mod auth;
+mod coop_native;
+mod coop_native_forwarder;
 mod coop_reports;
 mod forwarder;
 mod host_lease_control;

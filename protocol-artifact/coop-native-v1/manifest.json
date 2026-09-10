@@ -1,0 +1,48 @@
+{
+  "artifact": "sts2-protocol/coop-native-v1",
+  "protocol_version": "coop-native-v1",
+  "status": "accepted_component",
+  "admission": "component",
+  "live_status": "unverified",
+  "live_gate": "pending_native_two_peer_settlement",
+  "schema": "schema.json",
+  "schema_digest": "2f3bc99e53080fa11b39592b64fb0ab964a16f568719a2622d0b2caf766ab629",
+  "provenance": {
+    "source": "schemas/coop-native-v1.schema.json",
+    "generator": "hand-authored",
+    "license": "MIT"
+  },
+  "consumers": [
+    "sts2-gateway",
+    "sts2-mcp-server",
+    "sts2-harness"
+  ],
+  "producer_declared_schema_digest": "2f3bc99e53080fa11b39592b64fb0ab964a16f568719a2622d0b2caf766ab629",
+  "producer_digest_matches_candidate": true,
+  "producer_capture": "producer-capture.json",
+  "producer_source_commit": "ab702dbbc79bc5854bd0840b44a729834ae50e68",
+  "producer_source_tree": "e3f0aa9d30fe25585fbb3c1fe8e3c1fcdfa43223",
+  "goldens": [
+    "golden/observation-response.json",
+    "golden/legal-catalog-request.json",
+    "golden/legal-catalog-response.json",
+    "golden/local-action-settled-request.json",
+    "golden/local-action-settled-response.json",
+    "golden/local-action-rejected-request.json",
+    "golden/local-action-rejected-response.json",
+    "golden/local-action-unknown-request.json",
+    "golden/local-action-unknown-response.json",
+    "golden/local-action-recovered-request.json",
+    "golden/local-action-recovered-response.json",
+    "golden/shared-vote-settled-request.json",
+    "golden/shared-vote-settled-response.json",
+    "golden/rejoin-pending-request.json",
+    "golden/rejoin-pending-response.json",
+    "golden/rejoin-recovered-request.json",
+    "golden/rejoin-recovered-response.json"
+  ],
+  "consumer_conformance": "consumer-conformance.json",
+  "consumer_conformance_status": "component_serialized_conformance",
+  "conformance": "conformance.json",
+  "checksums": "SHA256SUMS"
+}

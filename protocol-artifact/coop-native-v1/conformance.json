@@ -1,0 +1,119 @@
+{
+  "contract": "sts2.protocol/coop-native-v1",
+  "protocol_version": "coop-native-v1",
+  "status": "accepted_component",
+  "schema_digest": "2f3bc99e53080fa11b39592b64fb0ab964a16f568719a2622d0b2caf766ab629",
+  "producer_declared_schema_digest": "2f3bc99e53080fa11b39592b64fb0ab964a16f568719a2622d0b2caf766ab629",
+  "cases": [
+    {
+      "name": "golden/observation-response",
+      "fixture": "golden/observation-response.json",
+      "schema_valid": true
+    },
+    {
+      "name": "golden/legal-catalog-request",
+      "fixture": "golden/legal-catalog-request.json",
+      "schema_valid": true
+    },
+    {
+      "name": "golden/legal-catalog-response",
+      "fixture": "golden/legal-catalog-response.json",
+      "schema_valid": true
+    },
+    {
+      "name": "golden/local-action-settled-request",
+      "fixture": "golden/local-action-settled-request.json",
+      "schema_valid": true
+    },
+    {
+      "name": "golden/local-action-settled-response",
+      "fixture": "golden/local-action-settled-response.json",
+      "schema_valid": true
+    },
+    {
+      "name": "golden/local-action-rejected-request",
+      "fixture": "golden/local-action-rejected-request.json",
+      "schema_valid": true
+    },
+    {
+      "name": "golden/local-action-rejected-response",
+      "fixture": "golden/local-action-rejected-response.json",
+      "schema_valid": true
+    },
+    {
+      "name": "golden/local-action-unknown-request",
+      "fixture": "golden/local-action-unknown-request.json",
+      "schema_valid": true
+    },
+    {
+      "name": "golden/local-action-unknown-response",
+      "fixture": "golden/local-action-unknown-response.json",
+      "schema_valid": true
+    },
+    {
+      "name": "golden/local-action-recovered-request",
+      "fixture": "golden/local-action-recovered-request.json",
+      "schema_valid": true
+    },
+    {
+      "name": "golden/local-action-recovered-response",
+      "fixture": "golden/local-action-recovered-response.json",
+      "schema_valid": true
+    },
+    {
+      "name": "golden/shared-vote-settled-request",
+      "fixture": "golden/shared-vote-settled-request.json",
+      "schema_valid": true
+    },
+    {
+      "name": "golden/shared-vote-settled-response",
+      "fixture": "golden/shared-vote-settled-response.json",
+      "schema_valid": true
+    },
+    {
+      "name": "golden/rejoin-pending-request",
+      "fixture": "golden/rejoin-pending-request.json",
+      "schema_valid": true
+    },
+    {
+      "name": "golden/rejoin-pending-response",
+      "fixture": "golden/rejoin-pending-response.json",
+      "schema_valid": true
+    },
+    {
+      "name": "golden/rejoin-recovered-request",
+      "fixture": "golden/rejoin-recovered-request.json",
+      "schema_valid": true
+    },
+    {
+      "name": "golden/rejoin-recovered-response",
+      "fixture": "golden/rejoin-recovered-response.json",
+      "schema_valid": true
+    }
+  ],
+  "negative_mutations": [
+    "duplicate object member",
+    "unknown top-level member",
+    "unknown nested member",
+    "missing required nullable member",
+    "response effect on rejected status",
+    "request action and vote simultaneously",
+    "non-peer actor identity",
+    "settled recovery response with rejoin recovery kind",
+    "unsupported installed action or effect kind",
+    "catalog response without observation",
+    "catalog entry with unsupported action kind"
+  ],
+  "serialized_conformance": {
+    "evidence": "consumer-conformance.json",
+    "status": "component_serialized_conformance",
+    "source": "sts2-game-mod",
+    "consumers": [
+      "sts2-gateway",
+      "sts2-mcp-server",
+      "sts2-harness"
+    ],
+    "live_status": "unverified",
+    "admission": "component"
+  }
+}

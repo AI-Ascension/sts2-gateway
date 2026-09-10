@@ -7,7 +7,7 @@
 
 > **AI-Ascension · tier 2: control plane · home of the public proof** — In-memory control plane for game-host instances: lifecycle, one lease per instance with epoch fencing, and fixed routes.
 >
-> **Status:** deterministic tests, the bounded attached-host runtime trace, and the reviewed runtime-v3 Windows/Linux campaign path are `confirmed` for the recorded STS2 v0.107.1 evidence · general lifecycle, native multiplayer, and broader compatibility `unverified`.
+> **Status:** deterministic tests, the bounded attached-host runtime trace, the reviewed runtime-v3 Windows/Linux campaign path, and the serialized `coop-native-v1` gateway boundary are `confirmed` for their recorded evidence · native two-peer settlement, general lifecycle, and broader compatibility remain `unverified`.
 > **Proof:** [45-second browser replay](https://ai-ascension.github.io/proof.html) · [Evidence ledger](https://ai-ascension.github.io/evidence.html) · [This repository on the map](https://ai-ascension.github.io/repositories.html#sts2-gateway)
 > **Proof source:** [crates/gateway/tests/control_plane.rs](crates/gateway/tests/control_plane.rs) — the replay mirrors these tests.
 > **Owner:** The gateway boundary owner is responsible for the lifecycle and routing control plane: instance records, leases and lease epochs, fencing, fixed forwarding policy, and cleanup.
@@ -38,7 +38,8 @@ the [architecture](docs/ARCHITECTURE.md).
 The gateway does not own game rules, host objects, managed loader code, MCP semantics or tool
 catalogs, model/provider execution, harness episodes or artifacts, direct game files, saves,
 credentials, arbitrary proxying, or implicit remote discovery. It consumes only inert copied
-`sts2-protocol/poc-v1`, Runtime-v2, semantic Runtime-v3 gameplay, and `seeded-run-v1` artifacts. A forwarded request must have a validated instance,
+`sts2-protocol/poc-v1`, Runtime-v2, semantic Runtime-v3 gameplay, `seeded-run-v1`, and accepted
+`coop-native-v1` artifacts. A forwarded request must have a validated instance,
 session, lease, lease epoch, route, method, and bounded body; listener reachability is not
 authentication. Runtime-v2 adds only the fixed `end_turn` operation and its retained receipt ledger,
 plus a typed state route that reports explicit unavailability without a host-state adapter. The
@@ -79,6 +80,7 @@ cargo test --workspace --all-targets --all-features --locked
 (cd protocol-artifact/seeded-run-v1 && sha256sum -c SHA256SUMS)
 (cd protocol-artifact/runtime-map-v1 && sha256sum -c SHA256SUMS)
 (cd protocol-artifact/runtime-v4-expert-rest-action && sha256sum -c SHA256SUMS)
+(cd protocol-artifact/coop-native-v1 && sha256sum -c SHA256SUMS)
 ```
 
 The first command is the local policy entrypoint and checks required paths, licenses, links,
@@ -187,3 +189,13 @@ Current default-main source/component map update (2026-09-10): gateway main
 `ceab0d2dfc471d1ec36d12edaf4654b8c7fdced06548bf47265e11c63f98115b`. This records current
 source/component identity and copied-artifact scope; live map freshness, native map visibility,
 navigation, gameplay, release, and publication remain unverified.
+
+The accepted `coop-native-v1` gateway consumer is present at the current source head. It exposes
+fixed observation, legal-catalog, local-action, shared-vote, peer-rejoin, and same-operation
+recovery routes under `/v1/instances/{instance_id}/coop/native/`. The copied schema digest is
+`2f3bc99e53080fa11b39592b64fb0ab964a16f568719a2622d0b2caf766ab629`; the consumer checks closed
+envelopes, duplicate members, caller and lease identity, operation lineage, catalog/effect/receipt
+relations, settled generations, and recovery kind before forwarding to the six fixed mod paths.
+This is source/component and synthetic transport evidence. Native peer admission, host settlement,
+two-peer gameplay, checksum convergence, provider execution, deployment, and release compatibility
+remain unverified. See [ADR 0021](docs/decisions/0021-coop-native-gateway-consumer.md).
