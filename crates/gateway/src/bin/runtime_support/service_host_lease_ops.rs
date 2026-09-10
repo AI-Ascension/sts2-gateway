@@ -9,9 +9,10 @@ use sts2_gateway::{RecoveryBootContext, RecoveryHostFence, RecoveryHostLeaseStat
 use uuid::Uuid;
 
 use super::super::host_lease_control::{
-    HostLeaseKind, ack_context, ack_status, grant_digest, parse_response, request_frame,
+    HostLeaseFrameError, HostLeaseKind, ack_context, ack_status, grant_digest, parse_response,
+    request_frame,
 };
-use super::super::recovery_control::HttpRecoveryControlForwarder;
+use super::super::recovery_control::{HttpRecoveryControlForwarder, RecoveryControlTransportFault};
 use super::RuntimeService;
 use super::host_lease::HostLeaseFailure;
 use super::host_lease_helpers::{
@@ -203,31 +204,9 @@ impl RuntimeService {
     ) -> Result<Value, HostLeaseFailure> {
         let forwarder =
             HttpRecoveryControlForwarder::new(&self.config.mod_address, &self.config.mod_token);
-        let response =
-            forwarder
-                .forward_host_lease_frame(kind, frame, &self.config.host_lease_key)
-                .map_err(|error| {
-                    match error {
-                super::super::recovery_control::RecoveryControlTransportFault::InvalidConfiguration
-                | super::super::recovery_control::RecoveryControlTransportFault::InvalidFrame
-                | super::super::recovery_control::RecoveryControlTransportFault::RequestOversized => {
-                    HostLeaseFailure::configuration()
-                }
-                super::super::recovery_control::RecoveryControlTransportFault::UnavailableBeforeWrite => {
-                    HostLeaseFailure {
-                        status: 503,
-                        code: "recovery_host_lease_unavailable",
-                    }
-                }
-                super::super::recovery_control::RecoveryControlTransportFault::DisconnectedAfterWrite
-                | super::super::recovery_control::RecoveryControlTransportFault::TimeoutAfterWrite => {
-                    HostLeaseFailure::unknown()
-                }
-                super::super::recovery_control::RecoveryControlTransportFault::MalformedResponse => {
-                    HostLeaseFailure::invalid_response()
-                }
-            }
-                })?;
+        let response = forwarder
+            .forward_host_lease_frame(kind, frame, &self.config.host_lease_key)
+            .map_err(map_host_lease_transport_error)?;
         if response.status != 200 {
             return Err(if response.status >= 500 {
                 HostLeaseFailure::unknown()
@@ -244,7 +223,7 @@ impl RuntimeService {
             &self.config.host_lease_key,
             &self.config.host_principal_id,
         )
-        .map_err(map_frame_error)?;
+        .map_err(map_host_lease_response_error)?;
         if kind_response["correlation_id"] != frame_correlation(frame) {
             return Err(HostLeaseFailure {
                 status: 409,
@@ -303,5 +282,49 @@ impl RuntimeService {
             received_at,
         )?);
         Ok(())
+    }
+}
+
+fn map_host_lease_transport_error(error: RecoveryControlTransportFault) -> HostLeaseFailure {
+    match error {
+        RecoveryControlTransportFault::InvalidConfiguration
+        | RecoveryControlTransportFault::InvalidFrame
+        | RecoveryControlTransportFault::RequestOversized => HostLeaseFailure::configuration(),
+        RecoveryControlTransportFault::UnavailableBeforeWrite => HostLeaseFailure {
+            status: 503,
+            code: "recovery_host_lease_unavailable",
+        },
+        RecoveryControlTransportFault::DisconnectedAfterWrite
+        | RecoveryControlTransportFault::TimeoutAfterWrite
+        | RecoveryControlTransportFault::MalformedResponse => HostLeaseFailure::unknown(),
+    }
+}
+
+fn map_host_lease_response_error(error: HostLeaseFrameError) -> HostLeaseFailure {
+    match error {
+        // A malformed or unauthenticated response was observed only after the
+        // mutation-bearing request was written, so its host-side effect is
+        // unknowable and must remain pending for the idempotent retry path.
+        HostLeaseFrameError::Invalid
+        | HostLeaseFrameError::Oversized
+        | HostLeaseFrameError::Authentication => HostLeaseFailure::unknown(),
+        HostLeaseFrameError::Configuration => HostLeaseFailure::configuration(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn malformed_post_write_response_is_an_unknown_outcome() {
+        assert_eq!(
+            map_host_lease_transport_error(RecoveryControlTransportFault::MalformedResponse),
+            HostLeaseFailure::unknown()
+        );
+        assert_eq!(
+            map_host_lease_response_error(HostLeaseFrameError::Invalid),
+            HostLeaseFailure::unknown()
+        );
     }
 }
