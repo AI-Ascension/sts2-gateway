@@ -12,8 +12,9 @@ use std::time::{Duration, Instant};
 use serde_json::{Value, json};
 use sts2_gateway::{
     RuntimeV2Binding, RuntimeV2CombatPhase, RuntimeV2Ledger, RuntimeV2LedgerConfig,
-    RuntimeV2LedgerError, RuntimeV2Message, RuntimeV2Observation, RuntimeV2Status,
-    RuntimeV2TransportFault, SeededRunBinding, SeededRunLedger, SeededRunLedgerConfig,
+    RuntimeV2LedgerError, RuntimeV2Message, RuntimeV2Observation, RuntimeV2RecoveryError,
+    RuntimeV2Status, RuntimeV2TransportFault, SeededRunBinding, SeededRunLedger,
+    SeededRunLedgerConfig,
 };
 
 use super::auth::{AuthFailure, AuthPolicy, AuthScope};

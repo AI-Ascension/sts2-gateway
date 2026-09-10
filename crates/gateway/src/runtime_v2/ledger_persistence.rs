@@ -12,6 +12,7 @@ where
             session_id: self.binding.session_id.clone(),
             lease_id: self.binding.lease_id.clone(),
             lease_epoch: self.binding.lease_epoch,
+            boot_epoch: self.binding.boot_epoch().map(str::to_owned),
             observation: self.binding.observation,
             operations: self
                 .operations
@@ -33,6 +34,7 @@ where
             || persisted.session_id != self.binding.session_id
             || persisted.lease_id != self.binding.lease_id
             || persisted.lease_epoch != self.binding.lease_epoch
+            || persisted.boot_epoch.as_deref() != self.binding.boot_epoch()
         {
             return Err(RuntimeV2LedgerError::PersistedStateMismatch);
         }
@@ -122,11 +124,38 @@ where
         &mut self,
         request: RuntimeV2Message,
     ) -> Result<RuntimeV2Message, RuntimeV2LedgerError> {
-        self.submit_action_with_checkpoint(request, |_| Ok(()))
+        self.reject_implicit_workflow_authority()?;
+        self.submit_action_inner(request, |_| Ok(()))
     }
 
     /// Submits one action with owner-managed durable checkpoints around dispatch.
     pub fn submit_action_with_checkpoint<F>(
+        &mut self,
+        request: RuntimeV2Message,
+        checkpoint: F,
+    ) -> Result<RuntimeV2Message, RuntimeV2LedgerError>
+    where
+        F: FnMut(&RuntimeV2PersistedState) -> Result<(), ()>,
+    {
+        self.reject_implicit_workflow_authority()?;
+        self.submit_action_inner(request, checkpoint)
+    }
+
+    /// Submits through the owner-authorized workflow seam with durable checkpoints.
+    pub fn submit_action_with_authority_and_checkpoint<F>(
+        &mut self,
+        authority: &RuntimeV2Authority,
+        request: RuntimeV2Message,
+        checkpoint: F,
+    ) -> Result<RuntimeV2Message, RuntimeV2LedgerError>
+    where
+        F: FnMut(&RuntimeV2PersistedState) -> Result<(), ()>,
+    {
+        self.validate_workflow_authority(authority, false)?;
+        self.submit_action_inner(request, checkpoint)
+    }
+
+    fn submit_action_inner<F>(
         &mut self,
         request: RuntimeV2Message,
         mut checkpoint: F,

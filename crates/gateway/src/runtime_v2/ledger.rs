@@ -12,6 +12,7 @@ struct RuntimeV2Operation {
 pub struct RuntimeV2Ledger<P> {
     config: RuntimeV2LedgerConfig,
     binding: RuntimeV2Binding,
+    recovery: Option<RuntimeV2RecoveryContract>,
     forwarding: P,
     operations: BTreeMap<RuntimeV2OperationKey, RuntimeV2Operation>,
 }
@@ -26,12 +27,34 @@ where
         binding: RuntimeV2Binding,
         forwarding: P,
     ) -> Result<Self, RuntimeV2LedgerError> {
+        Self::new_inner(config, binding, None, forwarding)
+    }
+
+    /// Creates a workflow ledger whose operations require the owner authority proof.
+    pub fn new_with_recovery_contract(
+        config: RuntimeV2LedgerConfig,
+        contract: RuntimeV2RecoveryContract,
+        observation: RuntimeV2Observation,
+        forwarding: P,
+    ) -> Result<Self, RuntimeV2LedgerError> {
+        let binding = RuntimeV2Binding::with_authority(contract.authority().clone(), observation)
+            .map_err(RuntimeV2LedgerError::InvalidRequest)?;
+        Self::new_inner(config, binding, Some(contract), forwarding)
+    }
+
+    fn new_inner(
+        config: RuntimeV2LedgerConfig,
+        binding: RuntimeV2Binding,
+        recovery: Option<RuntimeV2RecoveryContract>,
+        forwarding: P,
+    ) -> Result<Self, RuntimeV2LedgerError> {
         if config.operation_capacity == 0 {
             return Err(RuntimeV2LedgerError::ZeroCapacity);
         }
         Ok(Self {
             config,
             binding,
+            recovery,
             forwarding,
             operations: BTreeMap::new(),
         })
@@ -44,6 +67,10 @@ where
 
     pub fn binding(&self) -> &RuntimeV2Binding {
         &self.binding
+    }
+
+    pub fn recovery_contract(&self) -> Option<&RuntimeV2RecoveryContract> {
+        self.recovery.as_ref()
     }
 
     pub const fn operation_capacity(&self) -> usize {
@@ -64,6 +91,26 @@ where
     /// before admitting a subsequent action. This method only records the observed state; it
     /// never dispatches or retries mutation-bearing work.
     pub fn accept_state_response(
+        &mut self,
+        request: &RuntimeV2Message,
+        response: RuntimeV2Message,
+    ) -> Result<RuntimeV2Message, RuntimeV2LedgerError> {
+        self.reject_implicit_workflow_authority()?;
+        self.accept_state_response_inner(request, response)
+    }
+
+    /// Accepts a state response after validating the workflow authority proof.
+    pub fn accept_state_response_with_authority(
+        &mut self,
+        authority: &RuntimeV2Authority,
+        request: &RuntimeV2Message,
+        response: RuntimeV2Message,
+    ) -> Result<RuntimeV2Message, RuntimeV2LedgerError> {
+        self.validate_workflow_authority(authority, false)?;
+        self.accept_state_response_inner(request, response)
+    }
+
+    fn accept_state_response_inner(
         &mut self,
         request: &RuntimeV2Message,
         response: RuntimeV2Message,
@@ -96,6 +143,24 @@ where
 
     /// Records cancellation only before dispatch; it never cancels admitted work.
     pub fn cancel_before_dispatch(
+        &mut self,
+        request: RuntimeV2Message,
+    ) -> Result<RuntimeV2Message, RuntimeV2LedgerError> {
+        self.reject_implicit_workflow_authority()?;
+        self.cancel_before_dispatch_inner(request)
+    }
+
+    /// Records cancellation after validating the workflow authority proof.
+    pub fn cancel_before_dispatch_with_authority(
+        &mut self,
+        authority: &RuntimeV2Authority,
+        request: RuntimeV2Message,
+    ) -> Result<RuntimeV2Message, RuntimeV2LedgerError> {
+        self.validate_workflow_authority(authority, false)?;
+        self.cancel_before_dispatch_inner(request)
+    }
+
+    fn cancel_before_dispatch_inner(
         &mut self,
         request: RuntimeV2Message,
     ) -> Result<RuntimeV2Message, RuntimeV2LedgerError> {
@@ -134,6 +199,24 @@ where
 
     /// Reconciles an accepted or unknown operation by reading a retained receipt only.
     pub fn reconcile(
+        &mut self,
+        request: RuntimeV2Message,
+    ) -> Result<RuntimeV2Message, RuntimeV2LedgerError> {
+        self.reject_implicit_workflow_authority()?;
+        self.reconcile_inner(request)
+    }
+
+    /// Reconciles through the retained-receipt seam after owner-authority admission.
+    pub fn reconcile_with_authority(
+        &mut self,
+        authority: &RuntimeV2Authority,
+        request: RuntimeV2Message,
+    ) -> Result<RuntimeV2Message, RuntimeV2LedgerError> {
+        self.validate_workflow_authority(authority, true)?;
+        self.reconcile_inner(request)
+    }
+
+    fn reconcile_inner(
         &mut self,
         request: RuntimeV2Message,
     ) -> Result<RuntimeV2Message, RuntimeV2LedgerError> {
@@ -182,5 +265,45 @@ where
             operation.result = Some(receipt_result.clone());
         }
         Ok(self.as_reconcile_response(&receipt_result, &request))
+    }
+
+    /// Submits through the mutation seam after validating owner authority and boot identity.
+    pub fn submit_action_with_authority(
+        &mut self,
+        authority: &RuntimeV2Authority,
+        request: RuntimeV2Message,
+    ) -> Result<RuntimeV2Message, RuntimeV2LedgerError> {
+        self.submit_action_with_authority_and_checkpoint(authority, request, |_| Ok(()))
+    }
+
+    fn reject_implicit_workflow_authority(&self) -> Result<(), RuntimeV2LedgerError> {
+        if self.recovery.is_some() {
+            Err(RuntimeV2LedgerError::Recovery(
+                RuntimeV2RecoveryError::AuthorityRequired,
+            ))
+        } else {
+            Ok(())
+        }
+    }
+
+    fn validate_workflow_authority(
+        &self,
+        authority: &RuntimeV2Authority,
+        needs_receipt: bool,
+    ) -> Result<(), RuntimeV2LedgerError> {
+        let Some(contract) = self.recovery.as_ref() else {
+            return Err(RuntimeV2LedgerError::Recovery(
+                RuntimeV2RecoveryError::AuthorityRequired,
+            ));
+        };
+        contract
+            .validate_authority(authority)
+            .map_err(RuntimeV2LedgerError::Recovery)?;
+        if needs_receipt {
+            contract
+                .require_receipt_access()
+                .map_err(RuntimeV2LedgerError::Recovery)?;
+        }
+        Ok(())
     }
 }

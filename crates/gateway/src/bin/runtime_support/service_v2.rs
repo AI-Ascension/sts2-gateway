@@ -235,6 +235,20 @@ pub(super) fn runtime_v2_error(error: RuntimeV2LedgerError) -> (u16, Vec<u8>) {
         RuntimeV2LedgerError::PersistedStateMismatch
         | RuntimeV2LedgerError::PersistedStateInvalid => (500, "runtime_v2_journal_invalid"),
         RuntimeV2LedgerError::PersistenceFailed => (503, "runtime_v2_persistence_failed"),
+        RuntimeV2LedgerError::Recovery(error) => match error {
+            RuntimeV2RecoveryError::AuthorityRequired
+            | RuntimeV2RecoveryError::AuthorityMismatch
+            | RuntimeV2RecoveryError::StaleBootEpoch => {
+                (409, "runtime_v2_recovery_authority_rejected")
+            }
+            RuntimeV2RecoveryError::UnsupportedFailureDomain(_)
+            | RuntimeV2RecoveryError::ReceiptRetentionUnavailable => {
+                (503, "runtime_v2_recovery_unavailable")
+            }
+            RuntimeV2RecoveryError::InvalidReceiptRetention => {
+                (500, "runtime_v2_recovery_contract_invalid")
+            }
+        },
     };
     (status, json_error(code))
 }
