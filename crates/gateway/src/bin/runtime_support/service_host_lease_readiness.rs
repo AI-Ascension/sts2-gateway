@@ -62,10 +62,13 @@ impl RuntimeService {
         if binding.grant_digest.as_deref() != Some(digest.as_str()) {
             return Ok(false);
         }
-        Ok(self.recovery_host_grant.as_ref().is_none_or(|cached| {
+        let Some(cached) = self.recovery_host_grant.as_ref() else {
+            return Ok(false);
+        };
+        Ok(
             Some(cached.installation_id.as_str()) == binding.installation_id.as_deref()
                 && cached.grant_digest == digest
-                && cached.grant == grant
-        }))
+                && cached.grant == grant,
+        )
     }
 }

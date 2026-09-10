@@ -11,6 +11,8 @@ mod allocation_cleanup_tests;
 mod allocation_failure_tests;
 #[path = "service_allocation_negative_regression_tests.rs"]
 mod allocation_negative_regression_tests;
+#[path = "service_host_lease_restart_tests.rs"]
+mod host_lease_restart_tests;
 #[path = "service_auth_tests.rs"]
 mod auth_tests;
 #[path = "service_tests.rs"]

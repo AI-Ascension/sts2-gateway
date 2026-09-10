@@ -26,6 +26,14 @@ identity and grant lineage, persist the resulting host acknowledgment, and
 fail closed on transport uncertainty. A timeout or disconnect never mints a
 replacement lease and remains reconcilable by the original operation identity.
 
+A durable `INSTALLED` row is historical across a gateway process restart, not
+an authorization to resume mutation. Runtime admission and idempotent install
+replay additionally require the exact current-process grant cache to match the
+row's installation identity, digest, and reconstructed boot/fence/lease grant.
+A missing or mismatched cache fails closed while leaving the protected binding
+readable for historical inspection; only a fresh host acknowledgment can
+establish a new process authority.
+
 The persisted representation stores the grant digest and a fence-token digest,
 not the plaintext fence token. A plaintext token may remain only in the
 bounded in-memory retry copy for the current process lifetime. Host install

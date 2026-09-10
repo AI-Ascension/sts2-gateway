@@ -105,6 +105,11 @@ pub(super) fn recovery_service() -> Result<(RuntimeService, RecoveryLease, PathB
     service.recovery_lease_deadline =
         Some(std::time::Instant::now() + Duration::from_secs(lease.ttl_seconds));
     service.recovery_lease = Some(lease.clone());
+    service.recovery_host_grant = Some(HostLeaseGrant {
+        installation_id,
+        grant_digest: digest,
+        grant,
+    });
     service.lease_active = true;
     Ok((service, lease, path))
 }
