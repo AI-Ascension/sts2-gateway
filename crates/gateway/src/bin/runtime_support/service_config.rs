@@ -35,6 +35,7 @@ impl RuntimeConfig {
             DEFAULT_QUEUE_CAPACITY,
         )?)?;
         let journal_path = optional_path("STS2_RUNTIME_V2_JOURNAL")?;
+        let workflow_boot_epoch = optional_value("STS2_WORKFLOW_BOOT_EPOCH")?;
         for (name, value) in [
             ("STS2_INSTANCE_ID", &instance_id),
             ("STS2_CALLER_ID", &caller_id),
@@ -46,6 +47,26 @@ impl RuntimeConfig {
                 return Err(format!("{name} is empty, unsafe, or oversized"));
             }
         }
+        if let Some(value) = workflow_boot_epoch.as_deref()
+            && !safe_identity(value)
+        {
+            return Err(String::from(
+                "STS2_WORKFLOW_BOOT_EPOCH is empty, unsafe, or oversized",
+            ));
+        }
+        let workflow_authority = workflow_boot_epoch
+            .as_deref()
+            .map(|boot_epoch| {
+                RuntimeV2Authority::new(
+                    &instance_id,
+                    &session_id,
+                    &lease_id,
+                    lease_epoch,
+                    boot_epoch,
+                )
+                .map_err(|error| format!("STS2_WORKFLOW_BOOT_EPOCH is invalid: {error}"))
+            })
+            .transpose()?;
         for (name, value) in [("STS2_MOD_TOKEN", &mod_token)] {
             if value.is_empty()
                 || value.len() > 256
@@ -68,8 +89,37 @@ impl RuntimeConfig {
             operation_capacity,
             queue_capacity,
             journal_path,
+            workflow_authority,
         })
     }
+}
+
+pub(super) fn build_runtime_v2(
+    config: &RuntimeConfig,
+    binding: RuntimeV2Binding,
+    forwarder: HttpRuntimeV2Forwarder,
+) -> Result<RuntimeV2Ledger<HttpRuntimeV2Forwarder>, String> {
+    let ledger = match config.workflow_authority.clone() {
+        Some(authority) => {
+            let contract = RuntimeV2RecoveryContract::new(
+                authority,
+                RuntimeV2RecoveryCapabilities::unsupported(),
+            )
+            .map_err(|error| format!("Runtime-v2 recovery contract is invalid: {error}"))?;
+            RuntimeV2Ledger::new_with_recovery_contract(
+                RuntimeV2LedgerConfig::new(config.operation_capacity),
+                contract,
+                RuntimeV2Observation::new(RuntimeV2CombatPhase::OutsideCombat, 0, false, 0),
+                forwarder,
+            )
+        }
+        None => RuntimeV2Ledger::new(
+            RuntimeV2LedgerConfig::new(config.operation_capacity),
+            binding,
+            forwarder,
+        ),
+    };
+    ledger.map_err(|error| format!("Runtime-v2 ledger is invalid: {error}"))
 }
 
 pub(super) fn required(name: &str) -> Result<String, String> {
@@ -101,6 +151,15 @@ pub(super) fn optional_path(name: &str) -> Result<Option<PathBuf>, String> {
     match std::env::var(name) {
         Ok(value) if value.is_empty() => Err(format!("{name} must not be empty")),
         Ok(value) => Ok(Some(PathBuf::from(value))),
+        Err(std::env::VarError::NotPresent) => Ok(None),
+        Err(std::env::VarError::NotUnicode(_)) => Err(format!("{name} is not valid UTF-8")),
+    }
+}
+
+pub(super) fn optional_value(name: &str) -> Result<Option<String>, String> {
+    match std::env::var(name) {
+        Ok(value) if value.is_empty() => Err(format!("{name} must not be empty")),
+        Ok(value) => Ok(Some(value)),
         Err(std::env::VarError::NotPresent) => Ok(None),
         Err(std::env::VarError::NotUnicode(_)) => Err(format!("{name} is not valid UTF-8")),
     }

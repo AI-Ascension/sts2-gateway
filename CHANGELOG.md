@@ -39,8 +39,10 @@ host compatibility and release publication.
 - Add the gateway-local Runtime-v2 workflow authority and recovery contract: owner boot/fence
   identity, independent recovery-domain capabilities, and recovery-only retained receipt access.
   Stale or implicit workflow admission, missing/changed workflow boot identity, and unavailable
-  receipt retention fail closed; the frozen Runtime-v2 envelope and attached executable behavior are
-  unchanged. Evidence is limited to deterministic gateway source/component tests.
+  receipt retention fail closed. The attached Runtime-v2 action, state and reconcile routes now
+  install the contract and require the matching opt-in `x-sts2-workflow-boot-epoch` header when
+  `STS2_WORKFLOW_BOOT_EPOCH` is configured; the frozen Runtime-v2 envelope remains unchanged.
+  Evidence is limited to deterministic gateway source/component tests.
 
 - Add the bounded Runtime-v4 expert-state, expert-action, and expert-reconcile gateway routes.
   The source/component implementation validates the checked-in observation and action artifacts

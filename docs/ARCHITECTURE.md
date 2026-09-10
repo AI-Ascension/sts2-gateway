@@ -97,7 +97,10 @@ require that proof when a recovery contract is installed. The contract advertise
 gateway, host, and machine recovery independently and rejects unsupported domains or unavailable
 receipt retention before the forwarding seam. This source/component contract does not issue a
 durable boot epoch or make the attached executable restart-safe; an owner must provide a fresh
-boot identity and capability claim.
+boot identity and capability claim. When `STS2_WORKFLOW_BOOT_EPOCH` is configured, the attached
+Runtime-v2 action, state, and reconcile routes require the same value in
+`x-sts2-workflow-boot-epoch` and use the authority-bearing ledger methods. Without that opt-in,
+the legacy component lane remains in use.
 
 Accepted work survives caller timeout or disconnect as an explicit status, settled result, cancelled
 result, or unknown outcome. Runtime-v2 returns `unknown` after a timeout or disconnect after write,

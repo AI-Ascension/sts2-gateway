@@ -25,9 +25,12 @@ rejection instead of being inferred from another domain.
 When a recovery contract is installed, mutation, state refresh, cancellation, and reconciliation
 must use the corresponding authority-bearing ledger methods. The old methods reject with
 `AuthorityRequired`, so a workflow caller cannot silently fall back to the legacy identity-only
-entry point. Authority identity or lease mismatches reject before ledger replay or forwarding;
-changed boot epochs return `StaleBootEpoch`. An old operation ID remains only an idempotency key and
-does not authorize a fresh dispatch.
+entry point. The attached runtime now installs this contract when
+`STS2_WORKFLOW_BOOT_EPOCH` is configured and requires the matching
+`x-sts2-workflow-boot-epoch` header on its Runtime-v2 action, state, and reconcile routes.
+Authority identity or lease mismatches reject before ledger replay or forwarding; changed boot
+epochs return `StaleBootEpoch`. An old operation ID remains only an idempotency key and does not
+authorize a fresh dispatch.
 
 Receipt reconciliation first requires an available `RuntimeV2ReceiptRetention` claim. It then uses
 the existing private receipt-request constructor and `RuntimeV2ForwardingPort::read_runtime_v2_receipt`;
@@ -38,16 +41,19 @@ with state that has no boot epoch.
 ## Compatibility and rejection behavior
 
 This is an additive gateway-local source/component contract. It changes no Runtime-v2 artifact
-bytes, MCP route, protocol/mod file, attached executable route, or transport field. The existing
+bytes, MCP route, protocol/mod file, or frozen transport field. The attached executable accepts
+one additional workflow authority header only when the opt-in environment profile is configured.
+The existing
 `RuntimeV2Ledger::new` constructor remains the legacy/component lane. Callers using a recovery
 ledger must migrate to the authority-bearing methods and provide a fresh boot identity for a new
 ownership context. A recovery ledger rejects implicit mutation/state/cancel/reconcile calls;
 authority mismatch, stale boot, unsupported recovery domain, invalid retention bounds, unavailable
 retention, and missing/mismatched persisted boot identity each have typed fail-closed outcomes.
 
-The contract is source/component evidence only. It does not issue durable boot epochs, prove
-process or host restart continuity, promote the attached executable to restart-safe, or establish
-live game/mod compatibility.
+The contract is source/component evidence only. The environment remains the owner-issued source of
+the boot epoch; this change does not mint a durable boot epoch, prove process or host restart
+continuity, promote the attached executable to restart-safe, or establish live game/mod
+compatibility.
 
 ## Deterministic oracle
 
