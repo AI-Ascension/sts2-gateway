@@ -38,7 +38,7 @@ the [architecture](docs/ARCHITECTURE.md).
 The gateway does not own game rules, host objects, managed loader code, MCP semantics or tool
 catalogs, model/provider execution, harness episodes or artifacts, direct game files, saves,
 credentials, arbitrary proxying, or implicit remote discovery. It consumes only inert copied
-`sts2-protocol/poc-v1`, Runtime-v2, and semantic Runtime-v3 gameplay artifacts. A forwarded request must have a validated instance,
+`sts2-protocol/poc-v1`, Runtime-v2, semantic Runtime-v3 gameplay, and `seeded-run-v1` artifacts. A forwarded request must have a validated instance,
 session, lease, lease epoch, route, method, and bounded body; listener reachability is not
 authentication. Runtime-v2 adds only the fixed `end_turn` operation and its retained receipt ledger,
 plus a typed state route that reports explicit unavailability without a host-state adapter. The
@@ -76,6 +76,9 @@ cargo test --workspace --all-targets --all-features --locked
 (cd protocol-artifact/poc-v1 && sha256sum -c SHA256SUMS)
 (cd protocol-artifact/runtime-v2 && sha256sum -c SHA256SUMS)
 (cd protocol-artifact/runtime-v3-gameplay && sha256sum -c SHA256SUMS)
+(cd protocol-artifact/seeded-run-v1 && sha256sum -c SHA256SUMS)
+(cd protocol-artifact/runtime-map-v1 && sha256sum -c SHA256SUMS)
+(cd protocol-artifact/runtime-v4-expert-rest-action && sha256sum -c SHA256SUMS)
 ```
 
 The first command is the local policy entrypoint and checks required paths, licenses, links,
@@ -94,6 +97,8 @@ commands do not launch a game process, MCP server, provider, or real host.
   records gateway ownership and dependency rules.
 - [docs/decisions/0002-sixth-target-protocol-boundary.md](docs/decisions/0002-sixth-target-protocol-boundary.md)
   records the current sixth-target protocol decision.
+- [docs/decisions/0019-runtime-v4-expert-rest-action-route.md](docs/decisions/0019-runtime-v4-expert-rest-action-route.md)
+  records the candidate Runtime-v4 expert rest-action transport boundary.
 - The staged gateway investigation prompt is a discovery input, not an implementation or runtime
 proof; it is maintained outside and is not copied into this repository.
 
@@ -117,6 +122,33 @@ durable boot-epoch rotation; see the explicit restart limitation in
 [COMPATIBILITY.md](docs/COMPATIBILITY.md). It cannot establish an autonomous run by itself without
 the harness and provider path.
 
+The additive `seeded-run-v1` gateway seam is present at current main
+[`2b44bf347f790509c9f13378c89719d09366d45b`](https://github.com/AI-Ascension/sts2-gateway/commit/2b44bf347f790509c9f13378c89719d09366d45b).
+It exposes fixed instance-scoped start and read-only reconciliation routes, validates the selected
+native context and content-addressed digest, retains operation identity across correlation rebinding,
+and forwards only the fixed mod paths. Its copied artifact is schema digest
+`5c659f344be78f84e8d783986925d462714f933cac95d18943358992f7d3e2b8`, aligned with protocol main
+`d3ab5fca7d9d74bb31eeb3e5b343d8024ee44404`. Component ledger/journal evidence does not prove native
+host settlement, profile/save isolation, provider execution, gameplay, or release compatibility.
+See [ADR 0018](docs/decisions/0018-seeded-run-v1-gateway-boundary.md).
+
+The additive Runtime-v4 expert routes are also implemented and validate the checked-in expert-state
+and expert-action artifacts. Native host legality, settled effects, provider execution, and
+end-to-end compatibility remain unverified.
+
+The exact Runtime-v4 source/component record is [documented in the compatibility matrix](docs/COMPATIBILITY.md#runtime-v4-expert-sourcecomponent-row).
+
+Historical source/component update (2026-09-07): at exact gateway source head `aecc9fa44c825623b3e3bbb21d130e1fe6ac9468`, the settled Runtime-v4 expert response fence binds nested observation `state_id` and `generation` to the outer response, and the dispatch transition `before_generation` to the request generation. Independent checks passed 130 workspace tests, formatting, strict policy, Clippy, and three original regression cases. Native host legality, settled effects, provider execution, cross-consumer integration, deployment, and release remain unverified.
+
+Current default-main source/component update (2026-09-10): gateway main
+[`2b44bf347f790509c9f13378c89719d09366d45b`](https://github.com/AI-Ascension/sts2-gateway/commit/2b44bf347f790509c9f13378c89719d09366d45b)
+contains the Runtime-v4 expert routes and the bounded map route. Its copied expert artifacts are
+aligned with protocol main `d3ab5fca7d9d74bb31eeb3e5b343d8024ee44404` at schema digests
+`0ee034d5da83f34e9fa0ba23038738d56ef8cfccb1c6e752af3ab63d212c8e42` and
+`393318bda8c3522c0ecbacc78b95471a9f4dc3f825169d2048f4c74a7b7f2929`. This is source/component
+evidence; native host legality, settled effects, provider execution, deployment, release, and live
+cross-consumer compatibility remain unverified.
+
 For opt-in coordinator-reported synchronization, supply `STS2_COOP_ROSTER` as a JSON array,
 for example `[{"peer_id":"local-1","role":"local"},{"peer_id":"ally-1","role":"ally"}]`.
 The configured coordinator submits bounded peer reports under control scope; the separate
@@ -131,3 +163,27 @@ disconnect/recovery, stale leases, and rejected unknown or regressing reports, w
 game connections. This is coordinator-report transport evidence only: it does not establish native
 peer identity, shared game actions/effects, or multiplayer gameplay. See the [MCP executable
 evidence](https://github.com/AI-Ascension/sts2-mcp-server/blob/main/docs/evidence/coop-synchronization-20260906.md).
+
+The additive `runtime-map-v1` route exposes a bodyless `GET
+/v1/instances/{instance_id}/map-snapshot` request and forwards only the fixed downstream map
+snapshot path. It validates the corrected visible-map artifact, identity/generation fence, bounded
+graph, and independent navigation bindings before returning data. The route is source/component
+evidence; live map freshness and visualizer rendering remain unverified. See
+[ADR 0017](docs/decisions/0017-runtime-map-read-route.md).
+
+The candidate `runtime-v4-expert-rest-action-v1` profile adds fixed authenticated dispatch and
+read-only reconciliation routes for native rest-site options and selector follow-up actions. The
+gateway validates the exact candidate artifact, forwards only the fixed mod paths, and retains
+selector catalogs so completed choices must have prior admission context. The two serialized
+producer-shaped lifecycles and 22 mutation fixtures are deterministic source/component evidence;
+the profile remains unadmitted and does not establish a native producer, host effect, MCP or
+harness consumer, deployment, or release compatibility. See
+[ADR 0019](docs/decisions/0019-runtime-v4-expert-rest-action-route.md).
+
+Current default-main source/component map update (2026-09-10): gateway main
+`2b44bf347f790509c9f13378c89719d09366d45b` contains the bounded map route and its copied
+`runtime-map-v1` artifact. The producer pin is merged protocol main
+`d3ab5fca7d9d74bb31eeb3e5b343d8024ee44404` at schema digest
+`ceab0d2dfc471d1ec36d12edaf4654b8c7fdced06548bf47265e11c63f98115b`. This records current
+source/component identity and copied-artifact scope; live map freshness, native map visibility,
+navigation, gameplay, release, and publication remain unverified.

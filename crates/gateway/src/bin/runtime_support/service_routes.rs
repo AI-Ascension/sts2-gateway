@@ -17,6 +17,35 @@ impl RuntimeService {
         {
             return self.runtime_v3_request(request, route);
         }
+        if let Some(route) =
+            RuntimeV4ExpertRoute::parse(&request.method, &request.path, &self.config.instance_id)
+        {
+            return self.runtime_v4_expert_request(request, route);
+        }
+        if let Some(route) = RuntimeV4ExpertRestActionRoute::parse(
+            &request.method,
+            &request.path,
+            &self.config.instance_id,
+        ) {
+            return self.runtime_v4_expert_rest_action_request(request, route);
+        }
+        if let Some(route) =
+            RuntimeMapRoute::parse(&request.method, &request.path, &self.config.instance_id)
+        {
+            return self.runtime_map_request(request, route);
+        }
+        if request.method == "POST"
+            && request.path == self.seeded_run_start_path()
+            && request.content_type_is_json()
+        {
+            return self.seeded_run_start(request);
+        }
+        if request.method == "GET"
+            && request.body.is_empty()
+            && let Some(operation_id) = self.seeded_run_operation_id(&request.path)
+        {
+            return self.seeded_run_reconcile(request, operation_id);
+        }
         match (request.method.as_str(), request.path.as_str()) {
             ("POST", "/v1/recovery/bootstrap")
                 if request.content_type_is_json() && !request.body.is_empty() =>
@@ -90,6 +119,9 @@ impl RuntimeService {
                 if request.content_type_is_json() && !request.body.is_empty() =>
             {
                 self.recovery_host_fence(request)
+            }
+            ("POST", path) if path == self.coop_receipt_query_path() => {
+                self.coop_receipt_query(request)
             }
             ("GET", "/health/ready") if request.body.is_empty() => self.health(),
             ("GET", "/health/live") if request.body.is_empty() => self.health_live(),

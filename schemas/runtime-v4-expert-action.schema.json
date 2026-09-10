@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sts2-runtime-v4-expert-action",
+  "title": "STS2 bounded expert potion action transport",
+  "description": "Authenticated, generation-fenced request and reconciliation result for the additive expert potion action.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["protocol_version", "schema_digest", "provenance", "profile", "correlation_id", "instance_id", "session_id", "lease_id", "lease_epoch", "generation", "state_id", "operation_id", "kind", "action", "status", "observation", "transition", "error_code"],
+  "properties": {
+    "protocol_version": { "const": "runtime-v4-expert-action" },
+    "schema_digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "provenance": { "$ref": "#/$defs/provenance" },
+    "profile": { "const": "expert-action" },
+    "correlation_id": { "$ref": "#/$defs/identity" },
+    "instance_id": { "$ref": "#/$defs/identity" },
+    "session_id": { "$ref": "#/$defs/identity" },
+    "lease_id": { "$ref": "#/$defs/identity" },
+    "lease_epoch": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+    "generation": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+    "state_id": { "$ref": "#/$defs/identity" },
+    "operation_id": { "$ref": "#/$defs/identity" },
+    "kind": { "enum": ["action_request", "action_response"] },
+    "action": { "anyOf": [{ "$ref": "#/$defs/action" }, { "type": "null" }] },
+    "status": { "anyOf": [{ "enum": ["accepted", "settled", "rejected", "unknown", "cancelled"] }, { "type": "null" }] },
+    "observation": { "anyOf": [{ "type": "object" }, { "type": "null" }] },
+    "transition": { "anyOf": [{ "$ref": "#/$defs/transition" }, { "type": "null" }] },
+    "error_code": { "anyOf": [{ "$ref": "#/$defs/identity" }, { "type": "null" }] }
+  },
+  "$defs": {
+    "identity": { "type": "string", "minLength": 1, "maxLength": 512, "pattern": "^[A-Za-z0-9_.:/-]+$" },
+    "provenance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["artifact", "source", "generator"],
+      "properties": {
+        "artifact": { "const": "sts2-protocol/runtime-v4-expert-action" },
+        "source": { "const": "schemas/runtime-v4-expert-action.schema.json" },
+        "generator": { "const": "hand-authored" }
+      }
+    },
+    "action": {
+      "type": "object", "additionalProperties": false,
+      "required": ["action_id", "action"],
+      "properties": {
+        "action_id": { "$ref": "#/$defs/identity" },
+        "action": {
+          "type": "object", "additionalProperties": false,
+          "required": ["kind", "potion_id", "target_id"],
+          "properties": {
+            "kind": { "const": "use_potion" },
+            "potion_id": { "$ref": "#/$defs/identity" },
+            "target_id": { "anyOf": [{ "$ref": "#/$defs/identity" }, { "type": "null" }] }
+          }
+        }
+      }
+    },
+    "transition": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "before_generation", "after_generation", "potion_id", "removed"],
+      "properties": {
+        "kind": { "const": "potion_use_settled" },
+        "before_generation": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "after_generation": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "potion_id": { "$ref": "#/$defs/identity" },
+        "removed": { "const": true }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "kind": { "const": "action_request" } } },
+      "then": { "properties": { "action": { "$ref": "#/$defs/action" }, "status": { "type": "null" }, "observation": { "type": "null" }, "transition": { "type": "null" }, "error_code": { "type": "null" } } }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "action_response" } } },
+      "then": { "properties": { "action": { "anyOf": [{ "$ref": "#/$defs/action" }, { "type": "null" }] }, "status": { "enum": ["accepted", "settled", "rejected", "unknown", "cancelled"] } } }
+    }
+  ]
+}

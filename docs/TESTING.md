@@ -21,6 +21,9 @@ cargo test --workspace --all-targets --all-features --locked
 (cd protocol-artifact/runtime-v1 && sha256sum -c SHA256SUMS)
 (cd protocol-artifact/runtime-v2 && sha256sum -c SHA256SUMS)
 (cd protocol-artifact/runtime-v3-gameplay && sha256sum -c SHA256SUMS)
+(cd protocol-artifact/seeded-run-v1 && sha256sum -c SHA256SUMS)
+(cd protocol-artifact/runtime-map-v1 && sha256sum -c SHA256SUMS)
+(cd protocol-artifact/coop-receipt-query-v1 && sha256sum -c SHA256SUMS)
 ```
 
 The policy command comes first in the normal local sequence. CI runs the same commands with bounded
@@ -171,3 +174,60 @@ read/control credentials, verifies the full report lifecycle and lease rejection
 that a listening downstream trap received zero connections. It is run explicitly with this
 exact built gateway passed in `STS2_COOP_GATEWAY_BINARY`; see the MCP testing guide and
 the coordinated evidence record. It proves coordination transport, not native multiplayer.
+
+## Seeded-run gateway checks
+
+The `seeded-run-v1` source/component suite checks the copied schema, manifest, conformance case,
+goldens, and checksum inventory, then exercises fixed start/reconciliation route parsing, selected
+context and digest validation, lease/epoch/correlation fences, semantic operation idempotency,
+accepted and unknown read-only reconciliation, and journal restart recovery. The forwarder tests
+assert that only `/v2/seeded-run` and `/v2/seeded-operations/{operation_id}` reach the mod boundary.
+
+These deterministic checks establish gateway ledger, journal, and forwarding behavior. They do not
+start a native run, establish canonical seed readback or a `run_started` host witness, verify
+profile/save isolation, or prove gameplay and release compatibility.
+
+## Runtime-map visibility checks
+
+The `runtime-map-v1` consumer at current gateway main
+`2b44bf347f790509c9f13378c89719d09366d45b` verifies current protocol main
+`d3ab5fca7d9d74bb31eeb3e5b343d8024ee44404` and schema digest
+`ceab0d2dfc471d1ec36d12edaf4654b8c7fdced06548bf47265e11c63f98115b` through the copied manifest,
+schema, conformance case, and golden checksum inventory. Forwarder tests cover the exact GET-only
+route, bodyless request, downstream path, response budget, provenance and digest, configured
+identity and epoch/generation fences, bounded graph topology, visited position/history/terminal
+references, and independent generation-bound action bindings. Invalid identity, stale generation,
+unknown fields, duplicate graph members, cycles, invalid action-option IDs, and oversized responses
+fail closed. Exact UTF-8 byte boundaries, C0/DEL/C1 controls, and timeout ordering are checked at
+the forwarder and service boundary. Overlapping coordinates and disconnected visible components
+remain accepted.
+
+These are deterministic source/component checks. They do not establish a running game-mod, host map
+freshness, map projection compatibility, visualizer behavior, or a gameplay navigation effect.
+
+## Runtime-v4 expert rest-action checks
+
+The candidate `runtime-v4-expert-rest-action-v1` consumer pins schema digest
+`bb3555fae28eb1f79d08a15e9884696a579e4c20836f5016509f17e0f4c36fbd` and checks its copied
+`SHA256SUMS` inventory. Forwarder tests exercise fixed POST/GET route parsing, JSON content and
+body bounds, authenticated identity/lease/epoch/correlation matching, status mapping, nested expert
+observation identity, generation fences, option-specific effect witnesses, typed selector legal
+actions, and a bounded selector-admission catalog retained across response observations. All 16
+goldens are checked for dispatch and reconciliation, all 22 schema-valid mutation fixtures are
+rejected, and both serialized Smith and Mend producer-shaped lifecycles are checked message by
+message. Service tests verify exact downstream paths and malformed profile rejection before any
+downstream response is accepted.
+
+These tests establish only gateway source/component behavior for a candidate profile. The artifact
+has no admitted consumers; native producer serialization, host legality and effects, MCP/harness
+mapping, deployment, and live settlement remain unverified.
+
+## Proposed retained receipt query checks
+
+The proposed receipt-query route validates every frozen accepted, settled, rejected, and unknown
+response golden, then rejects unsorted or foreign participants, numeric spelling and duplicate-key
+changes, generation lineage changes, fresh-observation evidence, status/receipt mismatches, settled
+generation regressions, action/effect mismatches, and response identity drift. The route test also
+verifies JSON content type and active-lease admission before any downstream forwarding. These checks
+establish only gateway source/component behavior; they do not establish a native producer, a live
+retained receipt, or cross-consumer recovery.

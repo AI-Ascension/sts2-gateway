@@ -1,0 +1,358 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sts2-runtime-v4-expert-rest-action-v1",
+  "title": "STS2 Runtime-v4 expert rest action transport v1",
+  "description": "Independent authenticated transport for native rest-site options, including bounded selector follow-up actions. The existing potion action profile is unchanged.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["protocol_version", "schema_digest", "provenance", "profile", "correlation_id", "instance_id", "session_id", "lease_id", "lease_epoch", "generation", "state_id", "operation_id", "kind", "action", "status", "observation", "transition", "effect_witness", "error_code"],
+  "properties": {
+    "protocol_version": { "const": "runtime-v4-expert-rest-action-v1" },
+    "schema_digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "provenance": { "$ref": "#/$defs/provenance" },
+    "profile": { "const": "expert-rest-action" },
+    "correlation_id": { "$ref": "#/$defs/identity" },
+    "instance_id": { "$ref": "#/$defs/identity" },
+    "session_id": { "$ref": "#/$defs/identity" },
+    "lease_id": { "$ref": "#/$defs/identity" },
+    "lease_epoch": { "$ref": "#/$defs/generation" },
+    "generation": { "$ref": "#/$defs/generation" },
+    "state_id": { "$ref": "#/$defs/identity" },
+    "operation_id": { "$ref": "#/$defs/identity" },
+    "kind": { "enum": ["action_request", "action_response"] },
+    "action": { "anyOf": [{ "$ref": "#/$defs/action" }, { "type": "null" }] },
+    "status": { "anyOf": [{ "enum": ["accepted", "settled", "rejected", "unknown", "cancelled"] }, { "type": "null" }] },
+    "observation": { "anyOf": [{ "type": "object" }, { "type": "null" }] },
+    "transition": { "anyOf": [{ "$ref": "#/$defs/completed_transition" }, { "$ref": "#/$defs/selection_requested_transition" }, { "$ref": "#/$defs/selection_progressed_transition" }, { "$ref": "#/$defs/selection_completed_transition" }, { "type": "null" }] },
+    "effect_witness": { "anyOf": [{ "$ref": "#/$defs/effect_witness" }, { "type": "null" }] },
+    "error_code": { "anyOf": [{ "$ref": "#/$defs/identity" }, { "type": "null" }] }
+  },
+  "$defs": {
+    "identity": { "type": "string", "minLength": 1, "maxLength": 512, "pattern": "^[A-Za-z0-9_.:/-]+$" },
+    "generation": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+    "positive_count": { "type": "integer", "minimum": 1, "maximum": 256 },
+    "bounded_ids": { "type": "array", "maxItems": 256, "uniqueItems": true, "items": { "$ref": "#/$defs/identity" } },
+    "provenance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["artifact", "source", "generator"],
+      "properties": {
+        "artifact": { "const": "sts2-protocol/runtime-v4-expert-rest-action" },
+        "source": { "const": "schemas/runtime-v4-expert-rest-action-v1.schema.json" },
+        "generator": { "const": "hand-authored" }
+      }
+    },
+    "rest_option_action": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "rest_option_id"],
+      "properties": {
+        "kind": { "const": "rest_option" },
+        "rest_option_id": { "$ref": "#/$defs/identity" }
+      }
+    },
+    "select_card_action": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "selection_id", "rest_option_id", "card_id"],
+      "properties": {
+        "kind": { "const": "select_card" },
+        "selection_id": { "$ref": "#/$defs/identity" },
+        "rest_option_id": { "$ref": "#/$defs/identity" },
+        "card_id": { "$ref": "#/$defs/identity" }
+      }
+    },
+    "select_player_action": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "selection_id", "rest_option_id", "player_id"],
+      "properties": {
+        "kind": { "const": "select_player" },
+        "selection_id": { "$ref": "#/$defs/identity" },
+        "rest_option_id": { "$ref": "#/$defs/identity" },
+        "player_id": { "$ref": "#/$defs/identity" }
+      }
+    },
+    "selection_control_action": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "selection_id", "rest_option_id"],
+      "properties": {
+        "kind": { "enum": ["confirm_selection", "cancel_selection"] },
+        "selection_id": { "$ref": "#/$defs/identity" },
+        "rest_option_id": { "$ref": "#/$defs/identity" }
+      }
+    },
+    "action_payload": {
+      "oneOf": [
+        { "$ref": "#/$defs/rest_option_action" },
+        { "$ref": "#/$defs/select_card_action" },
+        { "$ref": "#/$defs/select_player_action" },
+        { "$ref": "#/$defs/selection_control_action" }
+      ]
+    },
+    "action": {
+      "type": "object", "additionalProperties": false,
+      "required": ["action_id", "action"],
+      "properties": {
+        "action_id": { "$ref": "#/$defs/identity" },
+        "action": { "$ref": "#/$defs/action_payload" }
+      }
+    },
+    "selection_action": {
+      "type": "object", "additionalProperties": false,
+      "required": ["action_id", "action"],
+      "properties": {
+        "action_id": { "$ref": "#/$defs/identity" },
+        "action": {
+          "oneOf": [
+            { "$ref": "#/$defs/select_card_action" },
+            { "$ref": "#/$defs/select_player_action" },
+            { "$ref": "#/$defs/selection_control_action" }
+          ]
+        }
+      }
+    },
+    "selector": {
+      "type": "object", "additionalProperties": false,
+      "required": ["selection_id", "selection_kind", "required_count", "selected_choice_ids", "remaining_count", "legal_actions"],
+      "properties": {
+        "selection_id": { "$ref": "#/$defs/identity" },
+        "selection_kind": { "enum": ["card", "player"] },
+        "required_count": { "$ref": "#/$defs/positive_count" },
+        "selected_choice_ids": { "$ref": "#/$defs/bounded_ids" },
+        "remaining_count": { "type": "integer", "minimum": 0, "maximum": 256 },
+        "legal_actions": { "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/selection_action" } }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "remaining_count": { "const": 0 } } },
+          "then": {
+            "properties": {
+              "legal_actions": {
+                "contains": {
+                  "type": "object",
+                  "required": ["action_id", "action"],
+                  "properties": {
+                    "action": {
+                      "type": "object",
+                      "required": ["kind"],
+                      "properties": { "kind": { "const": "confirm_selection" } }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "remaining_count": { "minimum": 1 } } },
+          "then": {
+            "properties": {
+              "legal_actions": {
+                "items": {
+                  "not": {
+                    "type": "object",
+                    "required": ["action_id", "action"],
+                    "properties": {
+                      "action": {
+                        "type": "object",
+                        "required": ["kind"],
+                        "properties": { "kind": { "const": "confirm_selection" } }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "hp_evidence": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "hp_before", "hp_after", "max_hp_before", "max_hp_after"],
+      "properties": {
+        "kind": { "const": "hp_change" },
+        "hp_before": { "type": "integer", "minimum": 0, "maximum": 65535 },
+        "hp_after": { "type": "integer", "minimum": 0, "maximum": 65535 },
+        "max_hp_before": { "type": "integer", "minimum": 0, "maximum": 65535 },
+        "max_hp_after": { "type": "integer", "minimum": 0, "maximum": 65535 }
+      }
+    },
+    "card_evidence": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "added_card_ids", "removed_card_ids", "upgraded_card_ids"],
+      "properties": {
+        "kind": { "const": "card_change" },
+        "added_card_ids": { "$ref": "#/$defs/bounded_ids" },
+        "removed_card_ids": { "$ref": "#/$defs/bounded_ids" },
+        "upgraded_card_ids": { "$ref": "#/$defs/bounded_ids" }
+      }
+    },
+    "relic_evidence": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "added_relic_ids", "removed_relic_ids"],
+      "properties": {
+        "kind": { "const": "relic_change" },
+        "added_relic_ids": { "$ref": "#/$defs/bounded_ids" },
+        "removed_relic_ids": { "$ref": "#/$defs/bounded_ids" }
+      }
+    },
+    "stat_evidence": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "stat_id", "before", "after"],
+      "properties": {
+        "kind": { "const": "stat_change" },
+        "stat_id": { "$ref": "#/$defs/identity" },
+        "before": { "type": "integer", "minimum": -65535, "maximum": 65535 },
+        "after": { "type": "integer", "minimum": -65535, "maximum": 65535 }
+      }
+    },
+    "native_evidence": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "completion_id", "native_state_id"],
+      "properties": {
+        "kind": { "const": "native_completion" },
+        "completion_id": { "$ref": "#/$defs/identity" },
+        "native_state_id": { "$ref": "#/$defs/identity" }
+      }
+    },
+    "effect_witness_base": {
+      "type": "object", "additionalProperties": false,
+      "required": ["version", "kind", "operation_id", "rest_option_id", "generation", "evidence"],
+      "properties": {
+        "version": { "const": "rest-effect-witness-v1" },
+        "kind": { "type": "string" },
+        "operation_id": { "$ref": "#/$defs/identity" },
+        "rest_option_id": { "$ref": "#/$defs/identity" },
+        "generation": { "$ref": "#/$defs/generation" },
+        "evidence": { "type": "object" },
+        "target_player_id": { "$ref": "#/$defs/identity" }
+      }
+    },
+    "clone_effect_witness": {
+      "allOf": [{ "$ref": "#/$defs/effect_witness_base" }, { "type": "object", "properties": { "kind": { "const": "clone_applied" }, "evidence": { "allOf": [{ "$ref": "#/$defs/card_evidence" }, { "type": "object", "properties": { "added_card_ids": { "minItems": 1 } } }] } } }]
+    },
+    "cook_effect_witness": {
+      "allOf": [{ "$ref": "#/$defs/effect_witness_base" }, { "type": "object", "properties": { "kind": { "const": "cook_applied" }, "evidence": { "allOf": [{ "$ref": "#/$defs/card_evidence" }, { "type": "object", "properties": { "removed_card_ids": { "minItems": 1 } } }] } } }]
+    },
+    "dig_effect_witness": {
+      "allOf": [{ "$ref": "#/$defs/effect_witness_base" }, { "type": "object", "properties": { "kind": { "const": "dig_applied" }, "evidence": { "allOf": [{ "$ref": "#/$defs/relic_evidence" }, { "type": "object", "properties": { "added_relic_ids": { "minItems": 1 } } }] } } }]
+    },
+    "hatch_effect_witness": {
+      "allOf": [{ "$ref": "#/$defs/effect_witness_base" }, { "type": "object", "properties": { "kind": { "const": "hatch_applied" }, "evidence": { "allOf": [{ "$ref": "#/$defs/relic_evidence" }, { "type": "object", "properties": { "added_relic_ids": { "minItems": 1 } } }] } } }]
+    },
+    "heal_effect_witness": {
+      "allOf": [{ "$ref": "#/$defs/effect_witness_base" }, { "type": "object", "properties": { "kind": { "const": "heal_applied" }, "evidence": { "$ref": "#/$defs/hp_evidence" } } }]
+    },
+    "kindle_effect_witness": {
+      "allOf": [{ "$ref": "#/$defs/effect_witness_base" }, { "type": "object", "properties": { "kind": { "const": "kindle_applied" }, "evidence": { "$ref": "#/$defs/native_evidence" } } }]
+    },
+    "lift_effect_witness": {
+      "allOf": [{ "$ref": "#/$defs/effect_witness_base" }, { "type": "object", "properties": { "kind": { "const": "lift_applied" }, "evidence": { "oneOf": [{ "$ref": "#/$defs/stat_evidence" }, { "$ref": "#/$defs/native_evidence" }] } } }]
+    },
+    "smith_effect_witness": {
+      "allOf": [{ "$ref": "#/$defs/effect_witness_base" }, { "type": "object", "properties": { "kind": { "const": "smith_applied" }, "evidence": { "allOf": [{ "$ref": "#/$defs/card_evidence" }, { "type": "object", "properties": { "upgraded_card_ids": { "minItems": 1 } } }] } } }]
+    },
+    "mend_effect_witness": {
+      "allOf": [{ "$ref": "#/$defs/effect_witness_base" }, { "type": "object", "required": ["target_player_id"], "properties": { "kind": { "const": "mend_applied" }, "target_player_id": { "$ref": "#/$defs/identity" }, "evidence": { "oneOf": [{ "$ref": "#/$defs/hp_evidence" }, { "$ref": "#/$defs/native_evidence" }] } } }]
+    },
+    "effect_witness": {
+      "oneOf": [
+        { "$ref": "#/$defs/clone_effect_witness" },
+        { "$ref": "#/$defs/cook_effect_witness" },
+        { "$ref": "#/$defs/dig_effect_witness" },
+        { "$ref": "#/$defs/hatch_effect_witness" },
+        { "$ref": "#/$defs/heal_effect_witness" },
+        { "$ref": "#/$defs/kindle_effect_witness" },
+        { "$ref": "#/$defs/lift_effect_witness" },
+        { "$ref": "#/$defs/smith_effect_witness" },
+        { "$ref": "#/$defs/mend_effect_witness" }
+      ]
+    },
+    "completed_transition": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "before_generation", "after_generation", "rest_option_id", "completed", "effect_witness"],
+      "properties": {
+        "kind": { "const": "rest_option_completed" },
+        "before_generation": { "$ref": "#/$defs/generation" },
+        "after_generation": { "$ref": "#/$defs/generation" },
+        "rest_option_id": { "$ref": "#/$defs/identity" },
+        "completed": { "const": true },
+        "effect_witness": { "$ref": "#/$defs/effect_witness" }
+      }
+    },
+    "selection_requested_transition": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "before_generation", "after_generation", "rest_option_id", "selector", "effect_witness"],
+      "properties": {
+        "kind": { "const": "rest_option_selection_requested" },
+        "before_generation": { "$ref": "#/$defs/generation" },
+        "after_generation": { "$ref": "#/$defs/generation" },
+        "rest_option_id": { "$ref": "#/$defs/identity" },
+        "selector": { "$ref": "#/$defs/selector" },
+        "effect_witness": { "type": "null" }
+      }
+    },
+    "selection_progressed_transition": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "before_generation", "after_generation", "rest_option_id", "selection_id", "selection_kind", "required_count", "selected_choice_ids", "remaining_count", "selector", "effect_witness"],
+      "properties": {
+        "kind": { "const": "rest_option_selection_progressed" },
+        "before_generation": { "$ref": "#/$defs/generation" },
+        "after_generation": { "$ref": "#/$defs/generation" },
+        "rest_option_id": { "$ref": "#/$defs/identity" },
+        "selection_id": { "$ref": "#/$defs/identity" },
+        "selection_kind": { "enum": ["card", "player"] },
+        "required_count": { "$ref": "#/$defs/positive_count" },
+        "selected_choice_ids": { "$ref": "#/$defs/bounded_ids" },
+        "remaining_count": { "type": "integer", "minimum": 0, "maximum": 256 },
+        "selector": { "$ref": "#/$defs/selector" },
+        "effect_witness": { "type": "null" }
+      }
+    },
+    "selection_completed_transition": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "before_generation", "after_generation", "rest_option_id", "selection_id", "selection_kind", "required_count", "selected_choice_ids", "remaining_count", "completed", "effect_witness"],
+      "properties": {
+        "kind": { "const": "rest_option_selection_completed" },
+        "before_generation": { "$ref": "#/$defs/generation" },
+        "after_generation": { "$ref": "#/$defs/generation" },
+        "rest_option_id": { "$ref": "#/$defs/identity" },
+        "selection_id": { "$ref": "#/$defs/identity" },
+        "selection_kind": { "enum": ["card", "player"] },
+        "required_count": { "$ref": "#/$defs/positive_count" },
+        "selected_choice_ids": { "$ref": "#/$defs/bounded_ids" },
+        "remaining_count": { "const": 0 },
+        "completed": { "const": true },
+        "effect_witness": { "$ref": "#/$defs/effect_witness" }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "kind": { "const": "action_request" } } },
+      "then": { "properties": { "action": { "$ref": "#/$defs/action" }, "status": { "type": "null" }, "observation": { "type": "null" }, "transition": { "type": "null" }, "effect_witness": { "type": "null" }, "error_code": { "type": "null" } } }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "action_response" } } },
+      "then": { "required": ["status"], "properties": { "status": { "enum": ["accepted", "settled", "rejected", "unknown", "cancelled"] } } }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "action_response" }, "status": { "const": "accepted" } } },
+      "then": { "properties": { "action": { "$ref": "#/$defs/action" }, "observation": { "type": "null" }, "transition": { "type": "null" }, "effect_witness": { "type": "null" }, "error_code": { "type": "null" } } }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "action_response" }, "status": { "const": "settled" } } },
+      "then": { "required": ["action", "observation", "transition"], "properties": { "action": { "$ref": "#/$defs/action" }, "observation": { "type": "object" }, "transition": { "anyOf": [{ "$ref": "#/$defs/completed_transition" }, { "$ref": "#/$defs/selection_requested_transition" }, { "$ref": "#/$defs/selection_progressed_transition" }, { "$ref": "#/$defs/selection_completed_transition" }] }, "error_code": { "type": "null" } } }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "action_response" }, "status": { "enum": ["rejected", "unknown", "cancelled"] } } },
+      "then": { "required": ["action", "error_code"], "properties": { "action": { "$ref": "#/$defs/action" }, "observation": { "type": "null" }, "transition": { "type": "null" }, "effect_witness": { "type": "null" }, "error_code": { "$ref": "#/$defs/identity" } } }
+    },
+    {
+      "if": { "properties": { "transition": { "type": "object", "properties": { "kind": { "enum": ["rest_option_completed", "rest_option_selection_completed"] } } } } },
+      "then": { "properties": { "effect_witness": { "$ref": "#/$defs/effect_witness" } } }
+    },
+    {
+      "if": { "properties": { "transition": { "type": "object", "properties": { "kind": { "enum": ["rest_option_selection_requested", "rest_option_selection_progressed"] } } } } },
+      "then": { "properties": { "effect_witness": { "type": "null" } } }
+    }
+  ]
+}

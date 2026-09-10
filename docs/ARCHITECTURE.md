@@ -215,6 +215,23 @@ Both gateway and mod endpoint settings require numeric loopback `IP:port` socket
 wildcard/non-loopback addresses and DNS hostnames fail configuration. This plaintext attached lane
 does not expose a remote mode. HTTP frames and downstream exchanges use absolute deadlines.
 
+## Seeded-run gateway boundary
+
+ADR 0018 adds the additive `seeded-run-v1` gateway seam. The attached service owns the fixed
+instance-scoped start route `POST /v2/instances/{instance_id}/seeded-run` and the bodyless
+read-only reconciliation route `GET /v2/instances/{instance_id}/seeded-operations/{operation_id}`.
+It validates the selected native context and its content-addressed digest, the caller/session/
+instance/lease/epoch/correlation fence, method and body bounds, and the copied protocol artifact
+before forwarding only `POST /v2/seeded-run` or `GET /v2/seeded-operations/{operation_id}` to the
+mod boundary.
+
+The seeded ledger retains accepted, settled, rejected, cancelled, and unknown outcomes by operation
+identity. Correlation may be rebound for an exact replay, while an uncertain result remains
+read-only reconciliation and is never resent as a fresh mutation. The optional journal sidecar
+restores only a matching binding and operation after restart. Gateway source/component checks do
+not establish native seed readback, the `run_started` host witness, profile/save isolation, gameplay,
+or release compatibility; the game-mod and host retain those authorities.
+
 Runtime-v2 journal recovery requires continuity of the configured identity and downstream receipts.
 Restart fencing remains an integration gate; do not reuse stale ownership after a gateway or host
 restart. A new ownership context requires a fresh configured session, lease, and epoch.
@@ -245,3 +262,39 @@ artifact for MCP without linking protocol Rust implementation. It neither calls 
 consults reported agreement for gameplay forwarding authority. Source labels remain explicit.
 The older numeric-ID `CoopSession` prototype is separate and is not wire-consumer evidence.
 ADR 0015 records trust, freshness, identity lifetime and deterministic verification.
+
+## Runtime-map visibility
+
+ADR 0017 adds the additive `runtime-map-v1` read route for a bounded visible campaign graph. The
+gateway owns the fixed `GET /v1/instances/{instance_id}/map-snapshot` path, bodyless request
+admission, existing lease and identity fences, the downstream `GET /api/map/v1/snapshot` path,
+and the 256 KiB response budget. The game-mod owns host observation and projection meaning; the
+gateway does not create map nodes or authorize navigation.
+
+The gateway validates the copied protocol artifact's exact provenance, digest, response kind,
+identity and generation relationships, then checks graph structure and generation-bound bindings
+before returning the response. It rejects arbitrary methods or paths, request bodies, foreign or
+stale envelopes, unknown fields, duplicate graph identities, invalid edges, cycles, invalid
+visited position/history/terminal references, and malformed bindings. Overlapping coordinates and
+disconnected visible components remain valid projection facts. This is a read-only
+transport/component guarantee. Live map freshness, host compatibility, and visualizer rendering
+require separate evidence.
+
+## Runtime-v4 expert rest-action candidate
+
+[ADR 0019](decisions/0019-runtime-v4-expert-rest-action-route.md) adds the candidate
+`runtime-v4-expert-rest-action-v1` assignment envelope. The gateway owns the fixed
+`POST /v4/instances/{instance_id}/expert-rest-action` dispatch path and
+`GET /v4/instances/{instance_id}/expert-rest-actions/{operation_id}` reconciliation path,
+authenticated instance/session/lease/epoch/correlation fences, JSON size limits, and forwarding
+only to `/api/v4/runtime/expert-rest-action` or `/api/v4/runtime/expert-rest-actions/{operation_id}`.
+The game-mod remains authoritative for rest-site meaning and native host effects.
+
+The forwarder pins the candidate artifact digest
+`bb3555fae28eb1f79d08a15e9884696a579e4c20836f5016509f17e0f4c36fbd`, validates nested expert
+observations, generation-fenced transitions, typed selector catalogs, and option-specific effect
+witnesses, and keeps a bounded selector-admission catalog across response observations. A completed
+selector response may return to a `rest` observation, so its selected choices are checked against
+the earlier catalog. Missing prior admission, malformed or oversized payloads, identity drift, and
+unknown paths fail closed. This is source/component evidence for an unadmitted candidate; it does
+not establish a native producer, host settlement, MCP/harness consumption, or release behavior.

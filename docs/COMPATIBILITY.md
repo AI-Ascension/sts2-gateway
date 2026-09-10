@@ -106,7 +106,9 @@ Release/shutdown now permanently revoke the attached configured lease for that p
 Clients cannot allocate the same context again to undo revocation; a coordinator must provide a
 fresh session/lease/epoch for replacement ownership. This does not implement durable restart fencing.
 The independent Runtime-v2 split preserves the frozen artifact and fixed v2 routes. The Exo
-Runtime-v3 profile is integrated separately after its protocol dependency is accepted.
+Runtime-v3 profile is integrated at the current gateway main against the accepted protocol profile;
+its source/component boundary remains separate from native host legality, provider execution,
+deployment, and release evidence.
 
 | Adapter | Downstream | Current evidence | Result |
 | --- | --- | --- | --- |
@@ -128,6 +130,76 @@ handling, global scheduling, or host compatibility. `STS2_MCP_SESSION_ID` defaul
 session remains `session-1` by default and may be set independently; every lease-protected request must then carry the matching
 `x-mcp-session-id` value.
 
+## Runtime-v4 expert source/component row
+
+The additive `runtime-v4-expert` surface is implemented at the gateway source/component boundary
+at current main commit `2b44bf347f790509c9f13378c89719d09366d45b`. The gateway admits fixed expert-state,
+expert-action, and expert-reconcile paths, validates the request/response envelopes, and forwards
+only the corresponding fixed paths to the attached mod boundary. Its copied artifact identities
+are:
+
+| artifact | schema digest | checked-in location |
+| --- | --- | --- |
+| Runtime-v4 expert observation | `0ee034d5da83f34e9fa0ba23038738d56ef8cfccb1c6e752af3ab63d212c8e42` | `protocol-artifact/runtime-v4-expert/schema.json` |
+| Runtime-v4 expert action | `393318bda8c3522c0ecbacc78b95471a9f4dc3f825169d2048f4c74a7b7f2929` | `protocol-artifact/runtime-v4-expert-action/schema.json` |
+
+| Surface | Current evidence | Result |
+| --- | --- | --- |
+| `runtime-v4-expert` state/action/reconcile routes | Source validation, strict envelope checks, artifact checks, and gateway workspace policy/tests/Clippy at current main `2b44bf3` | Source/component confirmed; native host legality, settled host effects, provider runs, deployment, and broader compatibility unverified |
+
+The source/component checks do not establish a running mod, a valid host observation, a settled
+potion effect, a model-controlled episode, or compatibility with an arbitrary host version.
+
+## Seeded-run gateway row
+
+The additive `seeded-run-v1` seam is implemented at current gateway main
+`2b44bf347f790509c9f13378c89719d09366d45b`. It exposes fixed instance-scoped
+`POST /v2/instances/{instance_id}/seeded-run` and bodyless
+`GET /v2/instances/{instance_id}/seeded-operations/{operation_id}` routes. The gateway validates
+the complete selected context, its content-addressed digest, operation and correlation identity,
+lease/epoch fence, and bounded response before forwarding only the fixed mod paths.
+
+The ledger distinguishes accepted, settled, rejected, cancelled, and unknown outcomes. A timeout
+or transport uncertainty stays unknown and is reconciled read-only by the original operation
+identity; it is never retried as a new seed mutation. The optional journal sidecar restores only a
+matching operation and binding after restart. The copied artifact is schema digest
+`5c659f344be78f84e8d783986925d462714f933cac95d18943358992f7d3e2b8`, aligned with protocol main
+`d3ab5fca7d9d74bb31eeb3e5b343d8024ee44404`. These are source/component and artifact-copy checks;
+native host settlement, save/profile isolation, gameplay, deployment, and release compatibility
+remain unverified. See [ADR 0018](decisions/0018-seeded-run-v1-gateway-boundary.md).
+
+## Runtime-v4 expert rest-action candidate row
+
+The gateway implements the HTTP assignment for the candidate
+`runtime-v4-expert-rest-action-v1` profile. The copied artifact remains `candidate` with an empty
+admitted-consumer list; the exact identity is:
+
+| artifact | schema digest | checked-in location |
+| --- | --- | --- |
+| Runtime-v4 expert rest action | `bb3555fae28eb1f79d08a15e9884696a579e4c20836f5016509f17e0f4c36fbd` | `protocol-artifact/runtime-v4-expert-rest-action/schema.json` |
+
+| Surface | Current evidence | Result |
+| --- | --- | --- |
+| `runtime-v4-expert-rest-action` dispatch/reconcile routes | Fixed route and method tests, exact request/response artifact validation, 16 goldens, 22 mutation rejections, and serialized Smith/Mend producer-shaped lifecycle checks | Source/component confirmed; native producer, host legality/effects, MCP/harness consumers, deployment, and release unverified |
+
+Dispatch is `POST /v4/instances/{instance_id}/expert-rest-action` with mutate scope and JSON
+content type. Reconciliation is `GET /v4/instances/{instance_id}/expert-rest-actions/{operation_id}`
+with read scope and an empty body. Both retain the existing lease and identity fences and forward
+only the fixed downstream paths. The consumer retains a bounded selector-admission catalog across
+responses; a completed selection with no prior valid catalog, an unlisted card/player, an invalid
+selector kind/count/catalog, or an inconsistent effect witness is rejected before the response is
+returned. A caller timeout or disconnect never retries a mutation; recovery uses the original
+operation identity. The profile is additive and does not alter Runtime-v1 through Runtime-v4 expert,
+map, co-op, or legacy routes.
+
+### Historical Runtime-v4 settlement-fencing update — 2026-09-07
+
+The prior Runtime-v4 source/component record at commit `17b93bf35e5256f6adf690aa148fa57d4f56c523` remains retained above as the earlier evidence. The exact-head update at `aecc9fa44c825623b3e3bbb21d130e1fe6ac9468` binds nested settled observation `state_id` and `generation` to the outer response, and binds dispatch transition `before_generation` to the request generation.
+
+| Surface | Current evidence | Result |
+| --- | --- | --- |
+| `runtime-v4-expert` settlement fencing | Exact-head source/component review; 130 workspace tests, strict policy, format, Clippy, and three original regression cases passed | Source/component confirmed at `aecc9fa`; native host legality, settled host effects, provider execution, cross-consumer integration, deployment, and release remain unverified |
+
 ## Runtime-v3 and co-op row
 
 | Surface | Current evidence | Result |
@@ -138,10 +210,10 @@ session remains `session-1` by default and may be set independently; every lease
 
 These surfaces are additive to Runtime-v2 and do not inherit its runtime evidence.
 
-The gameplay envelope is pinned to protocol PR #14 commit
-`a81ec64d7d14bdb3079b8c7dc3c75e5c88693dfd`, schema digest
+The gameplay envelope is pinned to current protocol main
+`d3ab5fca7d9d74bb31eeb3e5b343d8024ee44404`, schema digest
 `8e99cea36b7ede97532348fd8efe302ca79260895265a7bf14ddf7e006d8ff63`.
-This coordinated candidate adds argument-free proceed, confirm-selection and cancel-selection
+This coordinated profile adds argument-free proceed, confirm-selection and cancel-selection
 actions. Producer and all consumers must migrate together; earlier digests are rejected.
 The complete copied artifact and its source/conformance companions are checked by CI. Runtime
 validation additionally enforces duplicate-field rejection, schema shape, byte bounds, correlated
@@ -233,3 +305,41 @@ all recent connected reports agree, never backwards. These sequences belong to c
 convergence, not independently allocated per-game observation counters. The wire source is
 always `gateway_peer_reports`; no independent peer authentication or native-host agreement is
 claimed. No state is persisted or restored as synchronized after process restart.
+
+## Runtime-map visibility row
+
+| Surface | Producer pin | Current evidence | Result |
+| --- | --- | --- | --- |
+| `runtime-map-v1` artifact and schema | current protocol main commit `d3ab5fca7d9d74bb31eeb3e5b343d8024ee44404`, schema digest `ceab0d2dfc471d1ec36d12edaf4654b8c7fdced06548bf47265e11c63f98115b` | copied manifest, schema, conformance case, and three goldens with checksum validation | Source-derived artifact-copy integrity at current gateway main `2b44bf3`; producer and host compatibility unverified |
+| Gateway map snapshot route | `GET /v1/instances/{instance_id}/map-snapshot` to fixed downstream `GET /api/map/v1/snapshot` | exact route, lease/bodyless admission, schema/provenance/identity/generation checks, bounded graph and binding tests | Confirmed deterministic source/component behavior; live map observation and freshness unverified |
+
+The profile is additive and does not alter legacy Runtime-v1, Runtime-v2, Runtime-v3 gameplay, or
+coordinator-report routes. It carries visible nodes, directed edges, position, history, terminal
+references, and navigation bindings only. Hidden host state is outside the contract. Overlapping
+coordinates and disconnected visible components are preserved. The consumer rejects mixed
+protocol revisions, wrong schema digests, foreign or stale generations, malformed graphs, invalid
+action-option identity, and responses over 256 KiB; it does not retry or synthesize a map snapshot.
+
+## Proposed retained receipt query
+
+The proposed `coop-receipt-query-v1` profile adds one read-only route:
+
+| Method/path suffix under `/v1/instances/{id}` | Scope | Downstream path | Status |
+| --- | --- | --- | --- |
+| `POST /coop/receipt-query` | read | `POST /api/v1/coop/native/receipt-query` | proposed, unadmitted |
+
+The route requires the existing authentication, caller, instance, session, MCP-session, active
+lease, epoch, and correlation fences. Before any downstream connection, it bounds the request,
+requires JSON content type, and validates the copied profile at schema digest
+`3e3eaedb93926b26025abb09d8028491e2632896753688c1182c698fed7d3f7c`, including exact provenance,
+canonical member order and UTF-8 encoding, duplicate-key rejection, repeated identity, sorted
+distinct participant IDs, and request generation lineage. The response must repeat the request
+identity and use `evidence_scope: retained_receipt`; accepted, settled, and rejected receipts
+must match their status, while unknown and recovery-required responses carry no receipt.
+
+The route forwards the validated neutral bytes to the fixed game-mod path and validates the bounded
+response before returning it. It never observes, reconciles, queues, retries, or authorizes a
+mutation. Invalid request data returns a client error; a downstream failure is returned as an
+unavailable error; an invalid or oversized downstream response is a `502`. The profile manifest
+intentionally keeps `consumers: []`; the route is source/component evidence only until the mod
+producer, MCP reader, harness recovery reader, and independent admission review are complete.

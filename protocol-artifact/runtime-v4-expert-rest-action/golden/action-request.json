@@ -1,0 +1,28 @@
+{
+  "protocol_version": "runtime-v4-expert-rest-action-v1",
+  "schema_digest": "bb3555fae28eb1f79d08a15e9884696a579e4c20836f5016509f17e0f4c36fbd",
+  "provenance": {
+    "artifact": "sts2-protocol/runtime-v4-expert-rest-action",
+    "source": "schemas/runtime-v4-expert-rest-action-v1.schema.json",
+    "generator": "hand-authored"
+  },
+  "profile": "expert-rest-action",
+  "correlation_id": "corr:rest:1",
+  "instance_id": "instance:1",
+  "session_id": "session:1",
+  "lease_id": "lease:1",
+  "lease_epoch": 4,
+  "generation": 7,
+  "state_id": "live:7",
+  "operation_id": "rest-op:7:heal",
+  "kind": "action_request",
+  "action": {
+    "action_id": "rest-option:7:heal",
+    "action": { "kind": "rest_option", "rest_option_id": "heal" }
+  },
+  "status": null,
+  "observation": null,
+  "transition": null,
+  "effect_witness": null,
+  "error_code": null
+}

@@ -1,0 +1,70 @@
+{
+  "case_id": "CT-RUNTIME-MAP-V1-001",
+  "contract": "sts2.protocol/runtime-map-v1",
+  "profile": "runtime-map-v1",
+  "schema": "schemas/runtime-map-v1.schema.json",
+  "artifacts": [
+    "artifacts/runtime-map-v1/manifest.json",
+    "artifacts/runtime-map-v1/schema.json"
+  ],
+  "checksums": "artifacts/runtime-map-v1/SHA256SUMS",
+  "consumers": [
+    "sts2-game-mod",
+    "sts2-gateway",
+    "sts2-harness",
+    "sts2-mcp-server",
+    "ascension-map-visualizer"
+  ],
+  "contract_assertions": {
+    "additive_profile": true,
+    "snapshot_schema_version": "visible-map-v1",
+    "projection_version_is_producer_owned": true,
+    "read_only_request_response": true,
+    "no_harness_identifiers": true,
+    "availability_values": ["available", "unavailable", "not_observable", "unsupported"],
+    "completeness_values": ["complete", "incomplete", "unknown"],
+    "freshness_values": ["current", "historical"],
+    "position_values": ["pre_start", "current", "unavailable"],
+    "room_unknown_is_explicit": true,
+    "directed_edges": true,
+    "overlapping_coordinates_preserved": true,
+    "disconnected_visible_components_preserved": true,
+    "stable_graph_ids_are_distinct_from_host_action_ids": true,
+    "action_option_ids_are_independent_from_graph_ids": true,
+    "generation_bound_bindings": true,
+    "max_nodes": 256,
+    "max_edges": 1024,
+    "max_bindings": 256,
+    "max_action_option_id_bytes": 128,
+    "max_message_bytes": 262144,
+    "canonical_sorted_compact_utf8": true,
+    "independent_digests": ["content", "topology", "navigation"],
+    "hidden_state_is_absent": true
+  },
+  "fixtures": [
+    {
+      "id": "snapshot",
+      "request": "artifacts/runtime-map-v1/golden/snapshot-request.json",
+      "response": "artifacts/runtime-map-v1/golden/snapshot-response.json",
+      "standalone": "artifacts/runtime-map-v1/golden/visible-map.json"
+    }
+  ],
+  "adversarial_vectors": [
+    "duplicate_node_id",
+    "duplicate_coordinate_is_preserved",
+    "duplicate_edge_endpoint_pair",
+    "unknown_edge_endpoint",
+    "cycle",
+    "disconnected_visible_component_is_preserved",
+    "stale_generation_binding",
+    "duplicate_host_action_id",
+    "invalid_action_option_id",
+    "duplicate_action_option_id",
+    "oversized_message",
+    "duplicate_json_key",
+    "invalid_unicode_or_identity",
+    "unavailable_projection_with_null_map_identity",
+    "complete_empty_pre_start_projection",
+    "paired_equivalent_permitted_data_same_canonical_bytes"
+  ]
+}
