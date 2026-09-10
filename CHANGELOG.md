@@ -5,6 +5,9 @@ host compatibility and release publication.
 
 ## [Unreleased]
 
+- Reject a status-null `recovery_response` echoed by the downstream as a response; that
+  bodyful shape is admitted only as the recover request and cannot be reported as success.
+
 - Add the accepted `coop-native-v1` gateway consumer. The six fixed instance-scoped routes
   validate the copied closed schema and authenticated identity/lease headers before forwarding
   only the matching game-mod observation, legal-catalog, action, vote, rejoin, or recovery path.

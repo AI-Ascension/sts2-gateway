@@ -143,11 +143,11 @@ fn recovery_response_relations(route: CoopNativeRoute, request: &Value, value: &
         return false;
     }
     match value["status"].as_str() {
-        None => {
-            value["observation"].is_null()
-                && value["receipt"].is_null()
-                && recovery_kind == "reconcile"
-        }
+        // The schema also admits the bodyful recovery request shape under
+        // `recovery_response` for the recover route. It is valid input to
+        // `validate_request`, but a downstream response must carry an
+        // outcome so an echoed request cannot be surfaced as success.
+        None => false,
         Some("unknown") => {
             let Some(observation) = value["observation"].as_object() else {
                 return false;

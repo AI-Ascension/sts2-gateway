@@ -319,6 +319,25 @@ fn settled_and_recovery_relations_are_fenced() {
 }
 
 #[test]
+fn recovery_request_echo_is_rejected_as_a_response() {
+    let forwarder = CoopNativeForwarder::new(16 * 1024, 128 * 1024);
+    let request = value(RECOVER_REQUEST);
+    let headers = headers(&request);
+    let bytes = serde_json::to_vec(&request).unwrap();
+    assert!(
+        forwarder
+            .validate_response(
+                CoopNativeRoute::Recover,
+                Some(&request),
+                &headers,
+                200,
+                &bytes,
+            )
+            .is_err()
+    );
+}
+
+#[test]
 fn catalog_relations_reject_duplicate_ids_and_foreign_voters() {
     let forwarder = CoopNativeForwarder::new(16 * 1024, 128 * 1024);
     let request = value(CATALOG_REQUEST);
