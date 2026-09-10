@@ -7,6 +7,9 @@ use super::*;
 use serde_json::Value;
 use std::collections::BTreeMap;
 
+#[path = "coop_native_forwarder_recovery_tests.rs"]
+mod recovery_tests;
+
 const OBSERVATION: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../protocol-artifact/coop-native-v1/golden/observation-response.json"

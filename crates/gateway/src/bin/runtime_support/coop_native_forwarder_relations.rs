@@ -161,6 +161,20 @@ fn recovery_response_relations(route: CoopNativeRoute, request: &Value, value: &
                 && (receipt["status"] == "accepted" || receipt["status"] == "unknown")
                 && receipt_observation_relations(observation, receipt)
                 && receipt["before_host_generation"] == observation["host_generation"]
+                && match receipt["status"].as_str() {
+                    // A pending rejoin may be accepted without advancing the
+                    // host, which the canonical producer witness represents
+                    // with an explicit same-generation after fence.
+                    Some("accepted") if recovery_kind == "rejoin" => {
+                        receipt["after_host_generation"] == observation["host_generation"]
+                    }
+                    // Reconciliation and unresolved receipts cannot claim a
+                    // host transition until a settled recovery response.
+                    Some("accepted") | Some("unknown") => {
+                        receipt["after_host_generation"].is_null()
+                    }
+                    _ => false,
+                }
         }
         Some("settled" | "rejected") => {
             let Some(observation) = value["observation"].as_object() else {
