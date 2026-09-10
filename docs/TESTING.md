@@ -21,6 +21,7 @@ cargo test --workspace --all-targets --all-features --locked
 (cd protocol-artifact/runtime-v1 && sha256sum -c SHA256SUMS)
 (cd protocol-artifact/runtime-v2 && sha256sum -c SHA256SUMS)
 (cd protocol-artifact/runtime-v3-gameplay && sha256sum -c SHA256SUMS)
+(cd protocol-artifact/seeded-run-v1 && sha256sum -c SHA256SUMS)
 (cd protocol-artifact/runtime-map-v1 && sha256sum -c SHA256SUMS)
 (cd protocol-artifact/coop-receipt-query-v1 && sha256sum -c SHA256SUMS)
 ```
@@ -165,11 +166,23 @@ that a listening downstream trap received zero connections. It is run explicitly
 exact built gateway passed in `STS2_COOP_GATEWAY_BINARY`; see the MCP testing guide and
 the coordinated evidence record. It proves coordination transport, not native multiplayer.
 
+## Seeded-run gateway checks
+
+The `seeded-run-v1` source/component suite checks the copied schema, manifest, conformance case,
+goldens, and checksum inventory, then exercises fixed start/reconciliation route parsing, selected
+context and digest validation, lease/epoch/correlation fences, semantic operation idempotency,
+accepted and unknown read-only reconciliation, and journal restart recovery. The forwarder tests
+assert that only `/v2/seeded-run` and `/v2/seeded-operations/{operation_id}` reach the mod boundary.
+
+These deterministic checks establish gateway ledger, journal, and forwarding behavior. They do not
+start a native run, establish canonical seed readback or a `run_started` host witness, verify
+profile/save isolation, or prove gameplay and release compatibility.
+
 ## Runtime-map visibility checks
 
-The `runtime-map-v1` consumer at merged gateway main
-`77782d5745a8c1f3399807d48138c5c7b511bff1` verifies merged protocol commit
-`b3d3034f32e68d70c9e681f906ee37d74db153c4` and schema digest
+The `runtime-map-v1` consumer at current gateway main
+`2b44bf347f790509c9f13378c89719d09366d45b` verifies current protocol main
+`d3ab5fca7d9d74bb31eeb3e5b343d8024ee44404` and schema digest
 `ceab0d2dfc471d1ec36d12edaf4654b8c7fdced06548bf47265e11c63f98115b` through the copied manifest,
 schema, conformance case, and golden checksum inventory. Forwarder tests cover the exact GET-only
 route, bodyless request, downstream path, response budget, provenance and digest, configured

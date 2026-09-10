@@ -207,6 +207,23 @@ Both gateway and mod endpoint settings require numeric loopback `IP:port` socket
 wildcard/non-loopback addresses and DNS hostnames fail configuration. This plaintext attached lane
 does not expose a remote mode. HTTP frames and downstream exchanges use absolute deadlines.
 
+## Seeded-run gateway boundary
+
+ADR 0018 adds the additive `seeded-run-v1` gateway seam. The attached service owns the fixed
+instance-scoped start route `POST /v2/instances/{instance_id}/seeded-run` and the bodyless
+read-only reconciliation route `GET /v2/instances/{instance_id}/seeded-operations/{operation_id}`.
+It validates the selected native context and its content-addressed digest, the caller/session/
+instance/lease/epoch/correlation fence, method and body bounds, and the copied protocol artifact
+before forwarding only `POST /v2/seeded-run` or `GET /v2/seeded-operations/{operation_id}` to the
+mod boundary.
+
+The seeded ledger retains accepted, settled, rejected, cancelled, and unknown outcomes by operation
+identity. Correlation may be rebound for an exact replay, while an uncertain result remains
+read-only reconciliation and is never resent as a fresh mutation. The optional journal sidecar
+restores only a matching binding and operation after restart. Gateway source/component checks do
+not establish native seed readback, the `run_started` host witness, profile/save isolation, gameplay,
+or release compatibility; the game-mod and host retain those authorities.
+
 Runtime-v2 journal recovery requires continuity of the configured identity and downstream receipts.
 Restart fencing remains an integration gate; do not reuse stale ownership after a gateway or host
 restart. A new ownership context requires a fresh configured session, lease, and epoch.

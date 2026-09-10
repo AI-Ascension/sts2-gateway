@@ -125,7 +125,7 @@ session remains `session-1` by default and may be set independently; every lease
 ## Runtime-v4 expert source/component row
 
 The additive `runtime-v4-expert` surface is implemented at the gateway source/component boundary
-at current main commit `434d8c77fb01895e90c741609e3d2a0ad0e9e8b8`. The gateway admits fixed expert-state,
+at current main commit `2b44bf347f790509c9f13378c89719d09366d45b`. The gateway admits fixed expert-state,
 expert-action, and expert-reconcile paths, validates the request/response envelopes, and forwards
 only the corresponding fixed paths to the attached mod boundary. Its copied artifact identities
 are:
@@ -137,10 +137,28 @@ are:
 
 | Surface | Current evidence | Result |
 | --- | --- | --- |
-| `runtime-v4-expert` state/action/reconcile routes | Source validation, strict envelope checks, artifact checks, and gateway workspace policy/tests/Clippy at current main `434d8c77` | Source/component confirmed; native host legality, settled host effects, provider runs, deployment, and broader compatibility unverified |
+| `runtime-v4-expert` state/action/reconcile routes | Source validation, strict envelope checks, artifact checks, and gateway workspace policy/tests/Clippy at current main `2b44bf3` | Source/component confirmed; native host legality, settled host effects, provider runs, deployment, and broader compatibility unverified |
 
 The source/component checks do not establish a running mod, a valid host observation, a settled
 potion effect, a model-controlled episode, or compatibility with an arbitrary host version.
+
+## Seeded-run gateway row
+
+The additive `seeded-run-v1` seam is implemented at current gateway main
+`2b44bf347f790509c9f13378c89719d09366d45b`. It exposes fixed instance-scoped
+`POST /v2/instances/{instance_id}/seeded-run` and bodyless
+`GET /v2/instances/{instance_id}/seeded-operations/{operation_id}` routes. The gateway validates
+the complete selected context, its content-addressed digest, operation and correlation identity,
+lease/epoch fence, and bounded response before forwarding only the fixed mod paths.
+
+The ledger distinguishes accepted, settled, rejected, cancelled, and unknown outcomes. A timeout
+or transport uncertainty stays unknown and is reconciled read-only by the original operation
+identity; it is never retried as a new seed mutation. The optional journal sidecar restores only a
+matching operation and binding after restart. The copied artifact is schema digest
+`5c659f344be78f84e8d783986925d462714f933cac95d18943358992f7d3e2b8`, aligned with protocol main
+`d3ab5fca7d9d74bb31eeb3e5b343d8024ee44404`. These are source/component and artifact-copy checks;
+native host settlement, save/profile isolation, gameplay, deployment, and release compatibility
+remain unverified. See [ADR 0018](decisions/0018-seeded-run-v1-gateway-boundary.md).
 
 ## Runtime-v4 expert rest-action candidate row
 
@@ -185,7 +203,7 @@ The prior Runtime-v4 source/component record at commit `17b93bf35e5256f6adf690aa
 These surfaces are additive to Runtime-v2 and do not inherit its runtime evidence.
 
 The gameplay envelope is pinned to current protocol main
-`f2dac90529f584a6511c1760adce9da28f7f910a`, schema digest
+`d3ab5fca7d9d74bb31eeb3e5b343d8024ee44404`, schema digest
 `8e99cea36b7ede97532348fd8efe302ca79260895265a7bf14ddf7e006d8ff63`.
 This coordinated profile adds argument-free proceed, confirm-selection and cancel-selection
 actions. Producer and all consumers must migrate together; earlier digests are rejected.
@@ -284,7 +302,7 @@ claimed. No state is persisted or restored as synchronized after process restart
 
 | Surface | Producer pin | Current evidence | Result |
 | --- | --- | --- | --- |
-| `runtime-map-v1` artifact and schema | current protocol main commit `f2dac90529f584a6511c1760adce9da28f7f910a`, schema digest `ceab0d2dfc471d1ec36d12edaf4654b8c7fdced06548bf47265e11c63f98115b` | copied manifest, schema, conformance case, and three goldens with checksum validation | Source-derived artifact-copy integrity at current gateway main `434d8c77fb01895e90c741609e3d2a0ad0e9e8b8`; producer and host compatibility unverified |
+| `runtime-map-v1` artifact and schema | current protocol main commit `d3ab5fca7d9d74bb31eeb3e5b343d8024ee44404`, schema digest `ceab0d2dfc471d1ec36d12edaf4654b8c7fdced06548bf47265e11c63f98115b` | copied manifest, schema, conformance case, and three goldens with checksum validation | Source-derived artifact-copy integrity at current gateway main `2b44bf3`; producer and host compatibility unverified |
 | Gateway map snapshot route | `GET /v1/instances/{instance_id}/map-snapshot` to fixed downstream `GET /api/map/v1/snapshot` | exact route, lease/bodyless admission, schema/provenance/identity/generation checks, bounded graph and binding tests | Confirmed deterministic source/component behavior; live map observation and freshness unverified |
 
 The profile is additive and does not alter legacy Runtime-v1, Runtime-v2, Runtime-v3 gameplay, or

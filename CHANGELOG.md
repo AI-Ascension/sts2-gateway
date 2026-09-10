@@ -24,7 +24,10 @@ host compatibility and release publication.
 
 - Tighten Runtime-v4 expert settlement fencing at source head `aecc9fa44c825623b3e3bbb21d130e1fe6ac9468`: bind nested observation `state_id` and `generation` to the outer response and dispatch transition `before_generation` to the request generation. Independent source/component checks pass; native host legality, settled effects, provider execution, cross-consumer integration, deployment, and release remain unverified.
 
-- Add the bounded `seeded-run-v1` gateway seam: fixed instance-scoped public routes, fixed native
+- Add the bounded `seeded-run-v1` gateway seam at current gateway main
+  `2b44bf347f790509c9f13378c89719d09366d45b`, consuming protocol main
+  `d3ab5fca7d9d74bb31eeb3e5b343d8024ee44404` at schema digest
+  `5c659f344be78f84e8d783986925d462714f933cac95d18943358992f7d3e2b8`: fixed instance-scoped public routes, fixed native
   start and receipt routes, complete selected-context and settlement validation, semantic
   idempotency with correlation rebinding, accepted/unknown read-only reconciliation, and an
   opt-in journal sidecar for restart recovery. Component evidence covers the ledger and journal;
