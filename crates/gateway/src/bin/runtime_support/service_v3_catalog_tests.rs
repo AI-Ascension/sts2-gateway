@@ -7,7 +7,9 @@ use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use sts2_gateway::{GatewayRecoveryStore, RecoveryLease, RecoveryLeaseRequest};
+use sts2_gateway::{
+    GatewayRecoveryStore, RecoveryLease, RecoveryLeaseRequest,
+};
 use uuid::Uuid;
 
 pub(super) const DEPLOYMENT: &str = "00000000-0000-4000-8000-000000000001";

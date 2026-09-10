@@ -21,6 +21,8 @@ mod recovery_catalog_tests;
 mod routes_tests;
 #[path = "service_v3_catalog_tests.rs"]
 mod runtime_v3_catalog_tests;
+#[path = "service_v3_receipt_tests.rs"]
+mod runtime_v3_receipt_tests;
 #[path = "service_support_tests.rs"]
 mod test_support;
 
