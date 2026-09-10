@@ -129,6 +129,15 @@ The exact Runtime-v4 source/component record is [documented in the compatibility
 
 Historical source/component update (2026-09-07): at exact gateway source head `aecc9fa44c825623b3e3bbb21d130e1fe6ac9468`, the settled Runtime-v4 expert response fence binds nested observation `state_id` and `generation` to the outer response, and the dispatch transition `before_generation` to the request generation. Independent checks passed 130 workspace tests, formatting, strict policy, Clippy, and three original regression cases. Native host legality, settled effects, provider execution, cross-consumer integration, deployment, and release remain unverified.
 
+Current default-main source/component update (2026-09-10): gateway main
+[`434d8c77fb01895e90c741609e3d2a0ad0e9e8b8`](https://github.com/AI-Ascension/sts2-gateway/commit/434d8c77fb01895e90c741609e3d2a0ad0e9e8b8)
+contains the Runtime-v4 expert routes and the bounded map route. Its copied expert artifacts are
+aligned with protocol main `f2dac90529f584a6511c1760adce9da28f7f910a` at schema digests
+`0ee034d5da83f34e9fa0ba23038738d56ef8cfccb1c6e752af3ab63d212c8e42` and
+`393318bda8c3522c0ecbacc78b95471a9f4dc3f825169d2048f4c74a7b7f2929`. This is source/component
+evidence; native host legality, settled effects, provider execution, deployment, release, and live
+cross-consumer compatibility remain unverified.
+
 For opt-in coordinator-reported synchronization, supply `STS2_COOP_ROSTER` as a JSON array,
 for example `[{"peer_id":"local-1","role":"local"},{"peer_id":"ally-1","role":"ally"}]`.
 The configured coordinator submits bounded peer reports under control scope; the separate
@@ -160,10 +169,10 @@ the profile remains unadmitted and does not establish a native producer, host ef
 harness consumer, deployment, or release compatibility. See
 [ADR 0019](docs/decisions/0019-runtime-v4-expert-rest-action-route.md).
 
-Dated current-main source/component update (2026-09-08): merged gateway main
-`77782d5745a8c1f3399807d48138c5c7b511bff1` contains the bounded map route and its copied
+Current default-main source/component map update (2026-09-10): gateway main
+`434d8c77fb01895e90c741609e3d2a0ad0e9e8b8` contains the bounded map route and its copied
 `runtime-map-v1` artifact. The producer pin is merged protocol main
-`b3d3034f32e68d70c9e681f906ee37d74db153c4` at schema digest
+`f2dac90529f584a6511c1760adce9da28f7f910a` at schema digest
 `ceab0d2dfc471d1ec36d12edaf4654b8c7fdced06548bf47265e11c63f98115b`. This records current
 source/component identity and copied-artifact scope; live map freshness, native map visibility,
 navigation, gameplay, release, and publication remain unverified.

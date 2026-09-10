@@ -98,7 +98,9 @@ Release/shutdown now permanently revoke the attached configured lease for that p
 Clients cannot allocate the same context again to undo revocation; a coordinator must provide a
 fresh session/lease/epoch for replacement ownership. This does not implement durable restart fencing.
 The independent Runtime-v2 split preserves the frozen artifact and fixed v2 routes. The Exo
-Runtime-v3 profile is integrated separately after its protocol dependency is accepted.
+Runtime-v3 profile is integrated at the current gateway main against the accepted protocol profile;
+its source/component boundary remains separate from native host legality, provider execution,
+deployment, and release evidence.
 
 | Adapter | Downstream | Current evidence | Result |
 | --- | --- | --- | --- |
@@ -123,7 +125,7 @@ session remains `session-1` by default and may be set independently; every lease
 ## Runtime-v4 expert source/component row
 
 The additive `runtime-v4-expert` surface is implemented at the gateway source/component boundary
-at commit `17b93bf35e5256f6adf690aa148fa57d4f56c523`. The gateway admits fixed expert-state,
+at current main commit `434d8c77fb01895e90c741609e3d2a0ad0e9e8b8`. The gateway admits fixed expert-state,
 expert-action, and expert-reconcile paths, validates the request/response envelopes, and forwards
 only the corresponding fixed paths to the attached mod boundary. Its copied artifact identities
 are:
@@ -135,7 +137,7 @@ are:
 
 | Surface | Current evidence | Result |
 | --- | --- | --- |
-| `runtime-v4-expert` state/action/reconcile routes | Source validation, strict envelope checks, artifact checks, and gateway workspace policy/tests/Clippy at `17b93bf` | Source/component confirmed; native host legality, settled host effects, provider runs, deployment, and broader compatibility unverified |
+| `runtime-v4-expert` state/action/reconcile routes | Source validation, strict envelope checks, artifact checks, and gateway workspace policy/tests/Clippy at current main `434d8c77` | Source/component confirmed; native host legality, settled host effects, provider runs, deployment, and broader compatibility unverified |
 
 The source/component checks do not establish a running mod, a valid host observation, a settled
 potion effect, a model-controlled episode, or compatibility with an arbitrary host version.
@@ -164,7 +166,7 @@ returned. A caller timeout or disconnect never retries a mutation; recovery uses
 operation identity. The profile is additive and does not alter Runtime-v1 through Runtime-v4 expert,
 map, co-op, or legacy routes.
 
-### Dated Runtime-v4 settlement-fencing update — 2026-09-07
+### Historical Runtime-v4 settlement-fencing update — 2026-09-07
 
 The prior Runtime-v4 source/component record at commit `17b93bf35e5256f6adf690aa148fa57d4f56c523` remains retained above as the earlier evidence. The exact-head update at `aecc9fa44c825623b3e3bbb21d130e1fe6ac9468` binds nested settled observation `state_id` and `generation` to the outer response, and binds dispatch transition `before_generation` to the request generation.
 
@@ -182,10 +184,10 @@ The prior Runtime-v4 source/component record at commit `17b93bf35e5256f6adf690aa
 
 These surfaces are additive to Runtime-v2 and do not inherit its runtime evidence.
 
-The gameplay envelope is pinned to protocol PR #14 commit
-`a81ec64d7d14bdb3079b8c7dc3c75e5c88693dfd`, schema digest
+The gameplay envelope is pinned to current protocol main
+`f2dac90529f584a6511c1760adce9da28f7f910a`, schema digest
 `8e99cea36b7ede97532348fd8efe302ca79260895265a7bf14ddf7e006d8ff63`.
-This coordinated candidate adds argument-free proceed, confirm-selection and cancel-selection
+This coordinated profile adds argument-free proceed, confirm-selection and cancel-selection
 actions. Producer and all consumers must migrate together; earlier digests are rejected.
 The complete copied artifact and its source/conformance companions are checked by CI. Runtime
 validation additionally enforces duplicate-field rejection, schema shape, byte bounds, correlated
@@ -282,7 +284,7 @@ claimed. No state is persisted or restored as synchronized after process restart
 
 | Surface | Producer pin | Current evidence | Result |
 | --- | --- | --- | --- |
-| `runtime-map-v1` artifact and schema | merged protocol main commit `b3d3034f32e68d70c9e681f906ee37d74db153c4`, schema digest `ceab0d2dfc471d1ec36d12edaf4654b8c7fdced06548bf47265e11c63f98115b` | copied manifest, schema, conformance case, and three goldens with checksum validation | Source-derived artifact-copy integrity at gateway main `77782d5745a8c1f3399807d48138c5c7b511bff1`; producer and host compatibility unverified |
+| `runtime-map-v1` artifact and schema | current protocol main commit `f2dac90529f584a6511c1760adce9da28f7f910a`, schema digest `ceab0d2dfc471d1ec36d12edaf4654b8c7fdced06548bf47265e11c63f98115b` | copied manifest, schema, conformance case, and three goldens with checksum validation | Source-derived artifact-copy integrity at current gateway main `434d8c77fb01895e90c741609e3d2a0ad0e9e8b8`; producer and host compatibility unverified |
 | Gateway map snapshot route | `GET /v1/instances/{instance_id}/map-snapshot` to fixed downstream `GET /api/map/v1/snapshot` | exact route, lease/bodyless admission, schema/provenance/identity/generation checks, bounded graph and binding tests | Confirmed deterministic source/component behavior; live map observation and freshness unverified |
 
 The profile is additive and does not alter legacy Runtime-v1, Runtime-v2, Runtime-v3 gameplay, or
