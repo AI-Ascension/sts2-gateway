@@ -28,13 +28,29 @@ impl RuntimeService {
         {
             return (409, json_error("runtime_v2_correlation_mismatch"));
         }
+        let workflow_authority = match self.workflow_authority(request) {
+            Ok(authority) => authority,
+            Err(error) => return error,
+        };
         let result = match self.journal_path.as_deref() {
-            Some(path) => self
-                .runtime_v2
-                .submit_action_with_checkpoint(message, |state| {
-                    journal::store(path, state).map_err(|_| ())
-                }),
-            None => self.runtime_v2.submit_action(message),
+            Some(path) => match workflow_authority.as_ref() {
+                Some(authority) => self.runtime_v2.submit_action_with_authority_and_checkpoint(
+                    authority,
+                    message,
+                    |state| journal::store(path, state).map_err(|_| ()),
+                ),
+                None => self
+                    .runtime_v2
+                    .submit_action_with_checkpoint(message, |state| {
+                        journal::store(path, state).map_err(|_| ())
+                    }),
+            },
+            None => match workflow_authority.as_ref() {
+                Some(authority) => self
+                    .runtime_v2
+                    .submit_action_with_authority(authority, message),
+                None => self.runtime_v2.submit_action(message),
+            },
         };
         match result {
             Ok(response) => {
@@ -83,37 +99,50 @@ impl RuntimeService {
         if state_request.validate().is_err() {
             return (500, json_error("runtime_v2_state_request_invalid"));
         }
+        let workflow_authority = match self.workflow_authority(request) {
+            Ok(authority) => authority,
+            Err(error) => return error,
+        };
         match self
             .runtime_v2
             .forwarding_mut()
             .forward_state(state_request.clone())
         {
-            Ok(response) => match self
-                .runtime_v2
-                .accept_state_response(&state_request, response)
-            {
-                Ok(response) => {
-                    if let Some(path) = self.journal_path.as_deref()
-                        && journal::store(path, &self.runtime_v2.persisted_state()).is_err()
-                    {
-                        return (
-                            503,
-                            runtime_v2_state_unavailable(
-                                &state_request,
-                                "runtime_v2_persistence_failed",
-                            ),
-                        );
-                    }
-                    (200, runtime_v2_bytes(&response))
-                }
-                Err(_) => (
-                    502,
-                    runtime_v2_state_unavailable(
+            Ok(response) => {
+                let accepted = match workflow_authority.as_ref() {
+                    Some(authority) => self.runtime_v2.accept_state_response_with_authority(
+                        authority,
                         &state_request,
-                        "downstream_state_response_invalid",
+                        response,
                     ),
-                ),
-            },
+                    None => self
+                        .runtime_v2
+                        .accept_state_response(&state_request, response),
+                };
+                match accepted {
+                    Ok(response) => {
+                        if let Some(path) = self.journal_path.as_deref()
+                            && journal::store(path, &self.runtime_v2.persisted_state()).is_err()
+                        {
+                            return (
+                                503,
+                                runtime_v2_state_unavailable(
+                                    &state_request,
+                                    "runtime_v2_persistence_failed",
+                                ),
+                            );
+                        }
+                        (200, runtime_v2_bytes(&response))
+                    }
+                    Err(_) => (
+                        502,
+                        runtime_v2_state_unavailable(
+                            &state_request,
+                            "downstream_state_response_invalid",
+                        ),
+                    ),
+                }
+            }
             Err(error) => (
                 runtime_v2_state_status(error),
                 runtime_v2_state_unavailable(&state_request, runtime_v2_state_reason(error)),
@@ -145,7 +174,15 @@ impl RuntimeService {
             self.runtime_v2.observation().generation,
             operation_id,
         );
-        match self.runtime_v2.reconcile(message) {
+        let workflow_authority = match self.workflow_authority(request) {
+            Ok(authority) => authority,
+            Err(error) => return error,
+        };
+        let result = match workflow_authority.as_ref() {
+            Some(authority) => self.runtime_v2.reconcile_with_authority(authority, message),
+            None => self.runtime_v2.reconcile(message),
+        };
+        match result {
             Ok(response) => {
                 if response.status == Some(RuntimeV2Status::Unknown) {
                     self.metrics.runtime_v2_unknown();
@@ -235,6 +272,20 @@ pub(super) fn runtime_v2_error(error: RuntimeV2LedgerError) -> (u16, Vec<u8>) {
         RuntimeV2LedgerError::PersistedStateMismatch
         | RuntimeV2LedgerError::PersistedStateInvalid => (500, "runtime_v2_journal_invalid"),
         RuntimeV2LedgerError::PersistenceFailed => (503, "runtime_v2_persistence_failed"),
+        RuntimeV2LedgerError::Recovery(error) => match error {
+            RuntimeV2RecoveryError::AuthorityRequired
+            | RuntimeV2RecoveryError::AuthorityMismatch
+            | RuntimeV2RecoveryError::StaleBootEpoch => {
+                (409, "runtime_v2_recovery_authority_rejected")
+            }
+            RuntimeV2RecoveryError::UnsupportedFailureDomain(_)
+            | RuntimeV2RecoveryError::ReceiptRetentionUnavailable => {
+                (503, "runtime_v2_recovery_unavailable")
+            }
+            RuntimeV2RecoveryError::InvalidReceiptRetention => {
+                (500, "runtime_v2_recovery_contract_invalid")
+            }
+        },
     };
     (status, json_error(code))
 }

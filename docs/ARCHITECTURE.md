@@ -71,8 +71,9 @@ protocol implementation path dependency is present. See
 [ADR 0001](decisions/0001-gateway-ownership-and-dependencies.md),
 [ADR 0002](decisions/0002-sixth-target-protocol-boundary.md),
 [ADR 0006](decisions/0006-runtime-v2-gameplay-operation-ledger.md),
-[ADR 0007](decisions/0007-runtime-v2-journal-and-boundary-hardening.md), and
-[ADR 0010](decisions/0010-runtime-v2-mcp-session-fence.md).
+[ADR 0007](decisions/0007-runtime-v2-journal-and-boundary-hardening.md),
+[ADR 0010](decisions/0010-runtime-v2-mcp-session-fence.md), and
+[ADR 0020](decisions/0020-workflow-authority-recovery-contract.md).
 
 ## Identity, lifecycle, and fencing
 
@@ -88,6 +89,18 @@ The proposed lifecycle vocabulary is `created`, `starting`, `ready`, `busy`, `de
 expiry, gateway restart, instance crash, shutdown, or owner change invalidates the old epoch. The
 old epoch is rejected before forwarding, and a replacement instance receives fresh identity rather
 than inheriting an ambiguous record.
+
+Workflow-facing Runtime-v2 admission additionally uses the gateway-local `RuntimeV2Authority`,
+which binds instance, session, lease, lease epoch, and an owner-issued boot epoch outside the
+frozen wire envelope. Mutation, state refresh, cancellation, and retained-receipt reconciliation
+require that proof when a recovery contract is installed. The contract advertises harness,
+gateway, host, and machine recovery independently and rejects unsupported domains or unavailable
+receipt retention before the forwarding seam. This source/component contract does not issue a
+durable boot epoch or make the attached executable restart-safe; an owner must provide a fresh
+boot identity and capability claim. When `STS2_WORKFLOW_BOOT_EPOCH` is configured, the attached
+Runtime-v2 action, state, and reconcile routes require the same value in
+`x-sts2-workflow-boot-epoch` and use the authority-bearing ledger methods. Without that opt-in,
+the legacy component lane remains in use.
 
 Accepted work survives caller timeout or disconnect as an explicit status, settled result, cancelled
 result, or unknown outcome. Runtime-v2 returns `unknown` after a timeout or disconnect after write,
@@ -225,8 +238,11 @@ not establish native seed readback, the `run_started` host witness, profile/save
 or release compatibility; the game-mod and host retain those authorities.
 
 Runtime-v2 journal recovery requires continuity of the configured identity and downstream receipts.
-Restart fencing remains an integration gate; do not reuse stale ownership after a gateway or host
-restart. A new ownership context requires a fresh configured session, lease, and epoch.
+Workflow ledger state also carries the owner boot epoch; missing or changed boot identity is
+rejected during workflow restoration, while legacy bindings may continue to restore legacy state
+without a boot epoch. Restart fencing remains an integration gate; do not reuse stale ownership
+after a gateway or host restart. A new ownership context requires a fresh configured session, lease,
+epoch, and boot identity.
 Within one service lifetime, release and shutdown permanently revoke its configured lease. Further
 allocation fails closed rather than reactivating the old epoch; new ownership requires a separately
 configured fresh context. Persisted cross-restart revocation remains an external coordinator gate.

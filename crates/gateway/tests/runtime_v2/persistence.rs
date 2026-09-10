@@ -102,6 +102,7 @@ fn accepted_result_restores_as_unknown_without_dispatch_retry() -> Result<(), St
         session_id: String::from("session-1"),
         lease_id: String::from("lease-1"),
         lease_epoch: 1,
+        boot_epoch: None,
         observation: RuntimeV2Observation::new(RuntimeV2CombatPhase::PlayerTurn, 2, true, 4),
         operations: vec![RuntimeV2PersistedOperation {
             request,
@@ -191,6 +192,7 @@ fn admitted_without_result_restores_as_unknown_without_dispatch_retry() -> Resul
         session_id: String::from("session-1"),
         lease_id: String::from("lease-1"),
         lease_epoch: 1,
+        boot_epoch: None,
         observation: RuntimeV2Observation::new(RuntimeV2CombatPhase::PlayerTurn, 2, true, 4),
         operations: vec![RuntimeV2PersistedOperation {
             request,

@@ -11,9 +11,11 @@ use std::time::{Duration, Instant};
 
 use serde_json::{Value, json};
 use sts2_gateway::{
-    RuntimeV2Binding, RuntimeV2CombatPhase, RuntimeV2Ledger, RuntimeV2LedgerConfig,
-    RuntimeV2LedgerError, RuntimeV2Message, RuntimeV2Observation, RuntimeV2Status,
-    RuntimeV2TransportFault, SeededRunBinding, SeededRunLedger, SeededRunLedgerConfig,
+    RuntimeV2Authority, RuntimeV2Binding, RuntimeV2CombatPhase, RuntimeV2Ledger,
+    RuntimeV2LedgerConfig, RuntimeV2LedgerError, RuntimeV2Message, RuntimeV2Observation,
+    RuntimeV2RecoveryCapabilities, RuntimeV2RecoveryContract, RuntimeV2RecoveryError,
+    RuntimeV2Status, RuntimeV2TransportFault, SeededRunBinding, SeededRunLedger,
+    SeededRunLedgerConfig,
 };
 
 use super::auth::{AuthFailure, AuthPolicy, AuthScope};
@@ -78,6 +80,7 @@ struct RuntimeConfig {
     operation_capacity: usize,
     queue_capacity: usize,
     journal_path: Option<PathBuf>,
+    workflow_authority: Option<RuntimeV2Authority>,
 }
 
 struct QueuedRequest {
@@ -111,6 +114,8 @@ mod v3;
 mod v4_expert;
 #[path = "service_v4_expert_rest_action.rs"]
 mod v4_expert_rest_action;
+#[path = "service_workflow_authority.rs"]
+mod workflow_authority;
 
 use admission::{accept_requests, run_worker};
 use authorization::request_rejection;
@@ -174,12 +179,7 @@ impl RuntimeService {
                 .restore_state(state)
                 .map_err(|error| format!("seeded-run journal state is invalid: {error}"))?;
         }
-        let mut runtime_v2 = RuntimeV2Ledger::new(
-            RuntimeV2LedgerConfig::new(config.operation_capacity),
-            binding,
-            forwarder,
-        )
-        .map_err(|error| format!("Runtime-v2 ledger is invalid: {error}"))?;
+        let mut runtime_v2 = configuration::build_runtime_v2(&config, binding, forwarder)?;
         if let Some(path) = config.journal_path.as_deref()
             && let Some(state) = journal::load(path)?
         {

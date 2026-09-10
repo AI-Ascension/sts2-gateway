@@ -103,6 +103,8 @@ pub struct RuntimeV2PersistedState {
     pub session_id: String,
     pub lease_id: String,
     pub lease_epoch: u64,
+    #[serde(default)]
+    pub boot_epoch: Option<String>,
     pub observation: RuntimeV2Observation,
     pub operations: Vec<RuntimeV2PersistedOperation>,
 }
@@ -150,6 +152,7 @@ pub enum RuntimeV2LedgerError {
     PersistedStateMismatch,
     PersistedStateInvalid,
     PersistenceFailed,
+    Recovery(RuntimeV2RecoveryError),
 }
 
 impl fmt::Display for RuntimeV2LedgerError {
@@ -182,6 +185,7 @@ impl fmt::Display for RuntimeV2LedgerError {
             Self::PersistenceFailed => {
                 formatter.write_str("Runtime-v2 durable state could not be written")
             }
+            Self::Recovery(error) => write!(formatter, "Runtime-v2 recovery rejected: {error}"),
         }
     }
 }

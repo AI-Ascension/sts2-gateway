@@ -108,6 +108,7 @@ pub struct RuntimeV2Binding {
     session_id: String,
     lease_id: String,
     lease_epoch: u64,
+    authority: Option<RuntimeV2Authority>,
     observation: RuntimeV2Observation,
 }
 
@@ -153,6 +154,24 @@ impl RuntimeV2Binding {
             session_id: session_id.to_owned(),
             lease_id: lease_id.to_owned(),
             lease_epoch,
+            authority: None,
+            observation,
+        })
+    }
+
+    /// Creates a workflow binding with an explicit boot epoch and owner authority.
+    pub fn with_authority(
+        authority: RuntimeV2Authority,
+        observation: RuntimeV2Observation,
+    ) -> Result<Self, RuntimeV2ValidationError> {
+        observation.validate()?;
+        Ok(Self {
+            metadata: RuntimeV2Metadata::new(),
+            instance_id: authority.instance_id().to_owned(),
+            session_id: authority.session_id().to_owned(),
+            lease_id: authority.lease_id().to_owned(),
+            lease_epoch: authority.lease_epoch(),
+            authority: Some(authority),
             observation,
         })
     }
@@ -175,6 +194,16 @@ impl RuntimeV2Binding {
 
     pub const fn lease_epoch(&self) -> u64 {
         self.lease_epoch
+    }
+
+    pub fn authority(&self) -> Option<&RuntimeV2Authority> {
+        self.authority.as_ref()
+    }
+
+    pub fn boot_epoch(&self) -> Option<&str> {
+        self.authority
+            .as_ref()
+            .map(RuntimeV2Authority::boot_epoch)
     }
 
     pub const fn observation(&self) -> RuntimeV2Observation {

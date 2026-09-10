@@ -117,6 +117,55 @@ fn state_route_accepts_the_typed_mcp_request_body() -> Result<(), String> {
 }
 
 #[test]
+fn configured_workflow_routes_require_the_owner_boot_epoch() -> Result<(), String> {
+    let mut service = workflow_authority_service()?;
+    let action = RuntimeV2Message::action_request(
+        RuntimeV2Metadata::new(),
+        "corr-state",
+        "instance-1",
+        "session-1",
+        "lease-1",
+        1,
+        0,
+        "operation-1",
+        sts2_gateway::RuntimeV2Action::end_turn(),
+    );
+    let mut request = authenticated_request("/v2/instances/instance-1/action");
+    request.method = String::from("POST");
+    request.headers.insert(
+        String::from("content-type"),
+        String::from("application/json"),
+    );
+    request.body = serde_json::to_vec(&action).map_err(|error| error.to_string())?;
+
+    let (status, body) = service.handle_request(&request);
+    assert_eq!(status, 409);
+    assert_eq!(
+        serde_json::from_slice::<Value>(&body).map_err(|e| e.to_string())?["error_code"],
+        "runtime_v2_workflow_authority_required"
+    );
+
+    request.headers.insert(
+        String::from("x-sts2-workflow-boot-epoch"),
+        String::from("old-boot"),
+    );
+    let (status, body) = service.handle_request(&request);
+    assert_eq!(status, 409);
+    assert_eq!(
+        serde_json::from_slice::<Value>(&body).map_err(|e| e.to_string())?["error_code"],
+        "runtime_v2_workflow_authority_rejected"
+    );
+
+    request.headers.insert(
+        String::from("x-sts2-workflow-boot-epoch"),
+        String::from("boot-1"),
+    );
+    let (status, _) = service.handle_request(&request);
+    assert_eq!(status, 200);
+    Ok(())
+}
+
+#[test]
 fn semantic_adapter_rejects_bounded_gameplay_receipt_routes() -> Result<(), String> {
     let mut service = test_service()?;
     for (method, suffix) in [

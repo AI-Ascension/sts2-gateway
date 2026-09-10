@@ -36,12 +36,14 @@ pub use protocol_artifact::{
     POC_PROTOCOL_VERSION, POC_SCHEMA_DIGEST, POC_SCHEMA_SOURCE, verify_poc_artifact,
 };
 pub use runtime_v2::{
-    RuntimeV2Action, RuntimeV2Binding, RuntimeV2CodecError, RuntimeV2CombatPhase,
-    RuntimeV2EffectWitness, RuntimeV2FenceFailure, RuntimeV2ForwardRequest,
+    RuntimeV2Action, RuntimeV2Authority, RuntimeV2Binding, RuntimeV2CodecError,
+    RuntimeV2CombatPhase, RuntimeV2EffectWitness, RuntimeV2FenceFailure, RuntimeV2ForwardRequest,
     RuntimeV2ForwardingPort, RuntimeV2Ledger, RuntimeV2LedgerConfig, RuntimeV2LedgerError,
     RuntimeV2Message, RuntimeV2MessageKind, RuntimeV2Metadata, RuntimeV2Observation,
     RuntimeV2OperationKey, RuntimeV2PersistedOperation, RuntimeV2PersistedState,
-    RuntimeV2Provenance, RuntimeV2ReceiptRequest, RuntimeV2RequestDigest, RuntimeV2Status,
+    RuntimeV2Provenance, RuntimeV2ReceiptRequest, RuntimeV2ReceiptRetention,
+    RuntimeV2RecoveryCapabilities, RuntimeV2RecoveryContract, RuntimeV2RecoveryError,
+    RuntimeV2RecoveryFailureDomain, RuntimeV2RequestDigest, RuntimeV2Status,
     RuntimeV2TransportFault, RuntimeV2ValidationError,
 };
 pub use runtime_v2_artifact::{
