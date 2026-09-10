@@ -24,6 +24,7 @@ pub(super) fn test_service() -> Result<RuntimeService, String> {
         recovery_renewal_interval_seconds: 10,
         host_lease_key: vec![0x11; 32],
         host_principal_id: String::from("00000000-0000-4000-8000-00000000000a"),
+        workflow_authority: None,
     };
     let binding = RuntimeV2Binding::new(
         &config.instance_id,
@@ -101,6 +102,35 @@ pub(super) fn test_service() -> Result<RuntimeService, String> {
         recovery_clock_wall_millis: 0,
         recovery_last_now_millis: 0,
     })
+}
+
+pub(super) fn workflow_authority_service() -> Result<RuntimeService, String> {
+    let mut service = test_service()?;
+    let authority = RuntimeV2Authority::new("instance-1", "session-1", "lease-1", 1, "boot-1")
+        .map_err(|error| error.to_string())?;
+    let contract = RuntimeV2RecoveryContract::new(
+        authority.clone(),
+        RuntimeV2RecoveryCapabilities::unsupported(),
+    )
+    .map_err(|error| error.to_string())?;
+    let forwarding = HttpRuntimeV2Forwarder::new(
+        &service.config.mod_address,
+        &service.config.mod_token,
+        &service.config.instance_id,
+        &service.config.caller_id,
+        &service.config.session_id,
+        &service.config.lease_id,
+        service.config.lease_epoch,
+    );
+    service.runtime_v2 = RuntimeV2Ledger::new_with_recovery_contract(
+        RuntimeV2LedgerConfig::new(service.config.operation_capacity),
+        contract,
+        service.runtime_v2.observation(),
+        forwarding,
+    )
+    .map_err(|error| error.to_string())?;
+    service.config.workflow_authority = Some(authority);
+    Ok(service)
 }
 
 pub(super) fn authenticated_request(path: &str) -> HttpRequest {

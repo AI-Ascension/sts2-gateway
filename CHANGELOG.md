@@ -40,6 +40,14 @@ host compatibility and release publication.
 
 - Tighten Runtime-v4 expert settlement fencing at historical source head `aecc9fa44c825623b3e3bbb21d130e1fe6ac9468`: bind nested observation `state_id` and `generation` to the request generation. Independent source/component checks pass; native host legality, settled effects, provider execution, cross-consumer integration, deployment, and release remain unverified.
 
+- Add the gateway-local Runtime-v2 workflow authority and recovery contract: owner boot/fence
+  identity, independent recovery-domain capabilities, and recovery-only retained receipt access.
+  Stale or implicit workflow admission, missing/changed workflow boot identity, and unavailable
+  receipt retention fail closed. The attached Runtime-v2 action, state and reconcile routes now
+  install the contract and require the matching opt-in `x-sts2-workflow-boot-epoch` header when
+  `STS2_WORKFLOW_BOOT_EPOCH` is configured; the frozen Runtime-v2 envelope remains unchanged.
+  Evidence is limited to deterministic gateway source/component tests.
+
 - Add the bounded Runtime-v4 expert-state, expert-action, and expert-reconcile gateway routes.
   The source/component implementation validates the checked-in observation and action artifacts
   at `17b93bf`; native host legality, settled effects, provider runs, and end-to-end compatibility

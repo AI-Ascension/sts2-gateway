@@ -89,12 +89,7 @@ impl RuntimeService {
                 .restore_state(state)
                 .map_err(|error| format!("seeded-run journal state is invalid: {error}"))?;
         }
-        let mut runtime_v2 = RuntimeV2Ledger::new(
-            RuntimeV2LedgerConfig::new(config.operation_capacity),
-            binding,
-            forwarder,
-        )
-        .map_err(|error| format!("Runtime-v2 ledger is invalid: {error}"))?;
+        let mut runtime_v2 = configuration::build_runtime_v2(&config, binding, forwarder)?;
         if let Some(path) = config.journal_path.as_deref()
             && let Some(state) = journal::load(path)?
         {

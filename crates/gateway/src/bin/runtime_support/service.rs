@@ -12,10 +12,11 @@ use std::time::{Duration, Instant};
 use serde_json::{Value, json};
 use sts2_gateway::{
     GatewayRecoveryStore, RecoveryBootContext, RecoveryHostFence, RecoveryLease,
-    RecoveryReleaseSet, RecoveryStoreConfig, RuntimeV2Binding, RuntimeV2CombatPhase,
-    RuntimeV2Ledger, RuntimeV2LedgerConfig, RuntimeV2LedgerError, RuntimeV2Message,
-    RuntimeV2Observation, RuntimeV2Status, RuntimeV2TransportFault, SeededRunBinding,
-    SeededRunLedger, SeededRunLedgerConfig,
+    RecoveryReleaseSet, RecoveryStoreConfig, RuntimeV2Authority, RuntimeV2Binding,
+    RuntimeV2CombatPhase, RuntimeV2Ledger, RuntimeV2LedgerConfig, RuntimeV2LedgerError,
+    RuntimeV2Message, RuntimeV2Observation, RuntimeV2RecoveryCapabilities,
+    RuntimeV2RecoveryContract, RuntimeV2RecoveryError, RuntimeV2Status, RuntimeV2TransportFault,
+    SeededRunBinding, SeededRunLedger, SeededRunLedgerConfig,
 };
 
 use super::auth::{AuthFailure, AuthPolicy, AuthScope};
@@ -96,6 +97,7 @@ struct RuntimeConfig {
     recovery_renewal_interval_seconds: u64,
     host_lease_key: Vec<u8>,
     host_principal_id: String,
+    workflow_authority: Option<RuntimeV2Authority>,
 }
 
 struct QueuedRequest {
@@ -169,6 +171,8 @@ mod v3;
 mod v4_expert;
 #[path = "service_v4_expert_rest_action.rs"]
 mod v4_expert_rest_action;
+#[path = "service_workflow_authority.rs"]
+mod workflow_authority;
 
 use admission::{accept_requests, run_worker};
 use authorization::request_rejection;

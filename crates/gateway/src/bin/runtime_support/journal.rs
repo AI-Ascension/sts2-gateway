@@ -191,6 +191,7 @@ mod tests {
             session_id: String::from("session-1"),
             lease_id: String::from("lease-1"),
             lease_epoch: 1,
+            boot_epoch: None,
             observation: RuntimeV2Observation::new(
                 RuntimeV2CombatPhase::OutsideCombat,
                 0,

@@ -71,6 +71,15 @@ must retain the already-issued allocation identity and invoke authorized `cleanu
 resolved. `ProcessPort::start` transfers a handle only on success; partial-start cleanup on error is
 the port's responsibility. No concrete process adapter is validated by this correction.
 
+The T12 workflow authority contract is an additive gateway-local source/component surface. A
+workflow ledger must be constructed with an owner authority and recovery capability contract, and
+its mutation, state-refresh, cancellation, and retained-receipt paths require the matching identity
+and boot epoch. The existing `RuntimeV2Ledger::new` component lane remains compatible; implicit
+workflow calls on a recovery ledger reject with `AuthorityRequired`. Missing or changed boot
+identity in workflow state rejects restoration with `PersistedStateMismatch`, and unavailable
+receipt retention rejects reconciliation before any receipt read. No Runtime-v2 artifact, MCP route,
+protocol/mod file, or attached executable restart guarantee changes.
+
 - **Patch:** correction that preserves accepted identity, route, lease, error, and timing behavior.
 - **Minor:** additive bounded field or operation with an older-client behavior defined.
 - **Major:** changed lifecycle state, route/method, auth scope, lease/fence rule, error semantics,
@@ -263,6 +272,8 @@ durable boot epoch, or persisted revocation. Restarting with the same config and
 still admit earlier proofs; no restart-ready or autonomous-gameplay claim follows from these fixes.
 Runtime-v2 exact receipt replay is read-only and need not match current state generation, but it
 still requires the original identity/epoch and canonical payload; fresh mutations remain fenced.
+The T12 workflow contract rejects stale or missing owner boot identity at its gateway boundary but
+does not alter the attached executable's restart behavior.
 
 ## Runtime-v2 required nullable members
 

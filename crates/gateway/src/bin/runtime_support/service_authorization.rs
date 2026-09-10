@@ -146,6 +146,7 @@ pub(super) fn headers_are_allowed(headers: &BTreeMap<String, String>) -> bool {
                 | "x-sts2-session-id"
                 | "x-sts2-lease-id"
                 | "x-sts2-lease-epoch"
+                | "x-sts2-workflow-boot-epoch"
                 | "x-sts2-correlation-id"
                 | "x-sts2-recovery-capability"
         )

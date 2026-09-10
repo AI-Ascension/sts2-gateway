@@ -4,6 +4,10 @@ use super::super::host_lease_control::host_lease_key_from_environment;
 use super::*;
 use uuid::{Uuid, Variant};
 
+#[path = "service_config_runtime_v2.rs"]
+mod runtime_v2;
+pub(super) use runtime_v2::build_runtime_v2;
+
 pub(super) fn coop_reports_from_environment() -> Result<Option<CoopReports>, String> {
     match std::env::var("STS2_COOP_ROSTER") {
         Ok(text) => CoopReports::from_roster(&text).map(Some),
@@ -79,6 +83,7 @@ impl RuntimeConfig {
         } else {
             (Vec::new(), String::new())
         };
+        let workflow_boot_epoch = optional_value("STS2_WORKFLOW_BOOT_EPOCH")?;
         for (name, value) in [
             ("STS2_INSTANCE_ID", &instance_id),
             ("STS2_CALLER_ID", &caller_id),
@@ -134,6 +139,26 @@ impl RuntimeConfig {
                 }
             }
         }
+        if let Some(value) = workflow_boot_epoch.as_deref()
+            && !safe_identity(value)
+        {
+            return Err(String::from(
+                "STS2_WORKFLOW_BOOT_EPOCH is empty, unsafe, or oversized",
+            ));
+        }
+        let workflow_authority = workflow_boot_epoch
+            .as_deref()
+            .map(|boot_epoch| {
+                RuntimeV2Authority::new(
+                    &instance_id,
+                    &session_id,
+                    &lease_id,
+                    lease_epoch,
+                    boot_epoch,
+                )
+                .map_err(|error| format!("STS2_WORKFLOW_BOOT_EPOCH is invalid: {error}"))
+            })
+            .transpose()?;
         for (name, value) in [("STS2_MOD_TOKEN", &mod_token)] {
             if value.is_empty()
                 || value.len() > 256
@@ -163,6 +188,7 @@ impl RuntimeConfig {
             recovery_renewal_interval_seconds,
             host_lease_key,
             host_principal_id,
+            workflow_authority,
         })
     }
 }
@@ -225,6 +251,15 @@ pub(super) fn optional_path(name: &str) -> Result<Option<PathBuf>, String> {
     match std::env::var(name) {
         Ok(value) if value.is_empty() => Err(format!("{name} must not be empty")),
         Ok(value) => Ok(Some(PathBuf::from(value))),
+        Err(std::env::VarError::NotPresent) => Ok(None),
+        Err(std::env::VarError::NotUnicode(_)) => Err(format!("{name} is not valid UTF-8")),
+    }
+}
+
+pub(super) fn optional_value(name: &str) -> Result<Option<String>, String> {
+    match std::env::var(name) {
+        Ok(value) if value.is_empty() => Err(format!("{name} must not be empty")),
+        Ok(value) => Ok(Some(value)),
         Err(std::env::VarError::NotPresent) => Ok(None),
         Err(std::env::VarError::NotUnicode(_)) => Err(format!("{name} is not valid UTF-8")),
     }

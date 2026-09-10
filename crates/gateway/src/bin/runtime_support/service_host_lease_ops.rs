@@ -19,6 +19,10 @@ use super::host_lease_helpers::{
     frame_correlation, grant_value, lease_deadline, map_frame_error, map_store_error, validate_ack,
 };
 
+#[path = "service_host_lease_ops_mapping.rs"]
+mod mapping;
+use mapping::{map_host_lease_response_error, map_host_lease_transport_error};
+
 impl RuntimeService {
     pub(super) fn revoke_host_lease(
         &mut self,
@@ -285,46 +289,6 @@ impl RuntimeService {
     }
 }
 
-fn map_host_lease_transport_error(error: RecoveryControlTransportFault) -> HostLeaseFailure {
-    match error {
-        RecoveryControlTransportFault::InvalidConfiguration
-        | RecoveryControlTransportFault::InvalidFrame
-        | RecoveryControlTransportFault::RequestOversized => HostLeaseFailure::configuration(),
-        RecoveryControlTransportFault::UnavailableBeforeWrite => HostLeaseFailure {
-            status: 503,
-            code: "recovery_host_lease_unavailable",
-        },
-        RecoveryControlTransportFault::DisconnectedAfterWrite
-        | RecoveryControlTransportFault::TimeoutAfterWrite
-        | RecoveryControlTransportFault::MalformedResponse => HostLeaseFailure::unknown(),
-    }
-}
-
-fn map_host_lease_response_error(error: HostLeaseFrameError) -> HostLeaseFailure {
-    match error {
-        // A malformed or unauthenticated response was observed only after the
-        // mutation-bearing request was written, so its host-side effect is
-        // unknowable and must remain pending for the idempotent retry path.
-        HostLeaseFrameError::Invalid
-        | HostLeaseFrameError::Oversized
-        | HostLeaseFrameError::Authentication => HostLeaseFailure::unknown(),
-        HostLeaseFrameError::Configuration => HostLeaseFailure::configuration(),
-    }
-}
-
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn malformed_post_write_response_is_an_unknown_outcome() {
-        assert_eq!(
-            map_host_lease_transport_error(RecoveryControlTransportFault::MalformedResponse),
-            HostLeaseFailure::unknown()
-        );
-        assert_eq!(
-            map_host_lease_response_error(HostLeaseFrameError::Invalid),
-            HostLeaseFailure::unknown()
-        );
-    }
-}
+#[path = "service_host_lease_ops_tests.rs"]
+mod tests;

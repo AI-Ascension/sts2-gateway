@@ -14,6 +14,7 @@ use crate::runtime_v2_artifact::{
 include!("runtime_v2/contract_types.rs");
 include!("runtime_v2/message.rs");
 include!("runtime_v2/identity.rs");
+include!("runtime_v2/authority.rs");
 include!("runtime_v2/ledger.rs");
 include!("runtime_v2/ledger_persistence.rs");
 include!("runtime_v2/ledger_support.rs");
