@@ -38,7 +38,7 @@ the [architecture](docs/ARCHITECTURE.md).
 The gateway does not own game rules, host objects, managed loader code, MCP semantics or tool
 catalogs, model/provider execution, harness episodes or artifacts, direct game files, saves,
 credentials, arbitrary proxying, or implicit remote discovery. It consumes only inert copied
-`sts2-protocol/poc-v1`, Runtime-v2, and semantic Runtime-v3 gameplay artifacts. A forwarded request must have a validated instance,
+`sts2-protocol/poc-v1`, Runtime-v2, semantic Runtime-v3 gameplay, and `seeded-run-v1` artifacts. A forwarded request must have a validated instance,
 session, lease, lease epoch, route, method, and bounded body; listener reachability is not
 authentication. Runtime-v2 adds only the fixed `end_turn` operation and its retained receipt ledger,
 plus a typed state route that reports explicit unavailability without a host-state adapter. The
@@ -76,6 +76,7 @@ cargo test --workspace --all-targets --all-features --locked
 (cd protocol-artifact/poc-v1 && sha256sum -c SHA256SUMS)
 (cd protocol-artifact/runtime-v2 && sha256sum -c SHA256SUMS)
 (cd protocol-artifact/runtime-v3-gameplay && sha256sum -c SHA256SUMS)
+(cd protocol-artifact/seeded-run-v1 && sha256sum -c SHA256SUMS)
 (cd protocol-artifact/runtime-map-v1 && sha256sum -c SHA256SUMS)
 (cd protocol-artifact/runtime-v4-expert-rest-action && sha256sum -c SHA256SUMS)
 ```
@@ -121,6 +122,16 @@ durable boot-epoch rotation; see the explicit restart limitation in
 [COMPATIBILITY.md](docs/COMPATIBILITY.md). It cannot establish an autonomous run by itself without
 the harness and provider path.
 
+The additive `seeded-run-v1` gateway seam is present at current main
+[`2b44bf347f790509c9f13378c89719d09366d45b`](https://github.com/AI-Ascension/sts2-gateway/commit/2b44bf347f790509c9f13378c89719d09366d45b).
+It exposes fixed instance-scoped start and read-only reconciliation routes, validates the selected
+native context and content-addressed digest, retains operation identity across correlation rebinding,
+and forwards only the fixed mod paths. Its copied artifact is schema digest
+`5c659f344be78f84e8d783986925d462714f933cac95d18943358992f7d3e2b8`, aligned with protocol main
+`d3ab5fca7d9d74bb31eeb3e5b343d8024ee44404`. Component ledger/journal evidence does not prove native
+host settlement, profile/save isolation, provider execution, gameplay, or release compatibility.
+See [ADR 0018](docs/decisions/0018-seeded-run-v1-gateway-boundary.md).
+
 The additive Runtime-v4 expert routes are also implemented and validate the checked-in expert-state
 and expert-action artifacts. Native host legality, settled effects, provider execution, and
 end-to-end compatibility remain unverified.
@@ -130,9 +141,9 @@ The exact Runtime-v4 source/component record is [documented in the compatibility
 Historical source/component update (2026-09-07): at exact gateway source head `aecc9fa44c825623b3e3bbb21d130e1fe6ac9468`, the settled Runtime-v4 expert response fence binds nested observation `state_id` and `generation` to the outer response, and the dispatch transition `before_generation` to the request generation. Independent checks passed 130 workspace tests, formatting, strict policy, Clippy, and three original regression cases. Native host legality, settled effects, provider execution, cross-consumer integration, deployment, and release remain unverified.
 
 Current default-main source/component update (2026-09-10): gateway main
-[`434d8c77fb01895e90c741609e3d2a0ad0e9e8b8`](https://github.com/AI-Ascension/sts2-gateway/commit/434d8c77fb01895e90c741609e3d2a0ad0e9e8b8)
+[`2b44bf347f790509c9f13378c89719d09366d45b`](https://github.com/AI-Ascension/sts2-gateway/commit/2b44bf347f790509c9f13378c89719d09366d45b)
 contains the Runtime-v4 expert routes and the bounded map route. Its copied expert artifacts are
-aligned with protocol main `f2dac90529f584a6511c1760adce9da28f7f910a` at schema digests
+aligned with protocol main `d3ab5fca7d9d74bb31eeb3e5b343d8024ee44404` at schema digests
 `0ee034d5da83f34e9fa0ba23038738d56ef8cfccb1c6e752af3ab63d212c8e42` and
 `393318bda8c3522c0ecbacc78b95471a9f4dc3f825169d2048f4c74a7b7f2929`. This is source/component
 evidence; native host legality, settled effects, provider execution, deployment, release, and live
@@ -170,9 +181,9 @@ harness consumer, deployment, or release compatibility. See
 [ADR 0019](docs/decisions/0019-runtime-v4-expert-rest-action-route.md).
 
 Current default-main source/component map update (2026-09-10): gateway main
-`434d8c77fb01895e90c741609e3d2a0ad0e9e8b8` contains the bounded map route and its copied
+`2b44bf347f790509c9f13378c89719d09366d45b` contains the bounded map route and its copied
 `runtime-map-v1` artifact. The producer pin is merged protocol main
-`f2dac90529f584a6511c1760adce9da28f7f910a` at schema digest
+`d3ab5fca7d9d74bb31eeb3e5b343d8024ee44404` at schema digest
 `ceab0d2dfc471d1ec36d12edaf4654b8c7fdced06548bf47265e11c63f98115b`. This records current
 source/component identity and copied-artifact scope; live map freshness, native map visibility,
 navigation, gameplay, release, and publication remain unverified.
