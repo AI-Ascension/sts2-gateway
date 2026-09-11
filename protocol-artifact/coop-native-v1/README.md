@@ -7,8 +7,8 @@ legal catalog, local actions, shared votes, peer rejoin, effects, receipts, and 
 recovery.
 
 The managed producer at source commit
-`ab702dbbc79bc5854bd0840b44a729834ae50e68` (tree
-`e3f0aa9d30fe25585fbb3c1fe8e3c1fcdfa43223`) declares the exact schema digest
+`d23ca838a7be875f32242123955b4a27782bac04` (tree
+`23336ca834b5870d15ee6369c101d5c67ff34caf`) declares the exact schema digest
 `2f3bc99e53080fa11b39592b64fb0ab964a16f568719a2622d0b2caf766ab629`. The producer capture is
 source-only: `CapturePort` is synthetic and does not load STS2, connect native peers, or prove a
 live host outcome. The goldens are compact projections of the checked-in capture wrapper members,
@@ -20,6 +20,11 @@ and keep host authority, gateway routing, MCP framing, and harness coordination 
 repository. Unknown members, duplicate keys, unsupported kinds, stale generations, and
 unfenced identities remain errors; an `unknown` outcome is retained for same-operation recovery
 and never retried as a new mutation.
+
+The serialized conformance record binds the reviewed source producer (`d23ca83`), current gateway
+main (`f4d14091`), MCP main (`98ab84b3`), and harness main (`00bd9e12`) heads and their exact
+trees. This records current-main component serialization compatibility; it does not imply that
+later source heads or live deployments have been validated.
 
 Component acceptance does not establish live native support. The separate runtime gate still
 requires a disposable two-peer native STS2 session with distinct peer identities, a settled
