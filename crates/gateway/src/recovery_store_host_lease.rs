@@ -196,24 +196,28 @@ impl GatewayRecoveryStore {
         if duplicate {
             return Err(RecoveryStoreError::OperationConflict);
         }
-        tx.execute(
-            "UPDATE leases SET host_fence_id = ?1, host_fence_generation = ?2,
+        let changed = tx
+            .execute(
+                "UPDATE leases SET host_fence_id = ?1, host_fence_generation = ?2,
                     host_installation_id = ?3, host_grant_digest = ?4,
                     host_state = ?5, host_install_generation = 0,
                     host_renew_sequence = 0, host_ack_message_id = NULL,
                     host_ack_recorded_at_millis = NULL, pending_expires_at_millis = NULL,
                     pending_renew_sequence = NULL
              WHERE lease_id = ?6 AND status = 'ACTIVE'",
-            rusqlite::params![
-                host_fence_id,
-                host_fence_generation as i64,
-                installation_id,
-                grant_digest,
-                RecoveryHostLeaseState::PendingHostInstall.as_str(),
-                lease_id,
-            ],
-        )
-        .map_err(map_sql_error)?;
+                rusqlite::params![
+                    host_fence_id,
+                    host_fence_generation as i64,
+                    installation_id,
+                    grant_digest,
+                    RecoveryHostLeaseState::PendingHostInstall.as_str(),
+                    lease_id,
+                ],
+            )
+            .map_err(map_sql_error)?;
+        if changed != 1 {
+            return Err(RecoveryStoreError::StaleLease);
+        }
         tx.commit().map_err(map_sql_error)?;
         self.host_lease_binding(lease_id)?
             .ok_or(RecoveryStoreError::LeaseNotFound)

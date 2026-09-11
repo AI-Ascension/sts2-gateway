@@ -48,6 +48,13 @@ impl GatewayRecoveryStore {
         )
         .map_err(super::map_sql_error)?;
         tx.execute(
+            "UPDATE leases SET host_state = 'RESTART_INVALIDATED'
+             WHERE host_state IN
+                ('PENDING_HOST_INSTALL', 'INSTALLED', 'PENDING_HOST_RENEW', 'PENDING_HOST_REVOKE')",
+            [],
+        )
+        .map_err(super::map_sql_error)?;
+        tx.execute(
             "UPDATE operations SET state = 'UNKNOWN', uncertainty_reason = ?1,
                     updated_at_millis = ?2
              WHERE state IN ('INTENT_RECORDED', 'MAY_HAVE_BEEN_DISPATCHED', 'ACCEPTED', 'UNKNOWN')",

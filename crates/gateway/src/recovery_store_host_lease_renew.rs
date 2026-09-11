@@ -74,7 +74,8 @@ impl GatewayRecoveryStore {
         if expires <= current.expires_at_millis {
             return Err(RecoveryStoreError::LeaseExpired);
         }
-        self.conn
+        let changed = self
+            .conn
             .execute(
                 "UPDATE leases SET host_state = ?1, pending_expires_at_millis = ?2,
                         pending_renew_sequence = ?3
@@ -88,6 +89,9 @@ impl GatewayRecoveryStore {
                 ],
             )
             .map_err(map_sql_error)?;
+        if changed != 1 {
+            return Err(RecoveryStoreError::StaleLease);
+        }
         Ok(RecoveryLease {
             expires_at_millis: expires,
             last_renew_sequence: renew_sequence,
@@ -211,3 +215,7 @@ impl GatewayRecoveryStore {
             .ok_or(RecoveryStoreError::LeaseNotFound)
     }
 }
+
+#[cfg(test)]
+#[path = "recovery_store_host_lease_renew_tests.rs"]
+mod tests;
