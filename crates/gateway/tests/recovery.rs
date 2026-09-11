@@ -316,7 +316,28 @@ fn backup_restore_rekeys_before_fence() -> Result<(), RecoveryStoreError> {
     let source = path("backup-source");
     let backup = path("backup-copy");
     let restored = path("backup-restored");
-    let (store, _) = ready_store(&source)?;
+    let (mut store, lease) = ready_store(&source)?;
+    let fence = store.current_host_fence()?;
+    let installation_id = "00000000-0000-4000-8000-000000000017";
+    let grant_digest = "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";
+    let ack_message_id = "00000000-0000-4000-8000-000000000018";
+    store.prepare_host_lease_install(
+        &lease.lease_id,
+        installation_id,
+        grant_digest,
+        &fence.host_fence_id,
+        fence.fence_generation,
+        1_003,
+    )?;
+    store.complete_host_lease_install(
+        &lease.lease_id,
+        installation_id,
+        grant_digest,
+        1,
+        ack_message_id,
+        1_004,
+    )?;
+    assert!(store.host_lease_is_ready(&lease.lease_id)?);
     store.backup_to(&backup)?;
     drop(store);
     let (mut restored_store, boot) = GatewayRecoveryStore::restore_rekey(
@@ -331,6 +352,14 @@ fn backup_restore_rekeys_before_fence() -> Result<(), RecoveryStoreError> {
     assert_eq!(boot.deployment_id, "00000000-0000-4000-8000-000000000099");
     assert!(boot.authority_generation >= 2);
     assert!(restored_store.current_host_fence().is_err());
+    let binding = restored_store
+        .host_lease_binding(&lease.lease_id)?
+        .ok_or(RecoveryStoreError::LeaseNotFound)?;
+    assert_eq!(
+        binding.state,
+        sts2_gateway::RecoveryHostLeaseState::RestartInvalidated
+    );
+    assert!(!restored_store.host_lease_is_ready(&lease.lease_id)?);
     restored_store.complete_host_fence(&boot, 10_001)?;
     drop(restored_store);
     for target in [&source, &backup, &restored] {
