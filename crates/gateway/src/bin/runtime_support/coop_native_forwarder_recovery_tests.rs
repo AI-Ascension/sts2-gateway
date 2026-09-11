@@ -62,3 +62,45 @@ fn accepted_same_generation_is_reserved_for_pending_rejoin() {
             .is_err()
     );
 }
+
+#[test]
+fn accepted_or_unknown_outcomes_cannot_cross_the_request_generation_fence() {
+    let forwarder = CoopNativeForwarder::new(16 * 1024, 128 * 1024);
+
+    let action_request = value(UNKNOWN_REQUEST);
+    let action_headers = headers(&action_request);
+    let mut action_response = value(UNKNOWN_RESPONSE);
+    action_response["observation"]["host_generation"] = 2.into();
+    action_response["receipt"]["before_host_generation"] = 2.into();
+    let bytes = serde_json::to_vec(&action_response).unwrap();
+    assert!(
+        forwarder
+            .validate_response(
+                CoopNativeRoute::LocalAction,
+                Some(&action_request),
+                &action_headers,
+                200,
+                &bytes,
+            )
+            .is_err()
+    );
+
+    let rejoin_request = value(REJOIN_REQUEST);
+    let rejoin_headers = headers(&rejoin_request);
+    let mut rejoin_response = value(REJOIN_RESPONSE);
+    rejoin_response["observation"]["host_generation"] = 2.into();
+    rejoin_response["receipt"]["before_host_generation"] = 2.into();
+    rejoin_response["receipt"]["after_host_generation"] = 2.into();
+    let bytes = serde_json::to_vec(&rejoin_response).unwrap();
+    assert!(
+        forwarder
+            .validate_response(
+                CoopNativeRoute::Rejoin,
+                Some(&rejoin_request),
+                &rejoin_headers,
+                200,
+                &bytes,
+            )
+            .is_err()
+    );
+}

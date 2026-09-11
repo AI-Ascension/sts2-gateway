@@ -5,6 +5,14 @@ host compatibility and release publication.
 
 ## [Unreleased]
 
+- Forward the recovered instance, lease ID, and epoch to the fixed loopback mod boundary after
+  recovery admission, rather than stale process configuration values. This closes a gateway-side
+  fencing mismatch; native co-op restart/rejoin settlement remains unverified.
+
+- Reject native co-op accepted/unknown action, vote, and pending-rejoin receipts when their
+  before-generation differs from the request fence. A stale rejected response may still report
+  the newer host generation without claiming mutation admission.
+
 - Reject a status-null `recovery_response` echoed by the downstream as a response; that
   bodyful shape is admitted only as the recover request and cannot be reported as success.
 

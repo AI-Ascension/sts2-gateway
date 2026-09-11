@@ -103,7 +103,12 @@ fn effect_response_relations(request: &Value, value: &Value) -> bool {
         && receipt_observation_relations(observation, receipt)
         && match status {
             "settled" => settled_effect_relations(request, value, receipt),
-            "accepted" | "rejected" | "unknown" => {
+            "accepted" | "unknown" => {
+                receipt["before_host_generation"] == request["expected_host_generation"]
+                    && receipt["before_host_generation"] == observation["host_generation"]
+                    && receipt["after_host_generation"].is_null()
+            }
+            "rejected" => {
                 receipt["before_host_generation"] == observation["host_generation"]
                     && receipt["after_host_generation"].is_null()
             }
@@ -166,7 +171,8 @@ fn recovery_response_relations(route: CoopNativeRoute, request: &Value, value: &
                     // host, which the canonical producer witness represents
                     // with an explicit same-generation after fence.
                     Some("accepted") if recovery_kind == "rejoin" => {
-                        receipt["after_host_generation"] == observation["host_generation"]
+                        receipt["before_host_generation"] == request["expected_host_generation"]
+                            && receipt["after_host_generation"] == observation["host_generation"]
                     }
                     // Reconciliation and unresolved receipts cannot claim a
                     // host transition until a settled recovery response.
