@@ -13,8 +13,8 @@
     "name": "sts2-game-mod",
     "role": "producer",
     "repository": "sts2-game-mod",
-    "commit": "ab702dbbc79bc5854bd0840b44a729834ae50e68",
-    "tree": "e3f0aa9d30fe25585fbb3c1fe8e3c1fcdfa43223",
+    "commit": "d23ca838a7be875f32242123955b4a27782bac04",
+    "tree": "23336ca834b5870d15ee6369c101d5c67ff34caf",
     "result": "pass",
     "test_profile": "managed source producer capture with legal catalog and receipt fields",
     "live_status": "unverified"
@@ -24,34 +24,37 @@
       "name": "sts2-gateway",
       "role": "native route and forwarder",
       "repository": "sts2-gateway",
-      "commit": "pending-final-adapter",
-      "tree": "pending-final-adapter",
-      "result": "pending",
+      "commit": "f4d14091ce1f3b5327925a7a536e2c7bf7b0c56b",
+      "tree": "98fe7bbd0b57c44761238d86f9bf0b5594c97da4",
+      "result": "pass",
+      "verification_scope": "current-main native co-op route, forwarder, service binding, and service-loop component tests",
       "live_status": "unverified"
     },
     {
       "name": "sts2-mcp-server",
       "role": "projection and tool mapping",
       "repository": "sts2-mcp-server",
-      "commit": "pending-final-adapter",
-      "tree": "pending-final-adapter",
-      "result": "pending",
+      "commit": "98ab84b3fad371b45b141e6d81dd9124769a4c59",
+      "tree": "796ee080b34d0add13e53cc9324fe8122bc05f59",
+      "result": "pass",
+      "verification_scope": "current-main native co-op mapping, projection, artifact-verification, and component tests",
       "live_status": "unverified"
     },
     {
       "name": "sts2-harness",
       "role": "coordination and provider boundary",
       "repository": "sts2-harness",
-      "commit": "pending-final-adapter",
-      "tree": "pending-final-adapter",
-      "result": "pending",
+      "commit": "00bd9e123a86fca39bbffb65b370aac7ed2c8218",
+      "tree": "2f253945e301c509ca098d740b8797f16bff9a30",
+      "result": "pass",
+      "verification_scope": "current-main native co-op wire, coordinator, artifact-verification, and replay component tests",
       "live_status": "unverified"
     }
   ],
   "cross_boundary": {
     "catalog_action_count": 2,
     "catalog_vote_count": 1,
-    "source_to_consumer": "pending-final-adapter-conformance"
+    "source_to_consumer": "pass"
   },
   "admission": {
     "artifact_status": "accepted_component",
