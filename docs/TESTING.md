@@ -166,7 +166,9 @@ Runtime-v2 journal, queue, authentication and lease regressions remain in the sa
 The `coop-native-v1` consumer copies the protocol schema, manifest, conformance case, producer
 capture, and all seventeen golden envelopes. Its forwarder tests reject duplicate and unknown
 members, mismatched identity or lease headers, wrong route kinds, stale settled effect lineage,
-wrong recovery kinds, and unbounded producer errors. Service tests exercise the observation and
+wrong recovery kinds, accepted/unknown receipt generation drift, and unbounded producer errors.
+The loopback transport test also verifies that a recovered instance, lease ID, and epoch, rather
+than stale process configuration, are sent to the mod boundary. Service tests exercise the observation and
 local-action routes against synthetic loopback downstreams and assert the exact game-mod paths,
 body, credential, and response bytes. These checks establish component serialization and gateway
 transport behavior only; they do not establish a native STS2 host, peer convergence, or gameplay.
