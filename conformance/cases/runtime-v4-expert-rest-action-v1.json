@@ -1,0 +1,113 @@
+{
+  "case_id": "CT-RUNTIME-V4-EXPERT-REST-ACTION-V1-001",
+  "contract": "sts2.protocol/runtime-v4-expert-rest-action-v1",
+  "profile": "expert-rest-action",
+  "status": "candidate",
+  "schema": "schemas/runtime-v4-expert-rest-action-v1.schema.json",
+  "artifacts": [
+    "artifacts/runtime-v4-expert-rest-action/manifest.json",
+    "artifacts/runtime-v4-expert-rest-action/schema.json"
+  ],
+  "checksums": "artifacts/runtime-v4-expert-rest-action/SHA256SUMS",
+  "canonical_owner": "sts2-protocol",
+  "consumers": [],
+  "prospective_consumers": [
+    "sts2-game-mod",
+    "sts2-gateway",
+    "sts2-harness",
+    "sts2-mcp-server"
+  ],
+  "contract_assertions": {
+    "additive_profile": true,
+    "old_potion_profile_unchanged": true,
+    "old_potion_schema_digest": "393318bda8c3522c0ecbacc78b95471a9f4dc3f825169d2048f4c74a7b7f2929",
+    "schema_digest": "bb3555fae28eb1f79d08a15e9884696a579e4c20836f5016509f17e0f4c36fbd",
+    "settled_requires_fresh_observation": true,
+    "settled_requires_typed_transition": true,
+    "completed_requires_effect_witness": true,
+    "root_and_transition_witnesses_equal": true,
+    "generation_fence": true,
+    "selection_catalog_is_typed_and_complete": true,
+    "selector_counts_are_consistent": true,
+    "unknown_requires_operation_reconciliation": true,
+    "canonical_owner_only_defines_inert_data": true,
+    "prospective_adoption_requires_serialized_producer_and_consumer_checks": true,
+    "serialized_producer_fixtures": 2,
+    "selector_admission_requires_prior_context": true
+  },
+  "http_assignment": {
+    "owner": "sts2-gateway",
+    "request": {
+      "method": "POST",
+      "path": "/v4/instances/{instance_id}/expert-rest-action",
+      "content_type": "application/json",
+      "body": "runtime-v4-expert-rest-action-v1 request envelope",
+      "required_headers": ["authorization", "content-type", "x-sts2-lease-epoch"]
+    },
+    "reconcile": {
+      "method": "GET",
+      "path": "/v4/instances/{instance_id}/expert-rest-actions/{operation_id}",
+      "body": null
+    },
+    "status_mapping": {
+      "202": "accepted",
+      "200": "settled",
+      "400": "rejected",
+      "404": "unknown",
+      "408": "unknown",
+      "409": "rejected",
+      "499": "cancelled",
+      "502": "unknown",
+      "504": "unknown"
+    },
+    "unknown_rule": "After admission, a lost or unavailable result is reconciled with the original operation_id; it is never blindly retried."
+  },
+  "fixtures": {
+    "goldens": [
+      "artifacts/runtime-v4-expert-rest-action/golden/action-accepted.json",
+      "artifacts/runtime-v4-expert-rest-action/golden/action-completed.json",
+      "artifacts/runtime-v4-expert-rest-action/golden/action-mend-selection-completed.json",
+      "artifacts/runtime-v4-expert-rest-action/golden/action-mend-selection-requested.json",
+      "artifacts/runtime-v4-expert-rest-action/golden/action-rejected.json",
+      "artifacts/runtime-v4-expert-rest-action/golden/action-request.json",
+      "artifacts/runtime-v4-expert-rest-action/golden/action-selection-completed.json",
+      "artifacts/runtime-v4-expert-rest-action/golden/action-selection-confirm-request.json",
+      "artifacts/runtime-v4-expert-rest-action/golden/action-selection-early-confirm-rejected.json",
+      "artifacts/runtime-v4-expert-rest-action/golden/action-selection-first-request.json",
+      "artifacts/runtime-v4-expert-rest-action/golden/action-selection-option-request.json",
+      "artifacts/runtime-v4-expert-rest-action/golden/action-selection-progressed.json",
+      "artifacts/runtime-v4-expert-rest-action/golden/action-selection-requested.json",
+      "artifacts/runtime-v4-expert-rest-action/golden/action-selection-second-progressed.json",
+      "artifacts/runtime-v4-expert-rest-action/golden/action-selection-second-request.json",
+      "artifacts/runtime-v4-expert-rest-action/golden/action-unknown.json"
+    ],
+    "negative": [
+      "conformance/mutations/runtime-v4-expert-rest-action-v1/action-accepted-empty-action.json",
+      "conformance/mutations/runtime-v4-expert-rest-action-v1/action-accepted-unknown-action-kind.json",
+      "conformance/mutations/runtime-v4-expert-rest-action-v1/action-accepted-unrelated-option-action.json",
+      "conformance/mutations/runtime-v4-expert-rest-action-v1/action-completed-evidence-hp-change.json",
+      "conformance/mutations/runtime-v4-expert-rest-action-v1/action-completed-evidence-native-completion.json",
+      "conformance/mutations/runtime-v4-expert-rest-action-v1/action-completed-heal-noop.json",
+      "conformance/mutations/runtime-v4-expert-rest-action-v1/action-completed-unrelated-option-action.json",
+      "conformance/mutations/runtime-v4-expert-rest-action-v1/action-completed-untested-option-witness.json",
+      "conformance/mutations/runtime-v4-expert-rest-action-v1/action-mend-selection-completed-absent-player.json",
+      "conformance/mutations/runtime-v4-expert-rest-action-v1/action-mend-selection-completed-evidence-hp-change.json",
+      "conformance/mutations/runtime-v4-expert-rest-action-v1/action-mend-selection-completed-evidence-native-completion.json",
+      "conformance/mutations/runtime-v4-expert-rest-action-v1/action-selection-completed-bogus.json",
+      "conformance/mutations/runtime-v4-expert-rest-action-v1/action-selection-completed-duplicates.json",
+      "conformance/mutations/runtime-v4-expert-rest-action-v1/action-selection-completed-required-count-1.json",
+      "conformance/mutations/runtime-v4-expert-rest-action-v1/action-selection-completed-selection-kind-player.json",
+      "conformance/mutations/runtime-v4-expert-rest-action-v1/action-selection-completed-unrelated-selection-action.json",
+      "conformance/mutations/runtime-v4-expert-rest-action-v1/action-selection-progressed-remaining-count-99.json",
+      "conformance/mutations/runtime-v4-expert-rest-action-v1/action-selection-progressed-unlisted-choice.json",
+      "conformance/mutations/runtime-v4-expert-rest-action-v1/action-selection-progressed-unrelated-selection-action.json",
+      "conformance/mutations/runtime-v4-expert-rest-action-v1/action-selection-requested-no-choice-action.json",
+      "conformance/mutations/runtime-v4-expert-rest-action-v1/action-selection-requested-option-kind-mismatch.json",
+      "conformance/mutations/runtime-v4-expert-rest-action-v1/action-selection-requested-unrelated-selection-action.json"
+    ],
+    "producer": [
+      "artifacts/runtime-v4-expert-rest-action/producer/mend-selection-lifecycle.json",
+      "artifacts/runtime-v4-expert-rest-action/producer/smith-selection-lifecycle.json"
+    ]
+  }
+}

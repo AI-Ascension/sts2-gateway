@@ -1,0 +1,36 @@
+{
+  "artifact": "sts2-protocol/coop-receipt-query-v1",
+  "protocol_version": "coop-receipt-query-v1",
+  "contract_revision": 1,
+  "status": "proposed_unadmitted",
+  "schema": "schema.json",
+  "schema_digest": "3e3eaedb93926b26025abb09d8028491e2632896753688c1182c698fed7d3f7c",
+  "provenance": {
+    "source": "schemas/coop-receipt-query-v1.schema.json",
+    "generator": "hand-authored",
+    "license": "MIT"
+  },
+  "consumers": [],
+  "prospective_consumers": [
+    "sts2-game-mod",
+    "sts2-gateway",
+    "sts2-mcp-server",
+    "sts2-harness"
+  ],
+  "goldens": [
+    "golden/receipt-query-request.json",
+    "golden/receipt-query-response-settled.json",
+    "golden/receipt-query-response-accepted.json",
+    "golden/receipt-query-response-rejected.json",
+    "golden/receipt-query-response-unknown.json"
+  ],
+  "fixtures": [
+    "fixtures/invalid-request-unknown-member.json",
+    "fixtures/invalid-request-participant-count.json",
+    "fixtures/invalid-response-fresh-scope.json",
+    "fixtures/invalid-response-status-receipt.json"
+  ],
+  "conformance": "conformance.json",
+  "checksums": "SHA256SUMS",
+  "compatibility": "new_profile_additive_unadmitted"
+}

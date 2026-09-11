@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-ascension.invalid/schemas/watchdog-runtime-allocation-v1/manifest.json",
+  "contract": "watchdog-runtime-allocation-v1",
+  "version": 1,
+  "schema_file": "frame.schema.json",
+  "schema_digest": "ee967a95e79fb2f157ce58d2b6d857de42b75f1f5ebfeb82dd9672e3b0f7670b",
+  "canonicalization": "raw UTF-8 schema bytes; compact JSON response objects",
+  "digest_algorithm": "SHA-256",
+  "limits": {
+    "max_frame_bytes": 262144,
+    "max_wire_integer": 9007199254740991
+  },
+  "compatibility": {
+    "recovery_allocation": "additive recovery_authority member only when recovery is enabled",
+    "nonrecovery_allocation": "existing response shape is unchanged",
+    "mixed_digest_policy": "reject"
+  },
+  "publication": {
+    "owner": "gateway",
+    "consumer_owners": ["runtime-harness"],
+    "authority_source": "already-acquired durable RecoveryLease plus current RecoveryHostFence"
+  }
+}

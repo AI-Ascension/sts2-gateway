@@ -1,0 +1,289 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sts2-coop-native-v1-candidate",
+  "title": "STS2 native co-op actuation candidate",
+  "description": "Source-derived envelope for authoritative native co-op observation, host-backed legal catalogs, local actions, shared votes, peer rejoin, effects, receipts, and same-operation recovery.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol_version", "schema_digest", "provenance", "correlation_id", "instance_id",
+    "session_id", "lease_id", "lease_epoch", "kind", "operation_id", "actor_peer",
+    "expected_host_generation", "action", "vote", "status", "observation", "effect", "recovery", "catalog", "receipt"
+  ],
+  "properties": {
+    "protocol_version": { "const": "coop-native-v1" },
+    "schema_digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "provenance": { "$ref": "#/$defs/provenance" },
+    "correlation_id": { "$ref": "#/$defs/identity" },
+    "instance_id": { "$ref": "#/$defs/identity" },
+    "session_id": { "$ref": "#/$defs/identity" },
+    "lease_id": { "$ref": "#/$defs/identity" },
+    "lease_epoch": { "$ref": "#/$defs/generation" },
+    "kind": {
+      "enum": [
+        "observation", "legal_catalog_request", "legal_catalog_response",
+        "local_action_request", "shared_vote_request", "rejoin_request", "effect_response",
+        "recovery_response"
+      ]
+    },
+    "operation_id": { "anyOf": [{ "$ref": "#/$defs/identity" }, { "type": "null" }] },
+    "actor_peer": { "anyOf": [{ "$ref": "#/$defs/peer_identity" }, { "type": "null" }] },
+    "expected_host_generation": { "anyOf": [{ "$ref": "#/$defs/generation" }, { "type": "null" }] },
+    "action": { "anyOf": [{ "$ref": "#/$defs/action" }, { "type": "null" }] },
+    "vote": { "anyOf": [{ "$ref": "#/$defs/vote" }, { "type": "null" }] },
+    "status": {
+      "anyOf": [
+        { "enum": ["accepted", "settled", "rejected", "unknown"] },
+        { "type": "null" }
+      ]
+    },
+    "observation": { "anyOf": [{ "$ref": "#/$defs/observation" }, { "type": "null" }] },
+    "effect": { "anyOf": [{ "$ref": "#/$defs/effect" }, { "type": "null" }] },
+    "recovery": { "anyOf": [{ "$ref": "#/$defs/recovery" }, { "type": "null" }] },
+    "catalog": { "anyOf": [{ "$ref": "#/$defs/catalog" }, { "type": "null" }] },
+    "receipt": { "anyOf": [{ "$ref": "#/$defs/receipt" }, { "type": "null" }] }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "kind": { "const": "observation" } } },
+      "then": {
+        "required": ["observation"],
+        "properties": {
+          "operation_id": { "type": "null" }, "actor_peer": { "type": "null" },
+          "expected_host_generation": { "type": "null" }, "action": { "type": "null" },
+          "vote": { "type": "null" }, "status": { "type": "null" },
+          "observation": { "not": { "type": "null" } }, "effect": { "type": "null" },
+          "recovery": { "type": "null" }, "catalog": { "type": "null" }, "receipt": { "type": "null" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "kind": { "enum": ["local_action_request", "shared_vote_request", "rejoin_request"] } } },
+      "then": {
+        "required": ["operation_id", "actor_peer", "expected_host_generation"],
+        "properties": {
+          "operation_id": { "not": { "type": "null" } }, "actor_peer": { "not": { "type": "null" } },
+          "expected_host_generation": { "not": { "type": "null" } }, "status": { "type": "null" },
+          "observation": { "type": "null" }, "effect": { "type": "null" },
+          "catalog": { "type": "null" }, "receipt": { "type": "null" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "local_action_request" } } },
+      "then": {
+        "required": ["action"],
+        "properties": { "action": { "not": { "type": "null" } }, "vote": { "type": "null" }, "recovery": { "type": "null" }, "catalog": { "type": "null" }, "receipt": { "type": "null" } }
+      }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "shared_vote_request" } } },
+      "then": {
+        "required": ["vote"],
+        "properties": { "action": { "type": "null" }, "vote": { "not": { "type": "null" } }, "recovery": { "type": "null" }, "catalog": { "type": "null" }, "receipt": { "type": "null" } }
+      }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "rejoin_request" } } },
+      "then": {
+        "required": ["recovery"],
+        "properties": { "action": { "type": "null" }, "vote": { "type": "null" }, "recovery": { "$ref": "#/$defs/rejoin_recovery" }, "catalog": { "type": "null" }, "receipt": { "type": "null" } }
+      }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "effect_response" } } },
+      "then": {
+        "required": ["operation_id", "status", "observation"],
+        "properties": {
+          "operation_id": { "not": { "type": "null" } }, "actor_peer": { "type": "null" },
+          "expected_host_generation": { "type": "null" }, "action": { "type": "null" },
+          "vote": { "type": "null" }, "status": { "not": { "type": "null" } },
+          "observation": { "not": { "type": "null" } }, "recovery": { "type": "null" },
+          "catalog": { "type": "null" }, "receipt": { "not": { "type": "null" } }
+        },
+        "allOf": [
+          { "if": { "properties": { "status": { "const": "settled" } } }, "then": { "properties": { "effect": { "not": { "type": "null" } } } } },
+          { "if": { "properties": { "status": { "enum": ["accepted", "rejected", "unknown"] } } }, "then": { "properties": { "effect": { "type": "null" } } } }
+        ]
+      }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "recovery_response" } } },
+      "then": {
+        "required": ["operation_id", "recovery"],
+        "properties": {
+          "operation_id": { "not": { "type": "null" } }, "actor_peer": { "type": "null" },
+          "expected_host_generation": { "type": "null" }, "action": { "type": "null" },
+          "vote": { "type": "null" }, "effect": { "type": "null" },
+          "recovery": { "$ref": "#/$defs/recovery" }, "catalog": { "type": "null" }
+        },
+        "allOf": [
+          { "if": { "properties": { "status": { "type": "null" } } }, "then": { "properties": { "observation": { "type": "null" }, "recovery": { "properties": { "kind": { "const": "reconcile" } } }, "receipt": { "type": "null" } } } },
+          { "if": { "properties": { "status": { "not": { "type": "null" } } } }, "then": { "required": ["status", "observation"], "properties": { "status": { "enum": ["settled", "rejected", "unknown"] }, "observation": { "not": { "type": "null" } }, "receipt": { "not": { "type": "null" } } } } },
+          { "if": { "properties": { "status": { "enum": ["settled", "rejected"] } } }, "then": { "properties": { "recovery": { "properties": { "kind": { "const": "reconcile" } } } } } }
+        ]
+      }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "legal_catalog_request" } } },
+      "then": {
+        "required": ["actor_peer", "expected_host_generation"],
+        "properties": {
+          "operation_id": { "type": "null" }, "actor_peer": { "not": { "type": "null" } },
+          "expected_host_generation": { "not": { "type": "null" } }, "action": { "type": "null" },
+          "vote": { "type": "null" }, "status": { "type": "null" },
+          "observation": { "type": "null" }, "effect": { "type": "null" },
+          "recovery": { "type": "null" }, "catalog": { "type": "null" }, "receipt": { "type": "null" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "legal_catalog_response" } } },
+      "then": {
+        "required": ["actor_peer", "expected_host_generation", "observation", "catalog"],
+        "properties": {
+          "operation_id": { "type": "null" }, "actor_peer": { "not": { "type": "null" } },
+          "expected_host_generation": { "not": { "type": "null" } }, "action": { "type": "null" },
+          "vote": { "type": "null" }, "status": { "type": "null" },
+          "observation": { "not": { "type": "null" } }, "effect": { "type": "null" },
+          "recovery": { "type": "null" }, "catalog": { "not": { "type": "null" } },
+          "receipt": { "type": "null" }
+        }
+      }
+    }
+  ],
+  "$comment": "Source-derived contract: the managed producer captures declare the digest of this schema. Peer tokens are session-scoped opaque peer: identities; a peer checkpoint may be null until its native checksum is read. Action kinds follow the managed parser's five accepted values; effect kinds include the synthetic capture aliases and the four installed NativePendingOperation witnesses. Checksum status preserves the producer's disabled/enabled_unread/enabled/divergent/matched vocabulary plus capture availability values. Component serialization evidence does not establish a live native STS2 session or settlement.",
+  "$defs": {
+    "identity": { "type": "string", "pattern": "^[A-Za-z0-9_.:/-]{1,512}$" },
+    "peer_identity": { "type": "string", "pattern": "^peer:[A-Za-z0-9_.:/-]{5,507}$" },
+    "generation": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+    "digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "provenance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["artifact", "source", "generator"],
+      "properties": {
+        "artifact": { "const": "sts2-protocol/coop-native-v1" },
+        "source": { "const": "schemas/coop-native-v1.schema.json" },
+        "generator": { "const": "hand-authored" }
+      }
+    },
+    "action": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "action_id", "target_peer"],
+      "properties": {
+        "kind": { "enum": ["play_card", "end_turn", "select_card", "choose_reward", "confirm_selection"] }, "action_id": { "$ref": "#/$defs/identity" },
+        "target_peer": { "anyOf": [{ "$ref": "#/$defs/peer_identity" }, { "type": "null" }] }
+      }
+    },
+    "vote": {
+      "type": "object", "additionalProperties": false,
+      "required": ["proposal_id", "voter_peer", "choice"],
+      "properties": {
+        "proposal_id": { "$ref": "#/$defs/identity" }, "voter_peer": { "$ref": "#/$defs/peer_identity" },
+        "choice": { "$ref": "#/$defs/identity" }
+      }
+    },
+    "recovery": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "rejoin_epoch"],
+      "properties": {
+        "kind": { "enum": ["reconcile", "rejoin"] }, "rejoin_epoch": { "$ref": "#/$defs/generation" }
+      }
+    },
+    "rejoin_recovery": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "rejoin_epoch"],
+      "properties": { "kind": { "const": "rejoin" }, "rejoin_epoch": { "$ref": "#/$defs/generation" } }
+    },
+    "catalog": {
+      "type": "object", "additionalProperties": false,
+      "required": ["host_generation", "actor_peer", "actions", "votes"],
+      "properties": {
+        "host_generation": { "$ref": "#/$defs/generation" },
+        "actor_peer": { "$ref": "#/$defs/peer_identity" },
+        "actions": {
+          "type": "array", "maxItems": 256, "uniqueItems": true,
+          "items": { "$ref": "#/$defs/legal_action" }
+        },
+        "votes": {
+          "type": "array", "maxItems": 256, "uniqueItems": true,
+          "items": { "$ref": "#/$defs/legal_vote" }
+        }
+      }
+    },
+    "legal_action": {
+      "type": "object", "additionalProperties": false,
+      "required": ["action_id", "kind", "target_peer"],
+      "properties": {
+        "action_id": { "$ref": "#/$defs/identity" },
+        "kind": { "enum": ["play_card", "end_turn", "select_card", "choose_reward", "confirm_selection"] },
+        "target_peer": { "anyOf": [{ "$ref": "#/$defs/peer_identity" }, { "type": "null" }] }
+      }
+    },
+    "legal_vote": {
+      "type": "object", "additionalProperties": false,
+      "required": ["proposal_id", "voter_peer", "choice"],
+      "properties": {
+        "proposal_id": { "$ref": "#/$defs/identity" },
+        "voter_peer": { "$ref": "#/$defs/peer_identity" },
+        "choice": { "$ref": "#/$defs/identity" }
+      }
+    },
+    "receipt": {
+      "type": "object", "additionalProperties": false,
+      "required": ["operation_id", "status", "before_host_generation", "after_host_generation", "authority_id", "authority_epoch", "checkpoint_id", "state_digest", "native_checksum", "error_code"],
+      "properties": {
+        "operation_id": { "$ref": "#/$defs/identity" },
+        "status": { "enum": ["accepted", "settled", "rejected", "unknown"] },
+        "before_host_generation": { "$ref": "#/$defs/generation" },
+        "after_host_generation": { "anyOf": [{ "$ref": "#/$defs/generation" }, { "type": "null" }] },
+        "authority_id": { "$ref": "#/$defs/identity" },
+        "authority_epoch": { "$ref": "#/$defs/identity" },
+        "checkpoint_id": { "$ref": "#/$defs/identity" },
+        "state_digest": { "$ref": "#/$defs/digest" },
+        "native_checksum": { "anyOf": [{ "$ref": "#/$defs/digest" }, { "type": "null" }] },
+        "error_code": { "anyOf": [{ "$ref": "#/$defs/identity" }, { "type": "null" }] }
+      }
+    },
+    "peer": {
+      "type": "object", "additionalProperties": false,
+      "required": ["peer_token", "authority_id", "role", "connected", "peer_generation", "state_digest", "rejoin_epoch", "authority_epoch", "checkpoint_id", "digest_known", "is_loading", "is_divergent", "checksum_status"],
+      "properties": {
+        "peer_token": { "$ref": "#/$defs/peer_identity" }, "authority_id": { "$ref": "#/$defs/identity" },
+        "role": { "enum": ["local", "ally"] }, "connected": { "type": "boolean" },
+        "peer_generation": { "$ref": "#/$defs/generation" }, "state_digest": { "$ref": "#/$defs/digest" },
+        "rejoin_epoch": { "$ref": "#/$defs/generation" }, "authority_epoch": { "$ref": "#/$defs/identity" },
+        "checkpoint_id": { "anyOf": [{ "$ref": "#/$defs/identity" }, { "type": "null" }] }, "digest_known": { "type": "boolean" },
+        "is_loading": { "type": "boolean" }, "is_divergent": { "type": "boolean" },
+        "checksum_status": { "enum": ["available", "unavailable", "unknown", "disabled", "enabled_unread", "enabled", "divergent", "matched"] }
+      }
+    },
+    "observation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["host_authority_epoch", "authority_id", "run_id", "host_sequence_kind", "host_generation", "state_digest", "checkpoint_id", "checksum_algorithm", "checksum_status", "native_checksum", "host_digest_known", "host_loading", "host_divergent", "peers"],
+      "properties": {
+        "host_authority_epoch": { "$ref": "#/$defs/identity" }, "authority_id": { "$ref": "#/$defs/identity" },
+        "run_id": { "$ref": "#/$defs/identity" }, "host_sequence_kind": { "const": "adapter_sequence" },
+        "host_generation": { "$ref": "#/$defs/generation" }, "state_digest": { "$ref": "#/$defs/digest" },
+        "checkpoint_id": { "$ref": "#/$defs/identity" }, "checksum_algorithm": { "const": "sha256" },
+        "checksum_status": { "enum": ["available", "unavailable", "unknown", "disabled", "enabled_unread", "enabled", "divergent", "matched"] },
+        "native_checksum": { "anyOf": [{ "$ref": "#/$defs/digest" }, { "type": "null" }] },
+        "host_digest_known": { "type": "boolean" }, "host_loading": { "type": "boolean" },
+        "host_divergent": { "type": "boolean" },
+        "peers": { "type": "array", "minItems": 2, "maxItems": 4, "uniqueItems": true, "items": { "$ref": "#/$defs/peer" }, "contains": { "properties": { "role": { "const": "local" } } }, "minContains": 1, "maxContains": 1 }
+      }
+    },
+    "effect": {
+      "type": "object", "additionalProperties": false,
+      "required": ["effect_id", "operation_id", "kind", "from_generation", "to_generation", "state_digest", "authority_epoch", "checkpoint_id", "authority_id", "native_checksum"],
+      "properties": {
+        "effect_id": { "$ref": "#/$defs/identity" }, "operation_id": { "$ref": "#/$defs/identity" },
+        "kind": { "enum": ["turn_ended", "shared_event_vote", "native_end_turn_settled", "native_play_card_settled", "native_shared_event_vote_settled", "native_treasure_relic_vote_settled"] },
+        "from_generation": { "$ref": "#/$defs/generation" }, "to_generation": { "$ref": "#/$defs/generation" },
+        "state_digest": { "$ref": "#/$defs/digest" }, "authority_epoch": { "$ref": "#/$defs/identity" },
+        "checkpoint_id": { "$ref": "#/$defs/identity" }, "authority_id": { "$ref": "#/$defs/identity" },
+        "native_checksum": { "anyOf": [{ "$ref": "#/$defs/digest" }, { "type": "null" }] }
+      }
+    }
+  }
+}

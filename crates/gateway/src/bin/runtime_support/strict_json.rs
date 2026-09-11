@@ -3,6 +3,7 @@
 use serde::de::{self, Deserialize, Deserializer, MapAccess, SeqAccess, Visitor};
 use serde_json::{Map, Number, Value};
 use std::fmt;
+use sts2_gateway::MAX_WIRE_INTEGER;
 
 struct Unique(Value);
 
@@ -42,7 +43,7 @@ impl<'de> Visitor<'de> for UniqueVisitor {
     }
     fn visit_seq<A: SeqAccess<'de>>(self, mut sequence: A) -> Result<Unique, A::Error> {
         let mut values = Vec::new();
-        while let Some(Unique(value)) = sequence.next_element()? {
+        while let Some(Unique(value)) = sequence.next_element::<Unique>()? {
             values.push(value);
         }
         Ok(Unique(Value::Array(values)))
@@ -60,4 +61,74 @@ impl<'de> Visitor<'de> for UniqueVisitor {
 
 pub(super) fn parse(bytes: &[u8]) -> Result<Value, serde_json::Error> {
     serde_json::from_slice::<Unique>(bytes).map(|value| value.0)
+}
+
+struct CanonicalUnique(Value);
+
+impl<'de> Deserialize<'de> for CanonicalUnique {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        deserializer.deserialize_any(CanonicalUniqueVisitor)
+    }
+}
+
+struct CanonicalUniqueVisitor;
+
+impl<'de> Visitor<'de> for CanonicalUniqueVisitor {
+    type Value = CanonicalUnique;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("HCJ-1 JSON without duplicate or noncanonical numbers")
+    }
+
+    fn visit_bool<E: de::Error>(self, value: bool) -> Result<Self::Value, E> {
+        Ok(CanonicalUnique(Value::Bool(value)))
+    }
+
+    fn visit_i64<E: de::Error>(self, value: i64) -> Result<Self::Value, E> {
+        if value < 0 {
+            return Err(E::custom("negative number is not permitted"));
+        }
+        Ok(CanonicalUnique(Value::Number(value.into())))
+    }
+
+    fn visit_u64<E: de::Error>(self, value: u64) -> Result<Self::Value, E> {
+        if value > MAX_WIRE_INTEGER {
+            return Err(E::custom("integer exceeds wire bound"));
+        }
+        Ok(CanonicalUnique(Value::Number(value.into())))
+    }
+
+    fn visit_f64<E: de::Error>(self, _value: f64) -> Result<Self::Value, E> {
+        Err(E::custom("floating point number is not permitted"))
+    }
+
+    fn visit_str<E: de::Error>(self, value: &str) -> Result<Self::Value, E> {
+        Ok(CanonicalUnique(Value::String(value.to_owned())))
+    }
+
+    fn visit_unit<E: de::Error>(self) -> Result<Self::Value, E> {
+        Ok(CanonicalUnique(Value::Null))
+    }
+
+    fn visit_seq<A: SeqAccess<'de>>(self, mut sequence: A) -> Result<Self::Value, A::Error> {
+        let mut values = Vec::new();
+        while let Some(CanonicalUnique(value)) = sequence.next_element()? {
+            values.push(value);
+        }
+        Ok(CanonicalUnique(Value::Array(values)))
+    }
+
+    fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Self::Value, A::Error> {
+        let mut values = Map::new();
+        while let Some((key, CanonicalUnique(value))) = map.next_entry()? {
+            if values.insert(key, value).is_some() {
+                return Err(de::Error::custom("duplicate object member"));
+            }
+        }
+        Ok(CanonicalUnique(Value::Object(values)))
+    }
+}
+
+pub(super) fn parse_hcj1(bytes: &[u8]) -> Result<Value, serde_json::Error> {
+    serde_json::from_slice::<CanonicalUnique>(bytes).map(|value| value.0)
 }

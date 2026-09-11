@@ -21,6 +21,10 @@ cargo test --workspace --all-targets --all-features --locked
 (cd protocol-artifact/runtime-v1 && sha256sum -c SHA256SUMS)
 (cd protocol-artifact/runtime-v2 && sha256sum -c SHA256SUMS)
 (cd protocol-artifact/runtime-v3-gameplay && sha256sum -c SHA256SUMS)
+(cd protocol-artifact/seeded-run-v1 && sha256sum -c SHA256SUMS)
+(cd protocol-artifact/runtime-map-v1 && sha256sum -c SHA256SUMS)
+(cd protocol-artifact/coop-receipt-query-v1 && sha256sum -c SHA256SUMS)
+(cd protocol-artifact/coop-native-v1 && sha256sum -c SHA256SUMS)
 ```
 
 The policy command comes first in the normal local sequence. CI runs the same commands with bounded
@@ -47,6 +51,11 @@ configuration, FIFO admission overload with retry guidance, authenticated metric
 unknown-result and service-time counters, shutdown admission closure, and
 arbitrary-v2-GET denial. The journal adapter also tests exclusive process-lifetime ownership of a
 configured journal path and can sync its parent directory after atomic replacement where supported.
+The T12 authority tests additionally prove owner boot/fence admission, independent recovery-domain
+capabilities, fail-closed implicit workflow calls, retained-receipt gating, read-only reconciliation,
+duplicate replay without a second dispatch, and workflow restore rejection for missing or changed
+boot identity. These are gateway source/component checks; they do not prove durable identity
+issuance, host restart continuity, native host compatibility, or downstream settlement.
 The auth component additionally covers expired credentials, route scopes, and previous-token
 rotation overlap; these tests use an injected test time and do not prove an external issuer or live
 secret-management system. The attached runtime also tests that a mismatched configured MCP-session
@@ -98,6 +107,15 @@ with the authorized host supervisor.
 
 ## Evidence levels
 
+The allocation-failure suites run in `sts2-gateway-runtime`. They exercise an
+elapsed monotonic deadline, substituted lease, inactive local admission,
+post-install fence mismatch, and a real competing SQLite write transaction.
+The busy-write oracle proves the durable row remains active after the failed
+revoke, while both ordinary lease admission and recovery mutation routes remain
+closed. Signed synthetic host acknowledgments prove gateway-side revocation
+recording, fresh-epoch allocation, and prior stop preservation. The post-install
+fault hook is compiled only for tests; there is no production fault route.
+
 - `confirmed`: an authorized controlled test passed its stated oracle;
 - `source-derived`: source/configuration directly establishes the claim;
 - `inferred`: a documented consequence not yet exercised;
@@ -143,6 +161,16 @@ The combined Exo/component adapter tests every v3 route with read, mutate and co
 and verifies the MCP-session fence on all six routes before request-body decoding. Existing
 Runtime-v2 journal, queue, authentication and lease regressions remain in the same full suite.
 
+## Accepted native co-op consumer checks
+
+The `coop-native-v1` consumer copies the protocol schema, manifest, conformance case, producer
+capture, and all seventeen golden envelopes. Its forwarder tests reject duplicate and unknown
+members, mismatched identity or lease headers, wrong route kinds, stale settled effect lineage,
+wrong recovery kinds, and unbounded producer errors. Service tests exercise the observation and
+local-action routes against synthetic loopback downstreams and assert the exact game-mod paths,
+body, credential, and response bytes. These checks establish component serialization and gateway
+transport behavior only; they do not establish a native STS2 host, peer convergence, or gameplay.
+
 ## MCP-session configuration
 
 A pure MCP-session configuration test covers the independent default, explicit override and invalid
@@ -162,3 +190,60 @@ read/control credentials, verifies the full report lifecycle and lease rejection
 that a listening downstream trap received zero connections. It is run explicitly with this
 exact built gateway passed in `STS2_COOP_GATEWAY_BINARY`; see the MCP testing guide and
 the coordinated evidence record. It proves coordination transport, not native multiplayer.
+
+## Seeded-run gateway checks
+
+The `seeded-run-v1` source/component suite checks the copied schema, manifest, conformance case,
+goldens, and checksum inventory, then exercises fixed start/reconciliation route parsing, selected
+context and digest validation, lease/epoch/correlation fences, semantic operation idempotency,
+accepted and unknown read-only reconciliation, and journal restart recovery. The forwarder tests
+assert that only `/v2/seeded-run` and `/v2/seeded-operations/{operation_id}` reach the mod boundary.
+
+These deterministic checks establish gateway ledger, journal, and forwarding behavior. They do not
+start a native run, establish canonical seed readback or a `run_started` host witness, verify
+profile/save isolation, or prove gameplay and release compatibility.
+
+## Runtime-map visibility checks
+
+The `runtime-map-v1` consumer at current gateway main
+`2b44bf347f790509c9f13378c89719d09366d45b` verifies current protocol main
+`d3ab5fca7d9d74bb31eeb3e5b343d8024ee44404` and schema digest
+`ceab0d2dfc471d1ec36d12edaf4654b8c7fdced06548bf47265e11c63f98115b` through the copied manifest,
+schema, conformance case, and golden checksum inventory. Forwarder tests cover the exact GET-only
+route, bodyless request, downstream path, response budget, provenance and digest, configured
+identity and epoch/generation fences, bounded graph topology, visited position/history/terminal
+references, and independent generation-bound action bindings. Invalid identity, stale generation,
+unknown fields, duplicate graph members, cycles, invalid action-option IDs, and oversized responses
+fail closed. Exact UTF-8 byte boundaries, C0/DEL/C1 controls, and timeout ordering are checked at
+the forwarder and service boundary. Overlapping coordinates and disconnected visible components
+remain accepted.
+
+These are deterministic source/component checks. They do not establish a running game-mod, host map
+freshness, map projection compatibility, visualizer behavior, or a gameplay navigation effect.
+
+## Runtime-v4 expert rest-action checks
+
+The candidate `runtime-v4-expert-rest-action-v1` consumer pins schema digest
+`bb3555fae28eb1f79d08a15e9884696a579e4c20836f5016509f17e0f4c36fbd` and checks its copied
+`SHA256SUMS` inventory. Forwarder tests exercise fixed POST/GET route parsing, JSON content and
+body bounds, authenticated identity/lease/epoch/correlation matching, status mapping, nested expert
+observation identity, generation fences, option-specific effect witnesses, typed selector legal
+actions, and a bounded selector-admission catalog retained across response observations. All 16
+goldens are checked for dispatch and reconciliation, all 22 schema-valid mutation fixtures are
+rejected, and both serialized Smith and Mend producer-shaped lifecycles are checked message by
+message. Service tests verify exact downstream paths and malformed profile rejection before any
+downstream response is accepted.
+
+These tests establish only gateway source/component behavior for a candidate profile. The artifact
+has no admitted consumers; native producer serialization, host legality and effects, MCP/harness
+mapping, deployment, and live settlement remain unverified.
+
+## Proposed retained receipt query checks
+
+The proposed receipt-query route validates every frozen accepted, settled, rejected, and unknown
+response golden, then rejects unsorted or foreign participants, numeric spelling and duplicate-key
+changes, generation lineage changes, fresh-observation evidence, status/receipt mismatches, settled
+generation regressions, action/effect mismatches, and response identity drift. The route test also
+verifies JSON content type and active-lease admission before any downstream forwarding. These checks
+establish only gateway source/component behavior; they do not establish a native producer, a live
+retained receipt, or cross-consumer recovery.

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 
+mod config;
 mod control;
 mod coop_session;
 mod fencing;
@@ -10,10 +11,14 @@ mod maintenance;
 mod ports;
 mod process_supervisor;
 mod protocol_artifact;
+mod recovery;
 mod runtime_v2;
 mod runtime_v2_artifact;
+mod seeded_run;
 
 use std::fmt;
+
+pub use config::{ConfigError, GatewayConfig};
 
 pub use coop_session::{CoopPeerRole, CoopSession, CoopSessionError, CoopSynchronizationSnapshot};
 pub use identity::{
@@ -34,13 +39,28 @@ pub use protocol_artifact::{
     ArtifactError, POC_ARTIFACT, POC_GENERATOR, POC_MAX_SETTLED_EFFECTS, POC_MAX_UNITS,
     POC_PROTOCOL_VERSION, POC_SCHEMA_DIGEST, POC_SCHEMA_SOURCE, verify_poc_artifact,
 };
+pub use recovery::{
+    GatewayRecoveryStore, HOST_LEASE_CONTROL_CONTRACT, HOST_LEASE_CONTROL_SCHEMA_DIGEST,
+    MAX_HOST_LEASE_FRAME_BYTES, MAX_HOST_LEASE_PAYLOAD_BYTES, MAX_HOST_LEASE_PROOF_BYTES,
+    MAX_RECOVERY_ACTION_BYTES, MAX_RECOVERY_FRAME_BYTES, MAX_RECOVERY_RESPONSE_BYTES,
+    MAX_WIRE_INTEGER, RECOVERY_CONTRACT, RECOVERY_SCHEMA_DIGEST,
+    RECOVERY_TOMBSTONE_RETENTION_MILLIS, RUNTIME_V3_SCHEMA_DIGEST, RecoveryAdmissionTicket,
+    RecoveryBootContext, RecoveryBootState, RecoveryEffectWitness, RecoveryHostFence,
+    RecoveryHostLeaseBinding, RecoveryHostLeaseState, RecoveryIntentResult, RecoveryLease,
+    RecoveryLeaseProof, RecoveryLeaseRequest, RecoveryLeaseState, RecoveryOperation,
+    RecoveryOperationIntent, RecoveryOperationState, RecoveryReleaseSet, RecoveryStoreConfig,
+    RecoveryStoreError, RecoveryStorePragmas, RecoveryTicketState, RecoveryUncertaintyReason,
+    canonical_json_digest, canonicalize_recovery_action, sha256_hex,
+};
 pub use runtime_v2::{
-    RuntimeV2Action, RuntimeV2Binding, RuntimeV2CodecError, RuntimeV2CombatPhase,
-    RuntimeV2EffectWitness, RuntimeV2FenceFailure, RuntimeV2ForwardRequest,
+    RuntimeV2Action, RuntimeV2Authority, RuntimeV2Binding, RuntimeV2CodecError,
+    RuntimeV2CombatPhase, RuntimeV2EffectWitness, RuntimeV2FenceFailure, RuntimeV2ForwardRequest,
     RuntimeV2ForwardingPort, RuntimeV2Ledger, RuntimeV2LedgerConfig, RuntimeV2LedgerError,
     RuntimeV2Message, RuntimeV2MessageKind, RuntimeV2Metadata, RuntimeV2Observation,
     RuntimeV2OperationKey, RuntimeV2PersistedOperation, RuntimeV2PersistedState,
-    RuntimeV2Provenance, RuntimeV2ReceiptRequest, RuntimeV2RequestDigest, RuntimeV2Status,
+    RuntimeV2Provenance, RuntimeV2ReceiptRequest, RuntimeV2ReceiptRetention,
+    RuntimeV2RecoveryCapabilities, RuntimeV2RecoveryContract, RuntimeV2RecoveryError,
+    RuntimeV2RecoveryFailureDomain, RuntimeV2RequestDigest, RuntimeV2Status,
     RuntimeV2TransportFault, RuntimeV2ValidationError,
 };
 pub use runtime_v2_artifact::{
@@ -50,82 +70,19 @@ pub use runtime_v2_artifact::{
     RuntimeV2ArtifactError, RuntimeV2ArtifactFile, RuntimeV2ArtifactFiles,
     runtime_v2_artifact_files, verify_runtime_v2_artifact, verify_runtime_v2_artifact_files,
 };
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct GatewayConfig {
-    capacity: usize,
-    lease_duration_millis: u64,
-    max_body_bytes: usize,
-    max_response_bytes: usize,
-}
-
-impl GatewayConfig {
-    /// Creates configuration without I/O; production callers should prefer `try_new`.
-    pub const fn new(
-        capacity: usize,
-        lease_duration_millis: u64,
-        max_body_bytes: usize,
-        max_response_bytes: usize,
-    ) -> Self {
-        Self {
-            capacity,
-            lease_duration_millis,
-            max_body_bytes,
-            max_response_bytes,
-        }
-    }
-
-    /// Rejects zero limits that could otherwise make lifecycle behavior ambiguous.
-    pub const fn try_new(
-        capacity: usize,
-        lease_duration_millis: u64,
-        max_body_bytes: usize,
-        max_response_bytes: usize,
-    ) -> Result<Self, ConfigError> {
-        if capacity == 0 {
-            return Err(ConfigError::ZeroCapacity);
-        }
-        if lease_duration_millis == 0 {
-            return Err(ConfigError::ZeroLeaseDuration);
-        }
-        if max_body_bytes == 0 {
-            return Err(ConfigError::ZeroBodyLimit);
-        }
-        if max_response_bytes == 0 {
-            return Err(ConfigError::ZeroResponseLimit);
-        }
-        Ok(Self::new(
-            capacity,
-            lease_duration_millis,
-            max_body_bytes,
-            max_response_bytes,
-        ))
-    }
-
-    pub(crate) const fn capacity(self) -> usize {
-        self.capacity
-    }
-
-    pub(crate) const fn lease_duration_millis(self) -> u64 {
-        self.lease_duration_millis
-    }
-
-    pub(crate) const fn max_body_bytes(self) -> usize {
-        self.max_body_bytes
-    }
-
-    pub(crate) const fn max_response_bytes(self) -> usize {
-        self.max_response_bytes
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum ConfigError {
-    ZeroCapacity,
-    ZeroLeaseDuration,
-    ZeroBodyLimit,
-    ZeroResponseLimit,
-}
+pub use seeded_run::{
+    SEEDED_RUN_ARTIFACT, SEEDED_RUN_EFFECT_KIND, SEEDED_RUN_GENERATOR, SEEDED_RUN_MAX_ACTS,
+    SEEDED_RUN_MAX_CONTEXT_ID_BYTES, SEEDED_RUN_MAX_CONTEXT_TEXT_BYTES, SEEDED_RUN_MAX_GENERATION,
+    SEEDED_RUN_MAX_IDENTITY_BYTES, SEEDED_RUN_MAX_MODIFIERS, SEEDED_RUN_MAX_SEED_BYTES,
+    SEEDED_RUN_PROTOCOL_VERSION, SEEDED_RUN_SCHEMA_DIGEST, SEEDED_RUN_SCHEMA_SOURCE,
+    SeededRunBinding, SeededRunCharacter, SeededRunCompatibility, SeededRunContext,
+    SeededRunEffectWitness, SeededRunForwardRequest, SeededRunForwardingPort, SeededRunGameMode,
+    SeededRunIdentityDigest, SeededRunLedger, SeededRunLedgerConfig, SeededRunLedgerError,
+    SeededRunMessage, SeededRunMessageKind, SeededRunMode, SeededRunObservation,
+    SeededRunPersistedOperation, SeededRunPersistedState, SeededRunProfileBaseline,
+    SeededRunProfileKind, SeededRunProvenance, SeededRunReceiptRequest, SeededRunSavePolicy,
+    SeededRunSelectionContext, SeededRunStatus, SeededRunTransportFault, SeededRunValidationError,
+};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum GatewayError {
@@ -145,20 +102,6 @@ pub enum GatewayError {
     ResponseTooLarge { limit: usize, actual: usize },
     Transport(TransportFault),
 }
-
-impl fmt::Display for ConfigError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let text = match self {
-            Self::ZeroCapacity => "capacity must be positive",
-            Self::ZeroLeaseDuration => "lease duration must be positive",
-            Self::ZeroBodyLimit => "body limit must be positive",
-            Self::ZeroResponseLimit => "response limit must be positive",
-        };
-        formatter.write_str(text)
-    }
-}
-
-impl std::error::Error for ConfigError {}
 
 impl fmt::Display for GatewayError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {

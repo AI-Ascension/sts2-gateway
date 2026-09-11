@@ -80,6 +80,11 @@ impl RuntimeV3GameplayForwarder {
         if value["kind"].as_str() != Some(route.response_kind()) {
             return Err(RuntimeV3GameplayForwardError::ResponseMalformed);
         }
+        if route == RuntimeV3GameplayRoute::LegalActions
+            && !legal_actions_response_matches_request(request, &value)
+        {
+            return Err(RuntimeV3GameplayForwardError::ResponseMalformed);
+        }
         if matches!(
             route,
             RuntimeV3GameplayRoute::DispatchAction | RuntimeV3GameplayRoute::WaitForTransition
@@ -120,6 +125,14 @@ impl RuntimeV3GameplayForwarder {
                     )
             )
     }
+}
+
+fn legal_actions_response_matches_request(request: &Value, response: &Value) -> bool {
+    let state_matches =
+        request["state_id"].is_null() || request["state_id"] == response["state_id"];
+    let generation_matches =
+        request["generation"].is_null() || request["generation"] == response["generation"];
+    state_matches && generation_matches
 }
 
 fn headers_match(value: &Value, headers: &BTreeMap<String, String>) -> bool {

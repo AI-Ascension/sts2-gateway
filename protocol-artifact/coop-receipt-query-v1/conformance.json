@@ -1,0 +1,969 @@
+{
+  "case_id": "CT-COOP-RECEIPT-QUERY-001",
+  "profile": "coop-receipt-query-v1",
+  "schema": "schemas/coop-receipt-query-v1.schema.json",
+  "schema_digest": "3e3eaedb93926b26025abb09d8028491e2632896753688c1182c698fed7d3f7c",
+  "checksums": "artifacts/coop-receipt-query-v1/SHA256SUMS",
+  "status": "proposed_unadmitted",
+  "consumers": [],
+  "prospective_consumers": [
+    "sts2-game-mod",
+    "sts2-gateway",
+    "sts2-mcp-server",
+    "sts2-harness"
+  ],
+  "fixtures": [
+    "artifacts/coop-receipt-query-v1/golden/receipt-query-request.json",
+    "artifacts/coop-receipt-query-v1/golden/receipt-query-response-settled.json",
+    "artifacts/coop-receipt-query-v1/golden/receipt-query-response-accepted.json",
+    "artifacts/coop-receipt-query-v1/golden/receipt-query-response-rejected.json",
+    "artifacts/coop-receipt-query-v1/golden/receipt-query-response-unknown.json",
+    "artifacts/coop-receipt-query-v1/fixtures/invalid-request-unknown-member.json",
+    "artifacts/coop-receipt-query-v1/fixtures/invalid-request-participant-count.json",
+    "artifacts/coop-receipt-query-v1/fixtures/invalid-response-fresh-scope.json",
+    "artifacts/coop-receipt-query-v1/fixtures/invalid-response-status-receipt.json"
+  ],
+  "contract_assertions": {
+    "revision": 1,
+    "request_kind": "receipt_query_request",
+    "response_kind": "receipt_query_response",
+    "response_evidence_scope": "retained_receipt",
+    "actions": [
+      "end_turn",
+      "play_card"
+    ],
+    "response_statuses": [
+      "accepted",
+      "settled",
+      "rejected",
+      "unknown",
+      "recovery_required"
+    ],
+    "participant_bounds": {
+      "minimum": 2,
+      "maximum": 4
+    },
+    "identity_fields": [
+      "operation_id",
+      "action_kind",
+      "action_fingerprint",
+      "session_id",
+      "run_id",
+      "location",
+      "actor_id",
+      "authority_id",
+      "authority_epoch",
+      "expected_host_generation",
+      "before_host_generation",
+      "participant_ids"
+    ],
+    "canonical_member_order": {
+      "top_level": [
+        "protocol_version",
+        "schema_digest",
+        "provenance",
+        "correlation_id",
+        "instance_id",
+        "session_id",
+        "lease_id",
+        "lease_epoch",
+        "kind",
+        "operation_id",
+        "action_kind",
+        "action_fingerprint",
+        "run_id",
+        "location",
+        "actor_id",
+        "authority_id",
+        "authority_epoch",
+        "expected_host_generation",
+        "before_host_generation",
+        "participant_ids",
+        "status",
+        "evidence_scope",
+        "receipt",
+        "error_code"
+      ],
+      "provenance": [
+        "artifact",
+        "source",
+        "generator"
+      ],
+      "location": [
+        "act_index",
+        "room_id",
+        "coord"
+      ],
+      "location.coord": [
+        "col",
+        "row"
+      ],
+      "receipt": [
+        "status",
+        "after_host_generation",
+        "checkpoint_id",
+        "state_digest",
+        "effect_id",
+        "effect_kind",
+        "error_code"
+      ]
+    },
+    "golden_wire_format": {
+      "encoding": "UTF-8",
+      "separators": "compact",
+      "terminator": "exactly_one_LF"
+    },
+    "retained_receipt_fields": [
+      "status",
+      "after_host_generation",
+      "checkpoint_id",
+      "state_digest",
+      "effect_id",
+      "effect_kind",
+      "error_code"
+    ],
+    "fresh_reconciliation_allowed": false,
+    "native_checksum_shared": false,
+    "unknown_members": "reject",
+    "duplicate_keys": "reject",
+    "semantic_invalid_cases": [
+      "actor_absent_from_participants",
+      "participants_unsorted",
+      "generation_pair_mismatch",
+      "settled_generation_not_advanced",
+      "settled_effect_kind_action_mismatch",
+      "response_identity_mismatch_against_request"
+    ]
+  },
+  "cases": [
+    {
+      "name": "request_identity",
+      "valid": true,
+      "schema_valid": true,
+      "value": {
+        "protocol_version": "coop-receipt-query-v1",
+        "schema_digest": "3e3eaedb93926b26025abb09d8028491e2632896753688c1182c698fed7d3f7c",
+        "provenance": {
+          "artifact": "sts2-protocol/coop-receipt-query-v1",
+          "source": "schemas/coop-receipt-query-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "correlation_id": "corr:17:1",
+        "instance_id": "instance-1",
+        "session_id": "session-native-17",
+        "lease_id": "lease-1",
+        "lease_epoch": 9,
+        "kind": "receipt_query_request",
+        "operation_id": "op:run-17:0001",
+        "action_kind": "play_card",
+        "action_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "run_id": "run-17",
+        "location": {
+          "act_index": 1,
+          "room_id": 42,
+          "coord": {
+            "col": 3,
+            "row": 5
+          }
+        },
+        "actor_id": "peer-1",
+        "authority_id": "native-host-a",
+        "authority_epoch": "epoch-9",
+        "expected_host_generation": 17,
+        "before_host_generation": 17,
+        "participant_ids": [
+          "peer-1",
+          "peer-2"
+        ],
+        "status": null,
+        "evidence_scope": null,
+        "receipt": null,
+        "error_code": null
+      },
+      "semantic_note": "All immutable identity fields are present; the adapter resolves opaque IDs at the mod boundary."
+    },
+    {
+      "name": "settled_retained_receipt",
+      "valid": true,
+      "schema_valid": true,
+      "value": {
+        "protocol_version": "coop-receipt-query-v1",
+        "schema_digest": "3e3eaedb93926b26025abb09d8028491e2632896753688c1182c698fed7d3f7c",
+        "provenance": {
+          "artifact": "sts2-protocol/coop-receipt-query-v1",
+          "source": "schemas/coop-receipt-query-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "correlation_id": "corr:17:1",
+        "instance_id": "instance-1",
+        "session_id": "session-native-17",
+        "lease_id": "lease-1",
+        "lease_epoch": 9,
+        "kind": "receipt_query_response",
+        "operation_id": "op:run-17:0001",
+        "action_kind": "play_card",
+        "action_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "run_id": "run-17",
+        "location": {
+          "act_index": 1,
+          "room_id": 42,
+          "coord": {
+            "col": 3,
+            "row": 5
+          }
+        },
+        "actor_id": "peer-1",
+        "authority_id": "native-host-a",
+        "authority_epoch": "epoch-9",
+        "expected_host_generation": 17,
+        "before_host_generation": 17,
+        "participant_ids": [
+          "peer-1",
+          "peer-2"
+        ],
+        "status": "settled",
+        "evidence_scope": "retained_receipt",
+        "receipt": {
+          "status": "settled",
+          "after_host_generation": 18,
+          "checkpoint_id": "checkpoint:17",
+          "state_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "effect_id": "effect:op:run-17:0001",
+          "effect_kind": "play_card_settled",
+          "error_code": null
+        },
+        "error_code": null
+      },
+      "semantic_note": "Settled requires exact retained receipt evidence; no fresh reconciliation observation is represented."
+    },
+    {
+      "name": "accepted_retained_receipt",
+      "valid": true,
+      "schema_valid": true,
+      "value": {
+        "protocol_version": "coop-receipt-query-v1",
+        "schema_digest": "3e3eaedb93926b26025abb09d8028491e2632896753688c1182c698fed7d3f7c",
+        "provenance": {
+          "artifact": "sts2-protocol/coop-receipt-query-v1",
+          "source": "schemas/coop-receipt-query-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "correlation_id": "corr:17:1",
+        "instance_id": "instance-1",
+        "session_id": "session-native-17",
+        "lease_id": "lease-1",
+        "lease_epoch": 9,
+        "kind": "receipt_query_response",
+        "operation_id": "op:run-17:0001",
+        "action_kind": "play_card",
+        "action_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "run_id": "run-17",
+        "location": {
+          "act_index": 1,
+          "room_id": 42,
+          "coord": {
+            "col": 3,
+            "row": 5
+          }
+        },
+        "actor_id": "peer-1",
+        "authority_id": "native-host-a",
+        "authority_epoch": "epoch-9",
+        "expected_host_generation": 17,
+        "before_host_generation": 17,
+        "participant_ids": [
+          "peer-1",
+          "peer-2"
+        ],
+        "status": "accepted",
+        "evidence_scope": "retained_receipt",
+        "receipt": {
+          "status": "accepted",
+          "after_host_generation": null,
+          "checkpoint_id": null,
+          "state_digest": null,
+          "effect_id": null,
+          "effect_kind": null,
+          "error_code": null
+        },
+        "error_code": null
+      },
+      "semantic_note": "Accepted is retained admission evidence and remains distinct from settled."
+    },
+    {
+      "name": "rejected_definite_prequeue",
+      "valid": true,
+      "schema_valid": true,
+      "value": {
+        "protocol_version": "coop-receipt-query-v1",
+        "schema_digest": "3e3eaedb93926b26025abb09d8028491e2632896753688c1182c698fed7d3f7c",
+        "provenance": {
+          "artifact": "sts2-protocol/coop-receipt-query-v1",
+          "source": "schemas/coop-receipt-query-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "correlation_id": "corr:17:1",
+        "instance_id": "instance-1",
+        "session_id": "session-native-17",
+        "lease_id": "lease-1",
+        "lease_epoch": 9,
+        "kind": "receipt_query_response",
+        "operation_id": "op:run-17:0001",
+        "action_kind": "play_card",
+        "action_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "run_id": "run-17",
+        "location": {
+          "act_index": 1,
+          "room_id": 42,
+          "coord": {
+            "col": 3,
+            "row": 5
+          }
+        },
+        "actor_id": "peer-1",
+        "authority_id": "native-host-a",
+        "authority_epoch": "epoch-9",
+        "expected_host_generation": 17,
+        "before_host_generation": 17,
+        "participant_ids": [
+          "peer-1",
+          "peer-2"
+        ],
+        "status": "rejected",
+        "evidence_scope": "retained_receipt",
+        "receipt": {
+          "status": "rejected",
+          "after_host_generation": null,
+          "checkpoint_id": null,
+          "state_digest": null,
+          "effect_id": null,
+          "effect_kind": null,
+          "error_code": "native_card_not_legal"
+        },
+        "error_code": "native_card_not_legal"
+      },
+      "semantic_note": "Rejected is replayable only when the producer has definite prequeue proof."
+    },
+    {
+      "name": "unknown_cache_miss",
+      "valid": true,
+      "schema_valid": true,
+      "value": {
+        "protocol_version": "coop-receipt-query-v1",
+        "schema_digest": "3e3eaedb93926b26025abb09d8028491e2632896753688c1182c698fed7d3f7c",
+        "provenance": {
+          "artifact": "sts2-protocol/coop-receipt-query-v1",
+          "source": "schemas/coop-receipt-query-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "correlation_id": "corr:17:1",
+        "instance_id": "instance-1",
+        "session_id": "session-native-17",
+        "lease_id": "lease-1",
+        "lease_epoch": 9,
+        "kind": "receipt_query_response",
+        "operation_id": "op:run-17:0001",
+        "action_kind": "play_card",
+        "action_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "run_id": "run-17",
+        "location": {
+          "act_index": 1,
+          "room_id": 42,
+          "coord": {
+            "col": 3,
+            "row": 5
+          }
+        },
+        "actor_id": "peer-1",
+        "authority_id": "native-host-a",
+        "authority_epoch": "epoch-9",
+        "expected_host_generation": 17,
+        "before_host_generation": 17,
+        "participant_ids": [
+          "peer-1",
+          "peer-2"
+        ],
+        "status": "unknown",
+        "evidence_scope": "retained_receipt",
+        "receipt": null,
+        "error_code": "native_receipt_query_cache_miss"
+      },
+      "semantic_note": "Unknown carries no receipt and never promotes the operation."
+    },
+    {
+      "name": "recovery_required",
+      "valid": true,
+      "schema_valid": true,
+      "value": {
+        "protocol_version": "coop-receipt-query-v1",
+        "schema_digest": "3e3eaedb93926b26025abb09d8028491e2632896753688c1182c698fed7d3f7c",
+        "provenance": {
+          "artifact": "sts2-protocol/coop-receipt-query-v1",
+          "source": "schemas/coop-receipt-query-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "correlation_id": "corr:17:1",
+        "instance_id": "instance-1",
+        "session_id": "session-native-17",
+        "lease_id": "lease-1",
+        "lease_epoch": 9,
+        "kind": "receipt_query_response",
+        "operation_id": "op:run-17:0001",
+        "action_kind": "play_card",
+        "action_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "run_id": "run-17",
+        "location": {
+          "act_index": 1,
+          "room_id": 42,
+          "coord": {
+            "col": 3,
+            "row": 5
+          }
+        },
+        "actor_id": "peer-1",
+        "authority_id": "native-host-a",
+        "authority_epoch": "epoch-9",
+        "expected_host_generation": 17,
+        "before_host_generation": 17,
+        "participant_ids": [
+          "peer-1",
+          "peer-2"
+        ],
+        "status": "recovery_required",
+        "evidence_scope": "retained_receipt",
+        "receipt": null,
+        "error_code": "native_receipt_query_observation_unavailable"
+      },
+      "semantic_note": "Recovery required carries no receipt and delegates recovery to the owner path."
+    },
+    {
+      "name": "unknown_member",
+      "valid": false,
+      "schema_valid": false,
+      "value": {
+        "protocol_version": "coop-receipt-query-v1",
+        "schema_digest": "3e3eaedb93926b26025abb09d8028491e2632896753688c1182c698fed7d3f7c",
+        "provenance": {
+          "artifact": "sts2-protocol/coop-receipt-query-v1",
+          "source": "schemas/coop-receipt-query-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "correlation_id": "corr:17:1",
+        "instance_id": "instance-1",
+        "session_id": "session-native-17",
+        "lease_id": "lease-1",
+        "lease_epoch": 9,
+        "kind": "receipt_query_request",
+        "operation_id": "op:run-17:0001",
+        "action_kind": "play_card",
+        "action_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "run_id": "run-17",
+        "location": {
+          "act_index": 1,
+          "room_id": 42,
+          "coord": {
+            "col": 3,
+            "row": 5
+          }
+        },
+        "actor_id": "peer-1",
+        "authority_id": "native-host-a",
+        "authority_epoch": "epoch-9",
+        "expected_host_generation": 17,
+        "before_host_generation": 17,
+        "participant_ids": [
+          "peer-1",
+          "peer-2"
+        ],
+        "status": null,
+        "evidence_scope": null,
+        "receipt": null,
+        "error_code": null,
+        "unexpected": "reject"
+      },
+      "semantic_note": "Closed objects reject an unknown member."
+    },
+    {
+      "name": "participant_count_over_maximum",
+      "valid": false,
+      "schema_valid": false,
+      "value": {
+        "protocol_version": "coop-receipt-query-v1",
+        "schema_digest": "3e3eaedb93926b26025abb09d8028491e2632896753688c1182c698fed7d3f7c",
+        "provenance": {
+          "artifact": "sts2-protocol/coop-receipt-query-v1",
+          "source": "schemas/coop-receipt-query-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "correlation_id": "corr:17:1",
+        "instance_id": "instance-1",
+        "session_id": "session-native-17",
+        "lease_id": "lease-1",
+        "lease_epoch": 9,
+        "kind": "receipt_query_request",
+        "operation_id": "op:run-17:0001",
+        "action_kind": "play_card",
+        "action_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "run_id": "run-17",
+        "location": {
+          "act_index": 1,
+          "room_id": 42,
+          "coord": {
+            "col": 3,
+            "row": 5
+          }
+        },
+        "actor_id": "peer-1",
+        "authority_id": "native-host-a",
+        "authority_epoch": "epoch-9",
+        "expected_host_generation": 17,
+        "before_host_generation": 17,
+        "participant_ids": [
+          "peer-1",
+          "peer-2",
+          "peer-3",
+          "peer-4",
+          "peer-5"
+        ],
+        "status": null,
+        "evidence_scope": null,
+        "receipt": null,
+        "error_code": null
+      },
+      "semantic_note": "The participant array is bounded to 2..4 before allocation."
+    },
+    {
+      "name": "fresh_reconciliation_scope",
+      "valid": false,
+      "schema_valid": false,
+      "value": {
+        "protocol_version": "coop-receipt-query-v1",
+        "schema_digest": "3e3eaedb93926b26025abb09d8028491e2632896753688c1182c698fed7d3f7c",
+        "provenance": {
+          "artifact": "sts2-protocol/coop-receipt-query-v1",
+          "source": "schemas/coop-receipt-query-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "correlation_id": "corr:17:1",
+        "instance_id": "instance-1",
+        "session_id": "session-native-17",
+        "lease_id": "lease-1",
+        "lease_epoch": 9,
+        "kind": "receipt_query_response",
+        "operation_id": "op:run-17:0001",
+        "action_kind": "play_card",
+        "action_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "run_id": "run-17",
+        "location": {
+          "act_index": 1,
+          "room_id": 42,
+          "coord": {
+            "col": 3,
+            "row": 5
+          }
+        },
+        "actor_id": "peer-1",
+        "authority_id": "native-host-a",
+        "authority_epoch": "epoch-9",
+        "expected_host_generation": 17,
+        "before_host_generation": 17,
+        "participant_ids": [
+          "peer-1",
+          "peer-2"
+        ],
+        "status": "settled",
+        "evidence_scope": "fresh_reconciliation",
+        "receipt": {
+          "status": "settled",
+          "after_host_generation": 18,
+          "checkpoint_id": "checkpoint:17",
+          "state_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "effect_id": "effect:op:run-17:0001",
+          "effect_kind": "play_card_settled",
+          "error_code": null
+        },
+        "error_code": null
+      },
+      "semantic_note": "A fresh reconciliation result is outside this profile."
+    },
+    {
+      "name": "response_receipt_status_mismatch",
+      "valid": false,
+      "schema_valid": false,
+      "value": {
+        "protocol_version": "coop-receipt-query-v1",
+        "schema_digest": "3e3eaedb93926b26025abb09d8028491e2632896753688c1182c698fed7d3f7c",
+        "provenance": {
+          "artifact": "sts2-protocol/coop-receipt-query-v1",
+          "source": "schemas/coop-receipt-query-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "correlation_id": "corr:17:1",
+        "instance_id": "instance-1",
+        "session_id": "session-native-17",
+        "lease_id": "lease-1",
+        "lease_epoch": 9,
+        "kind": "receipt_query_response",
+        "operation_id": "op:run-17:0001",
+        "action_kind": "play_card",
+        "action_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "run_id": "run-17",
+        "location": {
+          "act_index": 1,
+          "room_id": 42,
+          "coord": {
+            "col": 3,
+            "row": 5
+          }
+        },
+        "actor_id": "peer-1",
+        "authority_id": "native-host-a",
+        "authority_epoch": "epoch-9",
+        "expected_host_generation": 17,
+        "before_host_generation": 17,
+        "participant_ids": [
+          "peer-1",
+          "peer-2"
+        ],
+        "status": "settled",
+        "evidence_scope": "retained_receipt",
+        "receipt": {
+          "status": "accepted",
+          "after_host_generation": null,
+          "checkpoint_id": null,
+          "state_digest": null,
+          "effect_id": null,
+          "effect_kind": null,
+          "error_code": null
+        },
+        "error_code": null
+      },
+      "semantic_note": "Response status and retained receipt status must match."
+    },
+    {
+      "name": "actor_absent_from_participants",
+      "valid": false,
+      "schema_valid": true,
+      "value": {
+        "protocol_version": "coop-receipt-query-v1",
+        "schema_digest": "3e3eaedb93926b26025abb09d8028491e2632896753688c1182c698fed7d3f7c",
+        "provenance": {
+          "artifact": "sts2-protocol/coop-receipt-query-v1",
+          "source": "schemas/coop-receipt-query-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "correlation_id": "corr:17:1",
+        "instance_id": "instance-1",
+        "session_id": "session-native-17",
+        "lease_id": "lease-1",
+        "lease_epoch": 9,
+        "kind": "receipt_query_request",
+        "operation_id": "op:run-17:0001",
+        "action_kind": "play_card",
+        "action_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "run_id": "run-17",
+        "location": {
+          "act_index": 1,
+          "room_id": 42,
+          "coord": {
+            "col": 3,
+            "row": 5
+          }
+        },
+        "actor_id": "peer-1",
+        "authority_id": "native-host-a",
+        "authority_epoch": "epoch-9",
+        "expected_host_generation": 17,
+        "before_host_generation": 17,
+        "participant_ids": [
+          "peer-2",
+          "peer-3"
+        ],
+        "status": null,
+        "evidence_scope": null,
+        "receipt": null,
+        "error_code": null
+      },
+      "semantic_note": "The actor_id must be a member of the immutable participant set."
+    },
+    {
+      "name": "participants_unsorted",
+      "valid": false,
+      "schema_valid": true,
+      "value": {
+        "protocol_version": "coop-receipt-query-v1",
+        "schema_digest": "3e3eaedb93926b26025abb09d8028491e2632896753688c1182c698fed7d3f7c",
+        "provenance": {
+          "artifact": "sts2-protocol/coop-receipt-query-v1",
+          "source": "schemas/coop-receipt-query-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "correlation_id": "corr:17:1",
+        "instance_id": "instance-1",
+        "session_id": "session-native-17",
+        "lease_id": "lease-1",
+        "lease_epoch": 9,
+        "kind": "receipt_query_request",
+        "operation_id": "op:run-17:0001",
+        "action_kind": "play_card",
+        "action_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "run_id": "run-17",
+        "location": {
+          "act_index": 1,
+          "room_id": 42,
+          "coord": {
+            "col": 3,
+            "row": 5
+          }
+        },
+        "actor_id": "peer-1",
+        "authority_id": "native-host-a",
+        "authority_epoch": "epoch-9",
+        "expected_host_generation": 17,
+        "before_host_generation": 17,
+        "participant_ids": [
+          "peer-2",
+          "peer-1"
+        ],
+        "status": null,
+        "evidence_scope": null,
+        "receipt": null,
+        "error_code": null
+      },
+      "semantic_note": "The participant set is a sorted canonical set, so a permutation is rejected."
+    },
+    {
+      "name": "generation_pair_mismatch",
+      "valid": false,
+      "schema_valid": true,
+      "value": {
+        "protocol_version": "coop-receipt-query-v1",
+        "schema_digest": "3e3eaedb93926b26025abb09d8028491e2632896753688c1182c698fed7d3f7c",
+        "provenance": {
+          "artifact": "sts2-protocol/coop-receipt-query-v1",
+          "source": "schemas/coop-receipt-query-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "correlation_id": "corr:17:1",
+        "instance_id": "instance-1",
+        "session_id": "session-native-17",
+        "lease_id": "lease-1",
+        "lease_epoch": 9,
+        "kind": "receipt_query_request",
+        "operation_id": "op:run-17:0001",
+        "action_kind": "play_card",
+        "action_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "run_id": "run-17",
+        "location": {
+          "act_index": 1,
+          "room_id": 42,
+          "coord": {
+            "col": 3,
+            "row": 5
+          }
+        },
+        "actor_id": "peer-1",
+        "authority_id": "native-host-a",
+        "authority_epoch": "epoch-9",
+        "expected_host_generation": 18,
+        "before_host_generation": 17,
+        "participant_ids": [
+          "peer-1",
+          "peer-2"
+        ],
+        "status": null,
+        "evidence_scope": null,
+        "receipt": null,
+        "error_code": null
+      },
+      "semantic_note": "The expected and before generations must equal the original admission values."
+    },
+    {
+      "name": "settled_generation_not_advanced",
+      "valid": false,
+      "schema_valid": true,
+      "value": {
+        "protocol_version": "coop-receipt-query-v1",
+        "schema_digest": "3e3eaedb93926b26025abb09d8028491e2632896753688c1182c698fed7d3f7c",
+        "provenance": {
+          "artifact": "sts2-protocol/coop-receipt-query-v1",
+          "source": "schemas/coop-receipt-query-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "correlation_id": "corr:17:1",
+        "instance_id": "instance-1",
+        "session_id": "session-native-17",
+        "lease_id": "lease-1",
+        "lease_epoch": 9,
+        "kind": "receipt_query_response",
+        "operation_id": "op:run-17:0001",
+        "action_kind": "play_card",
+        "action_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "run_id": "run-17",
+        "location": {
+          "act_index": 1,
+          "room_id": 42,
+          "coord": {
+            "col": 3,
+            "row": 5
+          }
+        },
+        "actor_id": "peer-1",
+        "authority_id": "native-host-a",
+        "authority_epoch": "epoch-9",
+        "expected_host_generation": 17,
+        "before_host_generation": 17,
+        "participant_ids": [
+          "peer-1",
+          "peer-2"
+        ],
+        "status": "settled",
+        "evidence_scope": "retained_receipt",
+        "receipt": {
+          "status": "settled",
+          "after_host_generation": 17,
+          "checkpoint_id": "checkpoint:17",
+          "state_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "effect_id": "effect:op:run-17:0001",
+          "effect_kind": "play_card_settled",
+          "error_code": null
+        },
+        "error_code": null
+      },
+      "semantic_note": "A settled retained receipt must advance the host generation beyond before_host_generation."
+    },
+    {
+      "name": "settled_effect_kind_action_mismatch",
+      "valid": false,
+      "schema_valid": true,
+      "value": {
+        "protocol_version": "coop-receipt-query-v1",
+        "schema_digest": "3e3eaedb93926b26025abb09d8028491e2632896753688c1182c698fed7d3f7c",
+        "provenance": {
+          "artifact": "sts2-protocol/coop-receipt-query-v1",
+          "source": "schemas/coop-receipt-query-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "correlation_id": "corr:17:1",
+        "instance_id": "instance-1",
+        "session_id": "session-native-17",
+        "lease_id": "lease-1",
+        "lease_epoch": 9,
+        "kind": "receipt_query_response",
+        "operation_id": "op:run-17:0001",
+        "action_kind": "play_card",
+        "action_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "run_id": "run-17",
+        "location": {
+          "act_index": 1,
+          "room_id": 42,
+          "coord": {
+            "col": 3,
+            "row": 5
+          }
+        },
+        "actor_id": "peer-1",
+        "authority_id": "native-host-a",
+        "authority_epoch": "epoch-9",
+        "expected_host_generation": 17,
+        "before_host_generation": 17,
+        "participant_ids": [
+          "peer-1",
+          "peer-2"
+        ],
+        "status": "settled",
+        "evidence_scope": "retained_receipt",
+        "receipt": {
+          "status": "settled",
+          "after_host_generation": 18,
+          "checkpoint_id": "checkpoint:17",
+          "state_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "effect_id": "effect:op:run-17:0001",
+          "effect_kind": "end_turn_settled",
+          "error_code": null
+        },
+        "error_code": null
+      },
+      "semantic_note": "The retained effect kind must match the requested action kind."
+    },
+    {
+      "name": "response_identity_mismatch_against_request",
+      "valid": false,
+      "schema_valid": true,
+      "value": {
+        "protocol_version": "coop-receipt-query-v1",
+        "schema_digest": "3e3eaedb93926b26025abb09d8028491e2632896753688c1182c698fed7d3f7c",
+        "provenance": {
+          "artifact": "sts2-protocol/coop-receipt-query-v1",
+          "source": "schemas/coop-receipt-query-v1.schema.json",
+          "generator": "hand-authored"
+        },
+        "correlation_id": "corr:17:1",
+        "instance_id": "instance-1",
+        "session_id": "session-native-17",
+        "lease_id": "lease-1",
+        "lease_epoch": 9,
+        "kind": "receipt_query_response",
+        "operation_id": "op:run-17:0002",
+        "action_kind": "play_card",
+        "action_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "run_id": "run-17",
+        "location": {
+          "act_index": 1,
+          "room_id": 42,
+          "coord": {
+            "col": 3,
+            "row": 5
+          }
+        },
+        "actor_id": "peer-1",
+        "authority_id": "native-host-a",
+        "authority_epoch": "epoch-9",
+        "expected_host_generation": 17,
+        "before_host_generation": 17,
+        "participant_ids": [
+          "peer-1",
+          "peer-2"
+        ],
+        "status": "settled",
+        "evidence_scope": "retained_receipt",
+        "receipt": {
+          "status": "settled",
+          "after_host_generation": 18,
+          "checkpoint_id": "checkpoint:17",
+          "state_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "effect_id": "effect:op:run-17:0001",
+          "effect_kind": "play_card_settled",
+          "error_code": null
+        },
+        "error_code": null
+      },
+      "paired_request_case": "request_identity",
+      "paired_request_identity": {
+        "operation_id": "op:run-17:0001",
+        "session_id": "session-native-17",
+        "action_kind": "play_card",
+        "action_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "run_id": "run-17",
+        "location": {
+          "act_index": 1,
+          "room_id": 42,
+          "coord": {
+            "col": 3,
+            "row": 5
+          }
+        },
+        "actor_id": "peer-1",
+        "authority_id": "native-host-a",
+        "authority_epoch": "epoch-9",
+        "expected_host_generation": 17,
+        "before_host_generation": 17,
+        "participant_ids": [
+          "peer-1",
+          "peer-2"
+        ]
+      },
+      "semantic_note": "The response immutable operation identity must match its paired request and retained receipt; operation 0002 cannot replay receipt 0001."
+    }
+  ]
+}

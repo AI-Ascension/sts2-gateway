@@ -71,8 +71,9 @@ protocol implementation path dependency is present. See
 [ADR 0001](decisions/0001-gateway-ownership-and-dependencies.md),
 [ADR 0002](decisions/0002-sixth-target-protocol-boundary.md),
 [ADR 0006](decisions/0006-runtime-v2-gameplay-operation-ledger.md),
-[ADR 0007](decisions/0007-runtime-v2-journal-and-boundary-hardening.md), and
-[ADR 0010](decisions/0010-runtime-v2-mcp-session-fence.md).
+[ADR 0007](decisions/0007-runtime-v2-journal-and-boundary-hardening.md),
+[ADR 0010](decisions/0010-runtime-v2-mcp-session-fence.md), and
+[ADR 0020](decisions/0020-workflow-authority-recovery-contract.md).
 
 ## Identity, lifecycle, and fencing
 
@@ -88,6 +89,18 @@ The proposed lifecycle vocabulary is `created`, `starting`, `ready`, `busy`, `de
 expiry, gateway restart, instance crash, shutdown, or owner change invalidates the old epoch. The
 old epoch is rejected before forwarding, and a replacement instance receives fresh identity rather
 than inheriting an ambiguous record.
+
+Workflow-facing Runtime-v2 admission additionally uses the gateway-local `RuntimeV2Authority`,
+which binds instance, session, lease, lease epoch, and an owner-issued boot epoch outside the
+frozen wire envelope. Mutation, state refresh, cancellation, and retained-receipt reconciliation
+require that proof when a recovery contract is installed. The contract advertises harness,
+gateway, host, and machine recovery independently and rejects unsupported domains or unavailable
+receipt retention before the forwarding seam. This source/component contract does not issue a
+durable boot epoch or make the attached executable restart-safe; an owner must provide a fresh
+boot identity and capability claim. When `STS2_WORKFLOW_BOOT_EPOCH` is configured, the attached
+Runtime-v2 action, state, and reconcile routes require the same value in
+`x-sts2-workflow-boot-epoch` and use the authority-bearing ledger methods. Without that opt-in,
+the legacy component lane remains in use.
 
 Accepted work survives caller timeout or disconnect as an explicit status, settled result, cancelled
 result, or unknown outcome. Runtime-v2 returns `unknown` after a timeout or disconnect after write,
@@ -203,13 +216,52 @@ work without redispatch, and historical receipts cannot rewind current observati
 durable boot epoch, or concrete process supervisor; the co-op and supervisor library seams are
 local prototypes and are not connected to runtime admission or co-op wire serialization.
 
+The adapter also exposes `POST /v1/recovery/host-fence` as a control-scoped,
+fixed bridge for the additive `watchdog-recovery-v1` sideband. It validates the
+closed host-fence request shape and forwards it once to the configured mod
+endpoint with the mod credential and no old gameplay lease headers. This
+allows a new boot/fence handshake to precede lease acquisition; the bridge is
+transport evidence only until the mod/host consumer proves atomic fence
+replacement. See [ADR 0016](decisions/0016-recovery-host-fence-bridge.md).
+
 Both gateway and mod endpoint settings require numeric loopback `IP:port` socket addresses;
 wildcard/non-loopback addresses and DNS hostnames fail configuration. This plaintext attached lane
 does not expose a remote mode. HTTP frames and downstream exchanges use absolute deadlines.
 
+### Accepted native co-op consumer
+
+[ADR 0021](decisions/0021-coop-native-gateway-consumer.md) adds the additive
+`coop-native-v1` consumer. The gateway owns six exact instance-scoped route/method pairs and
+forwards only the matching fixed game-mod paths. The forwarder consumes the copied schema,
+rejects duplicate or unknown members, binds every envelope to the caller's identity and lease
+headers, and checks operation, catalog, effect, receipt, generation, and recovery relationships.
+Read, mutation, and control scopes remain distinct. Native peer admission, game legality, native
+checksums, shared effects, and rejoin authority remain game-mod responsibilities. Component
+fixtures and synthetic transport checks do not establish live multiplayer settlement.
+
+## Seeded-run gateway boundary
+
+ADR 0018 adds the additive `seeded-run-v1` gateway seam. The attached service owns the fixed
+instance-scoped start route `POST /v2/instances/{instance_id}/seeded-run` and the bodyless
+read-only reconciliation route `GET /v2/instances/{instance_id}/seeded-operations/{operation_id}`.
+It validates the selected native context and its content-addressed digest, the caller/session/
+instance/lease/epoch/correlation fence, method and body bounds, and the copied protocol artifact
+before forwarding only `POST /v2/seeded-run` or `GET /v2/seeded-operations/{operation_id}` to the
+mod boundary.
+
+The seeded ledger retains accepted, settled, rejected, cancelled, and unknown outcomes by operation
+identity. Correlation may be rebound for an exact replay, while an uncertain result remains
+read-only reconciliation and is never resent as a fresh mutation. The optional journal sidecar
+restores only a matching binding and operation after restart. Gateway source/component checks do
+not establish native seed readback, the `run_started` host witness, profile/save isolation, gameplay,
+or release compatibility; the game-mod and host retain those authorities.
+
 Runtime-v2 journal recovery requires continuity of the configured identity and downstream receipts.
-Restart fencing remains an integration gate; do not reuse stale ownership after a gateway or host
-restart. A new ownership context requires a fresh configured session, lease, and epoch.
+Workflow ledger state also carries the owner boot epoch; missing or changed boot identity is
+rejected during workflow restoration, while legacy bindings may continue to restore legacy state
+without a boot epoch. Restart fencing remains an integration gate; do not reuse stale ownership
+after a gateway or host restart. A new ownership context requires a fresh configured session, lease,
+epoch, and boot identity.
 Within one service lifetime, release and shutdown permanently revoke its configured lease. Further
 allocation fails closed rather than reactivating the old epoch; new ownership requires a separately
 configured fresh context. Persisted cross-restart revocation remains an external coordinator gate.
@@ -237,3 +289,39 @@ artifact for MCP without linking protocol Rust implementation. It neither calls 
 consults reported agreement for gameplay forwarding authority. Source labels remain explicit.
 The older numeric-ID `CoopSession` prototype is separate and is not wire-consumer evidence.
 ADR 0015 records trust, freshness, identity lifetime and deterministic verification.
+
+## Runtime-map visibility
+
+ADR 0017 adds the additive `runtime-map-v1` read route for a bounded visible campaign graph. The
+gateway owns the fixed `GET /v1/instances/{instance_id}/map-snapshot` path, bodyless request
+admission, existing lease and identity fences, the downstream `GET /api/map/v1/snapshot` path,
+and the 256 KiB response budget. The game-mod owns host observation and projection meaning; the
+gateway does not create map nodes or authorize navigation.
+
+The gateway validates the copied protocol artifact's exact provenance, digest, response kind,
+identity and generation relationships, then checks graph structure and generation-bound bindings
+before returning the response. It rejects arbitrary methods or paths, request bodies, foreign or
+stale envelopes, unknown fields, duplicate graph identities, invalid edges, cycles, invalid
+visited position/history/terminal references, and malformed bindings. Overlapping coordinates and
+disconnected visible components remain valid projection facts. This is a read-only
+transport/component guarantee. Live map freshness, host compatibility, and visualizer rendering
+require separate evidence.
+
+## Runtime-v4 expert rest-action candidate
+
+[ADR 0019](decisions/0019-runtime-v4-expert-rest-action-route.md) adds the candidate
+`runtime-v4-expert-rest-action-v1` assignment envelope. The gateway owns the fixed
+`POST /v4/instances/{instance_id}/expert-rest-action` dispatch path and
+`GET /v4/instances/{instance_id}/expert-rest-actions/{operation_id}` reconciliation path,
+authenticated instance/session/lease/epoch/correlation fences, JSON size limits, and forwarding
+only to `/api/v4/runtime/expert-rest-action` or `/api/v4/runtime/expert-rest-actions/{operation_id}`.
+The game-mod remains authoritative for rest-site meaning and native host effects.
+
+The forwarder pins the candidate artifact digest
+`bb3555fae28eb1f79d08a15e9884696a579e4c20836f5016509f17e0f4c36fbd`, validates nested expert
+observations, generation-fenced transitions, typed selector catalogs, and option-specific effect
+witnesses, and keeps a bounded selector-admission catalog across response observations. A completed
+selector response may return to a `rest` observation, so its selected choices are checked against
+the earlier catalog. Missing prior admission, malformed or oversized payloads, identity drift, and
+unknown paths fail closed. This is source/component evidence for an unadmitted candidate; it does
+not establish a native producer, host settlement, MCP/harness consumption, or release behavior.

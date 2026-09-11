@@ -5,6 +5,89 @@ host compatibility and release publication.
 
 ## [Unreleased]
 
+- Reject a status-null `recovery_response` echoed by the downstream as a response; that
+  bodyful shape is admitted only as the recover request and cannot be reported as success.
+
+- Fence unknown recovery receipts to the observed host generation: only an accepted pending
+  rejoin may carry an explicit same-generation `after_host_generation`; reconcile and unresolved
+  receipts retain a null after-generation until recovery settles.
+
+- Add the accepted `coop-native-v1` gateway consumer. The six fixed instance-scoped routes
+  validate the copied closed schema and authenticated identity/lease headers before forwarding
+  only the matching game-mod observation, legal-catalog, action, vote, rejoin, or recovery path.
+  Settled effects, receipts, generations, peer observations, and recovery lineage are checked at
+  the gateway boundary; bounded producer admission errors remain explicit. This is
+  source/component evidence at schema digest
+  `2f3bc99e53080fa11b39592b64fb0ab964a16f568719a2622d0b2caf766ab629`; native host settlement,
+  two-peer gameplay, provider execution, deployment, and release compatibility remain unverified.
+
+- Add the authenticated, fixed-route host lease-control consumer for gateway-issued
+  install, renew, and revoke acknowledgments. Protected grant persistence,
+  fail-closed admission, and operation identity reconciliation are included;
+  managed-host settlement and live deployment remain unverified.
+
+- Keep a persisted `INSTALLED` host-install row historical across a gateway
+  process restart. Mutation admission and idempotent install replay now require
+  the exact current-process grant cache; a missing or mismatched cache fails
+  closed until a fresh host acknowledgment is obtained.
+- Add the candidate `runtime-v4-expert-rest-action-v1` dispatch and reconciliation routes at
+  `POST /v4/instances/{instance_id}/expert-rest-action` and
+  `GET /v4/instances/{instance_id}/expert-rest-actions/{operation_id}`. The gateway pins the
+  `expert-rest-action` artifact at schema digest
+  `bb3555fae28eb1f79d08a15e9884696a579e4c20836f5016509f17e0f4c36fbd`, enforces authenticated
+  lease and correlation fences, bounds fixed JSON forwarding, retains selector admission context,
+  and validates settled observation, transition, catalog, and effect-witness relationships. The
+  copied artifact remains a candidate with no admitted consumers; native producer, host settlement,
+  MCP/harness integration, deployment, and release evidence remain unverified.
+
+- Add the proposed, read-only `coop-receipt-query-v1` route at
+  `POST /v1/instances/{instance_id}/coop/receipt-query`. The gateway validates the exact
+  schema digest, provenance, canonical UTF-8 envelope, repeated identity, retained-receipt
+  semantics, and active lease before forwarding only `/api/v1/coop/native/receipt-query`.
+  The copied profile remains `proposed_unadmitted` with no admitted consumers; native host
+  compatibility, live receipt production, and cross-consumer replay remain unverified.
+
+- Tighten Runtime-v4 expert settlement fencing at source head `aecc9fa44c825623b3e3bbb21d130e1fe6ac9468`: bind nested observation `state_id` and `generation` to the outer response and dispatch transition `before_generation` to the request generation. Independent source/component checks pass; native host legality, settled effects, provider execution, cross-consumer integration, deployment, and release remain unverified.
+
+- Add the bounded `seeded-run-v1` gateway seam at current gateway main
+  `2b44bf347f790509c9f13378c89719d09366d45b`, consuming protocol main
+  `d3ab5fca7d9d74bb31eeb3e5b343d8024ee44404` at schema digest
+  `5c659f344be78f84e8d783986925d462714f933cac95d18943358992f7d3e2b8`: fixed instance-scoped public routes, fixed native
+  start and receipt routes, complete selected-context and settlement validation, semantic
+  idempotency with correlation rebinding, accepted/unknown read-only reconciliation, and an
+  opt-in journal sidecar for restart recovery. Component evidence covers the ledger and journal;
+  native host settlement, real installation compatibility, save isolation, provider execution,
+  gameplay, and release remain unverified.
+
+- Tighten Runtime-v4 expert settlement fencing at historical source head `aecc9fa44c825623b3e3bbb21d130e1fe6ac9468`: bind nested observation `state_id` and `generation` to the request generation. Independent source/component checks pass; native host legality, settled effects, provider execution, cross-consumer integration, deployment, and release remain unverified.
+
+- Add the gateway-local Runtime-v2 workflow authority and recovery contract: owner boot/fence
+  identity, independent recovery-domain capabilities, and recovery-only retained receipt access.
+  Stale or implicit workflow admission, missing/changed workflow boot identity, and unavailable
+  receipt retention fail closed. The attached Runtime-v2 action, state and reconcile routes now
+  install the contract and require the matching opt-in `x-sts2-workflow-boot-epoch` header when
+  `STS2_WORKFLOW_BOOT_EPOCH` is configured; the frozen Runtime-v2 envelope remains unchanged.
+  Evidence is limited to deterministic gateway source/component tests.
+
+- Add the bounded Runtime-v4 expert-state, expert-action, and expert-reconcile gateway routes.
+  The source/component implementation validates the checked-in observation and action artifacts
+  at `17b93bf`; native host legality, settled effects, provider runs, and end-to-end compatibility
+  remain unverified.
+
+- Add the additive `runtime-map-v1` read-only snapshot route. The gateway forwards only
+  `GET /api/map/v1/snapshot` after its existing lease and identity fences, validates the corrected
+  protocol artifact at merged main commit `b3d3034f32e68d70c9e681f906ee37d74db153c4` and schema digest
+  `ceab0d2dfc471d1ec36d12edaf4654b8c7fdced06548bf47265e11c63f98115b`, and bounds responses at
+  256 KiB. Graph and binding validation preserves overlapping coordinates and disconnected visible
+  components while rejecting stale, foreign, cyclic, duplicate, or malformed data. Payload text is
+  bounded in UTF-8 bytes, excludes C0/DEL/C1 controls, and enforces elapsed timeout ordering. Live
+  host map observation and visualizer compatibility remain unverified.
+
+- Record the merged current gateway main source head `77782d5745a8c1f3399807d48138c5c7b511bff1` for
+  the bounded `runtime-map-v1` route and copied-artifact consumer. This is source/component and
+  artifact-copy evidence; native map visibility, navigation, gameplay, release, and publication
+  remain unverified.
+
 - Add opt-in coordinator-reported co-op synchronization: configured roster, control-scoped
   fenced reports, monotonic convergence and expiry, and a read-only response consumed by
   the executable MCP profile. Both routes avoid downstream game access. The copied protocol
@@ -20,6 +103,14 @@ host compatibility and release publication.
   confirm-selection and cancel-selection actions; reject mixed revisions and extra arguments.
 
 ### Fixed
+
+- Validate recovery allocation authority against the current lease, durable fence,
+  installed host binding and monotonic deadline. Failed responses close local
+  admission before fallible revocation; busy storage cannot reopen mutation.
+  Confirmed host cleanup permits a fresh epoch without clearing prior stop intent.
+  Bind delayed cleanup permission to the exact failed allocation; reject installed
+  grant digest mismatch and retire a lease when activation expires after its
+  durable host installation acknowledgment.
 
 - Default MCP transport identity independently to `mcp-session-1` to match MCP and harness
   configuration; retain validated explicit overrides and the complete session fence.
@@ -84,6 +175,11 @@ host compatibility and release publication.
   These corrections do not implement durable restart epochs, lease TTL/renewal, or a real host.
 
 ### Added
+
+- Add the fixed, authenticated `POST /v1/recovery/host-fence` bridge for the
+  additive recovery sideband. The bounded downstream request carries the new
+  boot/fence identity in its closed frame and does not require or forward an
+  old gameplay lease; transport uncertainty remains explicit.
 
 - Record the owner-accepted `jsonschema` product dependency and its conditions in ADR 0015;
   add a self-check test that the embedded Runtime-v3 schema compiles and admits a golden request.

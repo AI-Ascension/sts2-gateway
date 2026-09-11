@@ -1,0 +1,10 @@
+{
+  "protocol_version": "runtime-v4-expert-action",
+  "schema_digest": "393318bda8c3522c0ecbacc78b95471a9f4dc3f825169d2048f4c74a7b7f2929",
+  "provenance": {"artifact": "sts2-protocol/runtime-v4-expert-action", "source": "schemas/runtime-v4-expert-action.schema.json", "generator": "hand-authored"},
+  "profile": "expert-action",
+  "correlation_id": "request-1", "instance_id": "instance-1", "session_id": "session-1", "lease_id": "lease-1", "lease_epoch": 1,
+  "generation": 7, "state_id": "live:7", "operation_id": "potion-op-1", "kind": "action_request",
+  "action": {"action_id": "potion:7:potion:fire:enemy:1", "action": {"kind": "use_potion", "potion_id": "potion:fire", "target_id": "enemy:1"}},
+  "status": null, "observation": null, "transition": null, "error_code": null
+}

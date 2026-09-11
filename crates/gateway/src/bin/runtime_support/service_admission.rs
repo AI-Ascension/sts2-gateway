@@ -60,6 +60,7 @@ pub(super) fn accept_requests(
     admission_open: Arc<AtomicBool>,
     auth_policy: AuthPolicy,
     instance_id: String,
+    recovery_enabled: bool,
     metrics: RuntimeMetrics,
 ) -> Result<(), String> {
     loop {
@@ -87,7 +88,9 @@ pub(super) fn accept_requests(
                 continue;
             }
         };
-        if let Some((status, body)) = request_rejection(&request, &auth_policy, &instance_id) {
+        if let Some((status, body)) =
+            request_rejection(&request, &auth_policy, &instance_id, recovery_enabled)
+        {
             if status == 401 || status == 403 {
                 metrics.authentication_rejected();
             } else {

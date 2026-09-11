@@ -1,0 +1,65 @@
+{
+  "case_id": "CT-SEEDED-RUN-V1-001",
+  "contract": "sts2.protocol/seeded-run-v1",
+  "profile": "seeded-run-v1",
+  "schema": "schemas/seeded-run-v1.schema.json",
+  "artifacts": [
+    "artifacts/seeded-run-v1/manifest.json",
+    "artifacts/seeded-run-v1/schema.json"
+  ],
+  "checksums": "artifacts/seeded-run-v1/SHA256SUMS",
+  "consumers": [
+    "sts2-game-mod",
+    "sts2-gateway",
+    "sts2-harness",
+    "sts2-mcp-server"
+  ],
+  "contract_assertions": {
+    "explicit_seed_is_preserved": true,
+    "host_is_authoritative": true,
+    "selected_context_is_concrete": true,
+    "selected_context_digest_is_content_addressed": true,
+    "selected_context_required_on_start_and_result": true,
+    "nullable_wire_members_must_be_explicit": true,
+    "acts_preserve_native_order": true,
+    "accepted_is_admission_only": true,
+    "settled_requires_fresh_observation_and_witness": true,
+    "settlement_witness": "run_started",
+    "unknown_requires_reconciliation": true,
+    "operation_id_is_stable": true,
+    "lease_fencing_is_required": true,
+    "outcomes": [
+      "accepted",
+      "settled",
+      "rejected",
+      "unknown",
+      "cancelled"
+    ]
+  },
+  "fixtures": [
+    {
+      "id": "start",
+      "request": "artifacts/seeded-run-v1/golden/start-request.json",
+      "admission": "artifacts/seeded-run-v1/golden/start-accepted.json",
+      "settlement": "artifacts/seeded-run-v1/golden/start-settled.json",
+      "expected_status": "settled"
+    },
+    {
+      "id": "rejected",
+      "response": "artifacts/seeded-run-v1/golden/start-rejected.json",
+      "expected_status": "rejected"
+    },
+    {
+      "id": "unknown",
+      "response": "artifacts/seeded-run-v1/golden/start-unknown.json",
+      "reconcile_request": "artifacts/seeded-run-v1/golden/reconcile-request.json",
+      "reconcile_response": "artifacts/seeded-run-v1/golden/reconcile-settled.json",
+      "expected_status": "settled"
+    },
+    {
+      "id": "cancelled",
+      "response": "artifacts/seeded-run-v1/golden/start-cancelled.json",
+      "expected_status": "cancelled"
+    }
+  ]
+}

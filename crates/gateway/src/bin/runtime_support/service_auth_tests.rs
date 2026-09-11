@@ -150,6 +150,31 @@ fn v3_routes_enforce_scopes_before_envelope_and_lease_processing() -> Result<(),
 }
 
 #[test]
+fn host_fence_route_requires_control_scope_before_frame_or_lease_processing() -> Result<(), String>
+{
+    for scope in ["read", "mutate", "control"] {
+        let mut service = test_service()?;
+        service.config.auth_policy =
+            AuthPolicy::test_with_previous("gateway-token", None, None, scope)?;
+        let mut request = authenticated_request("/v1/recovery/host-fence");
+        request.method = String::from("POST");
+        request.headers.insert(
+            String::from("content-type"),
+            String::from("application/json"),
+        );
+        request.body = b"{}".to_vec();
+        request.headers.remove("x-sts2-lease-id");
+        request.headers.remove("x-sts2-lease-epoch");
+        assert_eq!(
+            service.handle_request(&request).0,
+            if scope == "control" { 400 } else { 403 },
+            "{scope}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
 fn v3_routes_keep_the_configured_mcp_session_fence() -> Result<(), String> {
     for (method, suffix) in [
         ("GET", "state"),

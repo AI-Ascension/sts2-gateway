@@ -1,0 +1,67 @@
+{
+  "contract": "sts2.protocol/coop-native-v1",
+  "protocol_version": "coop-native-v1",
+  "profile": "coop-native-v1",
+  "schema_digest": "2f3bc99e53080fa11b39592b64fb0ab964a16f568719a2622d0b2caf766ab629",
+  "provenance": {
+    "schema_source": "schemas/coop-native-v1.schema.json",
+    "generator": "hand-authored",
+    "license": "MIT"
+  },
+  "status": "component_serialized_conformance",
+  "source": {
+    "name": "sts2-game-mod",
+    "role": "producer",
+    "repository": "sts2-game-mod",
+    "commit": "ab702dbbc79bc5854bd0840b44a729834ae50e68",
+    "tree": "e3f0aa9d30fe25585fbb3c1fe8e3c1fcdfa43223",
+    "result": "pass",
+    "test_profile": "managed source producer capture with legal catalog and receipt fields",
+    "live_status": "unverified"
+  },
+  "consumers": [
+    {
+      "name": "sts2-gateway",
+      "role": "native route and forwarder",
+      "repository": "sts2-gateway",
+      "commit": "pending-final-adapter",
+      "tree": "pending-final-adapter",
+      "result": "pending",
+      "live_status": "unverified"
+    },
+    {
+      "name": "sts2-mcp-server",
+      "role": "projection and tool mapping",
+      "repository": "sts2-mcp-server",
+      "commit": "pending-final-adapter",
+      "tree": "pending-final-adapter",
+      "result": "pending",
+      "live_status": "unverified"
+    },
+    {
+      "name": "sts2-harness",
+      "role": "coordination and provider boundary",
+      "repository": "sts2-harness",
+      "commit": "pending-final-adapter",
+      "tree": "pending-final-adapter",
+      "result": "pending",
+      "live_status": "unverified"
+    }
+  ],
+  "cross_boundary": {
+    "catalog_action_count": 2,
+    "catalog_vote_count": 1,
+    "source_to_consumer": "pending-final-adapter-conformance"
+  },
+  "admission": {
+    "artifact_status": "accepted_component",
+    "artifact_admission": "component",
+    "registered_consumers": [
+      "sts2-gateway",
+      "sts2-mcp-server",
+      "sts2-harness"
+    ],
+    "reason": "Exact source schema, producer declaration, captured projections, and boundary adapters are accepted as a component contract; live native settlement remains a separate gate.",
+    "next_gate": "Run the exact reviewed artifacts through a live native two-peer host-backed session and record settled action, vote, checksum, and rejoin outcomes."
+  }
+}

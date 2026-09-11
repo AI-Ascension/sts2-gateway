@@ -12,6 +12,10 @@ const JOURNAL_FORMAT_VERSION: u32 = 1;
 const MAX_JOURNAL_BYTES: usize = 4 * 1024 * 1024;
 static TEMPORARY_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
+#[path = "seeded_journal.rs"]
+mod seeded_journal;
+pub(crate) use seeded_journal::{seeded_load, seeded_store};
+
 pub(crate) struct JournalLock {
     file: File,
 }
@@ -166,10 +170,16 @@ mod tests {
     use super::{JournalLock, MAX_JOURNAL_BYTES, load, store};
 
     fn test_path() -> PathBuf {
+        // Test thread names contain `::`, which Windows rejects in file names.
+        let name: String = std::thread::current()
+            .name()
+            .unwrap_or("test")
+            .chars()
+            .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+            .collect();
         std::env::temp_dir().join(format!(
-            "sts2-runtime-v2-journal-{}-{}.json",
-            std::process::id(),
-            std::thread::current().name().unwrap_or("test")
+            "sts2-runtime-v2-journal-{}-{name}.json",
+            std::process::id()
         ))
     }
 
@@ -181,6 +191,7 @@ mod tests {
             session_id: String::from("session-1"),
             lease_id: String::from("lease-1"),
             lease_epoch: 1,
+            boot_epoch: None,
             observation: RuntimeV2Observation::new(
                 RuntimeV2CombatPhase::OutsideCombat,
                 0,
