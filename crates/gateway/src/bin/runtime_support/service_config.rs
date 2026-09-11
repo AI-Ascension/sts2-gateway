@@ -7,6 +7,9 @@ use uuid::{Uuid, Variant};
 #[path = "service_config_runtime_v2.rs"]
 mod runtime_v2;
 pub(super) use runtime_v2::build_runtime_v2;
+#[path = "service_config_coop_native.rs"]
+mod coop_native;
+use coop_native::peer_binding_from_environment;
 
 pub(super) fn coop_reports_from_environment() -> Result<Option<CoopReports>, String> {
     match std::env::var("STS2_COOP_ROSTER") {
@@ -84,6 +87,7 @@ impl RuntimeConfig {
             (Vec::new(), String::new())
         };
         let workflow_boot_epoch = optional_value("STS2_WORKFLOW_BOOT_EPOCH")?;
+        let (coop_native_peer_token, coop_native_peer_id) = peer_binding_from_environment()?;
         for (name, value) in [
             ("STS2_INSTANCE_ID", &instance_id),
             ("STS2_CALLER_ID", &caller_id),
@@ -189,6 +193,8 @@ impl RuntimeConfig {
             host_lease_key,
             host_principal_id,
             workflow_authority,
+            coop_native_peer_token,
+            coop_native_peer_id,
         })
     }
 }

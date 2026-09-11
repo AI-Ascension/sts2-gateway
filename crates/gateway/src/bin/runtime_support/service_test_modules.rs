@@ -33,3 +33,5 @@ mod coop_tests;
 
 #[path = "service_coop_native_tests.rs"]
 mod coop_native_tests;
+#[path = "service_coop_native_binding_tests.rs"]
+mod coop_native_binding_tests;

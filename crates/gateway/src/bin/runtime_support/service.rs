@@ -58,6 +58,8 @@ pub(crate) struct RuntimeService {
     runtime_v2: RuntimeV2Ledger<HttpRuntimeV2Forwarder>,
     runtime_v3: RuntimeV3GameplayForwarder,
     coop_native: CoopNativeForwarder,
+    coop_native_peer_binding: Option<CoopNativePeerBinding>,
+    coop_native_pending: Option<CoopNativePendingOperation>,
     recovery_catalog: recovery_catalog::RecoveryCatalogCache,
     runtime_v4_expert: RuntimeV4ExpertForwarder,
     runtime_v4_expert_rest_action: RuntimeV4ExpertRestActionForwarder,
@@ -101,6 +103,29 @@ struct RuntimeConfig {
     host_lease_key: Vec<u8>,
     host_principal_id: String,
     workflow_authority: Option<RuntimeV2Authority>,
+    coop_native_peer_token: Option<String>,
+    coop_native_peer_id: Option<String>,
+}
+
+/// Gateway-local identity for exactly one native producer route.  This is deliberately a
+/// transport binding, not a `coop-native-v1` field: callers cannot select or replace its peer.
+#[derive(Clone)]
+struct CoopNativePeerBinding {
+    peer_token: String,
+    peer_id: String,
+    instance_id: String,
+    session_id: String,
+    lease_id: String,
+    lease_epoch: u64,
+}
+
+#[derive(Clone)]
+struct CoopNativePendingOperation {
+    route: CoopNativeRoute,
+    operation_id: String,
+    binding: CoopNativePeerBinding,
+    authority_id: Option<String>,
+    authority_epoch: Option<String>,
 }
 
 struct QueuedRequest {
@@ -120,6 +145,8 @@ mod authorization;
 mod configuration;
 #[path = "service_coop.rs"]
 mod coop;
+#[path = "service_coop_native_return.rs"]
+mod coop_native_return;
 #[path = "service_coop_native.rs"]
 mod coop_native_service;
 #[path = "service_host_lease.rs"]

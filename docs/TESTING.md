@@ -173,6 +173,14 @@ local-action routes against synthetic loopback downstreams and assert the exact 
 body, credential, and response bytes. These checks establish component serialization and gateway
 transport behavior only; they do not establish a native STS2 host, peer convergence, or gameplay.
 
+The gateway-local v1 peer-route tests additionally require an operator-configured peer token and
+peer ID, pin that token to the current instance/session/lease/epoch, reject caller-selected peer
+substitution and stale leases, retain exactly one pending original operation, reject duplicates,
+and allow recovery only on the matching bound route and operation. A changed returned authority
+or a returned `local` observation peer that differs from the configured canonical peer cannot
+settle or clear the record. The tests use synthetic loopback responses and do not prove native
+message delivery, host mutation, two-peer behavior, or live settlement.
+
 ## MCP-session configuration
 
 A pure MCP-session configuration test covers the independent default, explicit override and invalid
