@@ -23,12 +23,29 @@ const ACTION_RESPONSE: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../protocol-artifact/coop-native-v1/golden/local-action-settled-response.json"
 ));
+pub(super) const UNKNOWN_ACTION_REQUEST: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../protocol-artifact/coop-native-v1/golden/local-action-unknown-request.json"
+));
+pub(super) const UNKNOWN_ACTION_RESPONSE: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../protocol-artifact/coop-native-v1/golden/local-action-unknown-response.json"
+));
+pub(super) const RECOVERED_ACTION_REQUEST: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../protocol-artifact/coop-native-v1/golden/local-action-recovered-request.json"
+));
+pub(super) const RECOVERED_ACTION_RESPONSE: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../protocol-artifact/coop-native-v1/golden/local-action-recovered-response.json"
+));
+const CANONICAL_LOCAL_PEER_ID: &str = "peer:host1";
 
-fn fixture(bytes: &[u8]) -> Value {
+pub(super) fn fixture(bytes: &[u8]) -> Value {
     strict_json::parse(bytes).expect("fixture must be strict JSON")
 }
 
-fn configure_for(service: &mut RuntimeService, value: &Value) -> HttpRequest {
+pub(super) fn configure_for(service: &mut RuntimeService, value: &Value) -> HttpRequest {
     let instance = value["instance_id"].as_str().unwrap().to_owned();
     let session = value["session_id"].as_str().unwrap().to_owned();
     let lease = value["lease_id"].as_str().unwrap().to_owned();
@@ -38,6 +55,14 @@ fn configure_for(service: &mut RuntimeService, value: &Value) -> HttpRequest {
     service.config.session_id = session.clone();
     service.config.lease_id = lease.clone();
     service.config.lease_epoch = epoch;
+    service.coop_native_peer_binding = Some(CoopNativePeerBinding {
+        peer_token: String::from("peer-token-1"),
+        peer_id: String::from(CANONICAL_LOCAL_PEER_ID),
+        instance_id: instance.clone(),
+        session_id: session.clone(),
+        lease_id: lease.clone(),
+        lease_epoch: epoch,
+    });
     let mut request = authenticated_request(&format!(
         "/v1/instances/{instance}/coop/native/observation"
     ));
@@ -51,9 +76,12 @@ fn configure_for(service: &mut RuntimeService, value: &Value) -> HttpRequest {
         .headers
         .insert("x-sts2-correlation-id".into(), correlation);
     request
+        .headers
+        .insert("x-sts2-peer-token".into(), String::from("peer-token-1"));
+    request
 }
 
-fn serve_once(
+pub(super) fn serve_once(
     listener: TcpListener,
     expected_path: &'static str,
     response_status: u16,
@@ -150,6 +178,7 @@ fn native_action_preserves_body_identity_and_rejects_invalid_response() -> Resul
             || forwarded.body != ACTION_REQUEST
             || forwarded.headers.get("authorization").map(String::as_str)
                 != Some("Bearer mod-token")
+            || forwarded.headers.contains_key("x-sts2-peer-token")
         {
             return Err(String::from("native action forwarding changed at gateway"));
         }
@@ -195,5 +224,141 @@ fn native_route_requires_its_scope_before_lease_or_downstream() -> Result<(), St
         }
         assert_eq!(service.handle_request(&request).0, expected, "{suffix} {scope}");
     }
+    Ok(())
+}
+
+#[test]
+fn native_route_binding_rejects_peer_substitution_and_stale_lease() -> Result<(), String> {
+    let action = fixture(ACTION_REQUEST);
+    let mut service = test_service()?;
+    let mut request = configure_for(&mut service, &action);
+    request.method = String::from("POST");
+    request.path = format!(
+        "/v1/instances/{}/coop/native/action",
+        service.config.instance_id
+    );
+    request.headers.insert("content-type".into(), "application/json".into());
+
+    request.headers.remove("x-sts2-peer-token");
+    request.body = ACTION_REQUEST.to_vec();
+    assert_eq!(service.handle_request(&request).0, 401);
+    request
+        .headers
+        .insert("x-sts2-peer-token".into(), String::from("peer-token-wrong"));
+    assert_eq!(service.handle_request(&request).0, 401);
+    request
+        .headers
+        .insert("x-sts2-peer-token".into(), String::from("peer-token-1"));
+
+    let mut substituted = action.clone();
+    substituted["actor_peer"] = Value::String(String::from("peer:substituted"));
+    request.body = serde_json::to_vec(&substituted).map_err(|error| error.to_string())?;
+    assert_eq!(service.handle_request(&request).0, 409);
+
+    request.body = ACTION_REQUEST.to_vec();
+    request
+        .headers
+        .insert("x-sts2-lease-epoch".into(), String::from("6"));
+    assert_eq!(service.handle_request(&request).0, 409);
+    Ok(())
+}
+
+#[test]
+fn native_pending_duplicate_and_recovery_are_bound_to_original_operation() -> Result<(), String> {
+    let action = fixture(UNKNOWN_ACTION_REQUEST);
+    let mut service = test_service()?;
+    let mut request = configure_for(&mut service, &action);
+    request.method = String::from("POST");
+    request.path = format!(
+        "/v1/instances/{}/coop/native/action",
+        service.config.instance_id
+    );
+    request.headers.insert("content-type".into(), "application/json".into());
+    request.body = UNKNOWN_ACTION_REQUEST.to_vec();
+    let listener = TcpListener::bind("127.0.0.1:0").map_err(|error| error.to_string())?;
+    listener
+        .set_nonblocking(true)
+        .map_err(|error| error.to_string())?;
+    service.config.mod_address = listener
+        .local_addr()
+        .map_err(|error| error.to_string())?
+        .to_string();
+    let worker = serve_once(
+        listener,
+        "/api/v1/coop/native/action",
+        200,
+        UNKNOWN_ACTION_RESPONSE.to_vec(),
+    );
+    assert_eq!(service.handle_request(&request).0, 200);
+    worker
+        .join()
+        .map_err(|_| String::from("downstream worker panicked"))??;
+
+    assert_eq!(service.handle_request(&request).0, 409);
+
+    let recovered = fixture(RECOVERED_ACTION_REQUEST);
+    let mut recovery = configure_for(&mut service, &recovered);
+    recovery.method = String::from("POST");
+    recovery.path = format!(
+        "/v1/instances/{}/coop/native/recover",
+        service.config.instance_id
+    );
+    recovery
+        .headers
+        .insert("content-type".into(), "application/json".into());
+    recovery.body = RECOVERED_ACTION_REQUEST.to_vec();
+    let listener = TcpListener::bind("127.0.0.1:0").map_err(|error| error.to_string())?;
+    listener
+        .set_nonblocking(true)
+        .map_err(|error| error.to_string())?;
+    service.config.mod_address = listener
+        .local_addr()
+        .map_err(|error| error.to_string())?
+        .to_string();
+    let worker = serve_once(
+        listener,
+        "/api/v1/coop/native/recover",
+        200,
+        RECOVERED_ACTION_RESPONSE.to_vec(),
+    );
+    assert_eq!(service.handle_request(&recovery).0, 200);
+    worker
+        .join()
+        .map_err(|_| String::from("downstream worker panicked"))??;
+    assert!(service.coop_native_pending.is_none());
+    Ok(())
+}
+
+#[test]
+fn native_explicit_host_rejection_releases_the_pending_operation() -> Result<(), String> {
+    let action = fixture(UNKNOWN_ACTION_REQUEST);
+    let mut service = test_service()?;
+    let mut request = configure_for(&mut service, &action);
+    request.method = String::from("POST");
+    request.path = format!(
+        "/v1/instances/{}/coop/native/action",
+        service.config.instance_id
+    );
+    request.headers.insert("content-type".into(), "application/json".into());
+    request.body = UNKNOWN_ACTION_REQUEST.to_vec();
+    let listener = TcpListener::bind("127.0.0.1:0").map_err(|error| error.to_string())?;
+    listener
+        .set_nonblocking(true)
+        .map_err(|error| error.to_string())?;
+    service.config.mod_address = listener
+        .local_addr()
+        .map_err(|error| error.to_string())?
+        .to_string();
+    let worker = serve_once(
+        listener,
+        "/api/v1/coop/native/action",
+        409,
+        br#"{"error_code":"native_action_rejected"}"#.to_vec(),
+    );
+    assert_eq!(service.handle_request(&request).0, 409);
+    worker
+        .join()
+        .map_err(|_| String::from("downstream worker panicked"))??;
+    assert!(service.coop_native_pending.is_none());
     Ok(())
 }

@@ -25,6 +25,8 @@ pub(super) fn test_service() -> Result<RuntimeService, String> {
         host_lease_key: vec![0x11; 32],
         host_principal_id: String::from("00000000-0000-4000-8000-00000000000a"),
         workflow_authority: None,
+        coop_native_peer_token: None,
+        coop_native_peer_id: None,
     };
     let binding = RuntimeV2Binding::new(
         &config.instance_id,
@@ -80,6 +82,8 @@ pub(super) fn test_service() -> Result<RuntimeService, String> {
         runtime_v2,
         runtime_v3: RuntimeV3GameplayForwarder::new(MAX_BODY_BYTES, MAX_RESPONSE_BYTES),
         coop_native: CoopNativeForwarder::new(MAX_BODY_BYTES, MAX_RESPONSE_BYTES),
+        coop_native_peer_binding: None,
+        coop_native_pending: None,
         recovery_catalog: recovery_catalog::RecoveryCatalogCache::default(),
         runtime_v4_expert: RuntimeV4ExpertForwarder::new(MAX_BODY_BYTES, MAX_RESPONSE_BYTES),
         runtime_v4_expert_rest_action: RuntimeV4ExpertRestActionForwarder::new(

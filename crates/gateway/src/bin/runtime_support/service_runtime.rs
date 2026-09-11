@@ -98,6 +98,19 @@ impl RuntimeService {
                 .map_err(|error| format!("Runtime-v2 journal state is invalid: {error}"))?;
         }
 
+        let coop_native_peer_binding = config
+            .coop_native_peer_token
+            .as_ref()
+            .zip(config.coop_native_peer_id.as_ref())
+            .map(|(peer_token, peer_id)| CoopNativePeerBinding {
+                peer_token: peer_token.clone(),
+                peer_id: peer_id.clone(),
+                instance_id: config.instance_id.clone(),
+                session_id: config.session_id.clone(),
+                lease_id: config.lease_id.clone(),
+                lease_epoch: config.lease_epoch,
+            });
+
         Ok(Self {
             journal_path: config.journal_path.clone(),
             _journal_lock: journal_lock,
@@ -109,6 +122,8 @@ impl RuntimeService {
             runtime_v2,
             runtime_v3: RuntimeV3GameplayForwarder::new(MAX_BODY_BYTES, MAX_RESPONSE_BYTES),
             coop_native: CoopNativeForwarder::new(MAX_BODY_BYTES, MAX_RESPONSE_BYTES),
+            coop_native_peer_binding,
+            coop_native_pending: None,
             recovery_catalog: recovery_catalog::RecoveryCatalogCache::default(),
             runtime_v4_expert: RuntimeV4ExpertForwarder::new(MAX_BODY_BYTES, MAX_RESPONSE_BYTES),
             runtime_v4_expert_rest_action: RuntimeV4ExpertRestActionForwarder::new(
