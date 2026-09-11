@@ -33,9 +33,13 @@ The two values occupy separate namespaces. `STS2_COOP_NATIVE_PEER_TOKEN` and
 never serialized into a v1 envelope, returned by the gateway, logged, or
 forwarded to the mod. `STS2_COOP_NATIVE_PEER_ID` is the canonical `peer:…`
 identity. It is compared only with the envelope's `actor_peer` where that
-field exists. It is never compared with the credential or the observation's
-protocol-owned `peers[*].peer_token` field. Harness and MCP receive or carry
-only the canonical peer identity, never the credential.
+field exists, and every valid response observation must contain exactly one
+`role: local` peer whose protocol-owned `peer_token` equals that identity.
+Thus the configured canonical peer ID, scheduled request actor where present,
+and returned local observation peer are the same identity namespace. The
+gateway never compares either canonical identity with the credential. Harness
+and MCP receive or carry only the canonical peer identity, never the
+credential.
 
 The private credential accepts the gateway's private identity policy: one to
 128 ASCII alphanumeric, `-`, `_`, `.`, `:`, or `/` bytes, with no `..`.
@@ -73,6 +77,11 @@ The deterministic service tests cover absent/wrong peer authorization,
 peer-substitution rejection, stale lease fencing, duplicate admission,
 same-operation recovery, mismatched-operation and changed-binding recovery
 rejection, and changed-authority refusal using loopback fakes.
+They also reject an observation, catalog, action, or recovery response whose
+sole returned local peer differs from the configured canonical peer, before
+returning the response or clearing a pending operation. This response-ownership
+check does not select a pending operation: that selection remains exact original
+operation ID, original route, binding, and authority fence.
 They demonstrate only gateway source/component behavior. A live native two-peer
 session, first-party message serialization, host return delivery, native
 mutation, and settlement remain unverified.

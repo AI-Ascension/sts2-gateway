@@ -145,6 +145,8 @@ mod authorization;
 mod configuration;
 #[path = "service_coop.rs"]
 mod coop;
+#[path = "service_coop_native_return.rs"]
+mod coop_native_return;
 #[path = "service_coop_native.rs"]
 mod coop_native_service;
 #[path = "service_host_lease.rs"]

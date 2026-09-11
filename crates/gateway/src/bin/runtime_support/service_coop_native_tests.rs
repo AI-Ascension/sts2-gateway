@@ -11,7 +11,7 @@ use std::net::TcpListener;
 use std::thread;
 use std::time::{Duration, Instant};
 
-const OBSERVATION: &[u8] = include_bytes!(concat!(
+pub(super) const OBSERVATION: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../protocol-artifact/coop-native-v1/golden/observation-response.json"
 ));
@@ -22,6 +22,14 @@ const ACTION_REQUEST: &[u8] = include_bytes!(concat!(
 const ACTION_RESPONSE: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../protocol-artifact/coop-native-v1/golden/local-action-settled-response.json"
+));
+pub(super) const LEGAL_CATALOG_REQUEST: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../protocol-artifact/coop-native-v1/golden/legal-catalog-request.json"
+));
+pub(super) const LEGAL_CATALOG_RESPONSE: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../protocol-artifact/coop-native-v1/golden/legal-catalog-response.json"
 ));
 pub(super) const UNKNOWN_ACTION_REQUEST: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),

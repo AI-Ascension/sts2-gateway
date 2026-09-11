@@ -68,6 +68,9 @@ impl RuntimeService {
             )
             .is_ok()
         {
+            if let Err(error) = self.validate_coop_native_return_local_peer(&response.body) {
+                return error;
+            }
             if let Err(error) =
                 self.record_coop_native_return(route, envelope.as_ref(), &response.body)
             {

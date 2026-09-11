@@ -177,7 +177,8 @@ The gateway-local v1 peer-route tests additionally require an operator-configure
 peer ID, pin that token to the current instance/session/lease/epoch, reject caller-selected peer
 substitution and stale leases, retain exactly one pending original operation, reject duplicates,
 and allow recovery only on the matching bound route and operation. A changed returned authority
-cannot settle the record. The tests use synthetic loopback responses and do not prove native
+or a returned `local` observation peer that differs from the configured canonical peer cannot
+settle or clear the record. The tests use synthetic loopback responses and do not prove native
 message delivery, host mutation, two-peer behavior, or live settlement.
 
 ## MCP-session configuration

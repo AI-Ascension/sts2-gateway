@@ -8,7 +8,9 @@ host compatibility and release publication.
 - Bind each enabled `coop-native-v1` local producer route to one configured peer token, peer ID,
   and instance/session/lease/epoch tuple. The gateway rejects caller-selected peer substitution,
   stale bindings, duplicate pending operations, unbound recovery, mismatched returns, and changed
-  returned authority rather than correlating by a fingerprint, actor, or generation. This is a
+  returned authority rather than correlating by a fingerprint, actor, or generation. Every valid
+  returned observation must also identify that canonical peer as its sole `local` peer before the
+  response is returned or pending state can be cleared. This is a
   gateway component safety correction; `coop-native-v1` bytes/digest are unchanged and native
   carrier, two-peer, host-settlement, and live-runtime behavior remain unverified.
 
