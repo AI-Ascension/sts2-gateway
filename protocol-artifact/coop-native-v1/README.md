@@ -22,7 +22,7 @@ unfenced identities remain errors; an `unknown` outcome is retained for same-ope
 and never retried as a new mutation.
 
 The serialized conformance record binds the reviewed source producer (`d23ca83`), current gateway
-main (`f4d14091`), MCP main (`98ab84b3`), and harness main (`00bd9e12`) heads and their exact
+main (`d5dedd26`), MCP main (`f376105a`), and harness main (`4e738133`) heads and their exact
 trees. This records current-main component serialization compatibility; it does not imply that
 later source heads or live deployments have been validated.
 
