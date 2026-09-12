@@ -12,6 +12,15 @@ impl RuntimeService {
         ) {
             return rejection;
         }
+        if request.method == "GET"
+            && request.path
+                == format!(
+                    "/v1/instances/{}/checkpoint-reference",
+                    self.config.instance_id
+                )
+        {
+            return self.checkpoint_reference_request(request);
+        }
         if let Some(route) =
             RuntimeV3GameplayRoute::parse(&request.method, &request.path, &self.config.instance_id)
         {

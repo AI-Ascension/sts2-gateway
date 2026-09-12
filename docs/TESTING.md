@@ -257,3 +257,11 @@ generation regressions, action/effect mismatches, and response identity drift. T
 verifies JSON content type and active-lease admission before any downstream forwarding. These checks
 establish only gateway source/component behavior; they do not establish a native producer, a live
 retained receipt, or cross-consumer recovery.
+
+## Public checkpoint reference route
+
+The `checkpoint_reference` service tests call the production dispatcher and synthetic loopback
+producer. They cover fixed path/identity forwarding, auth/scope/session/lease/epoch/correlation
+rejection, revoked/shutdown admission, foreign and privileged response rejection, duplicate keys,
+8192-byte limits and unavailable producers. See ADR 0023. This is component evidence only;
+no native capture, durable receipt or restore is established.

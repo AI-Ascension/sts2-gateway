@@ -232,3 +232,9 @@ mod map_tests;
 #[cfg(test)]
 #[path = "service_v4_expert_rest_action_tests.rs"]
 mod v4_expert_rest_action_tests;
+
+#[path = "service_checkpoint_reference.rs"]
+mod checkpoint_reference;
+#[cfg(test)]
+#[path = "service_checkpoint_reference_tests.rs"]
+mod checkpoint_reference_tests;

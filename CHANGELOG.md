@@ -5,6 +5,10 @@ host compatibility and release publication.
 
 ## [Unreleased]
 
+- Add an authorized, bounded public checkpoint-reference read route with closed response
+  validation and explicit unavailable results when no producer exists. Native capture remains
+  unverified.
+
 - Bind each enabled `coop-native-v1` local producer route to one configured peer token, peer ID,
   and instance/session/lease/epoch tuple. The gateway rejects caller-selected peer substitution,
   stale bindings, duplicate pending operations, unbound recovery, mismatched returns, and changed
