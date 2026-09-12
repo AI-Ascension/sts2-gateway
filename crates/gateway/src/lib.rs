@@ -3,6 +3,7 @@
 mod config;
 mod control;
 mod coop_session;
+mod exact_checkpoint_reference;
 mod fencing;
 mod forwarding;
 mod identity;
@@ -21,6 +22,11 @@ use std::fmt;
 pub use config::{ConfigError, GatewayConfig};
 
 pub use coop_session::{CoopPeerRole, CoopSession, CoopSessionError, CoopSynchronizationSnapshot};
+pub use exact_checkpoint_reference::{
+    ASSURANCE_LABELS, HANDLE_PREFIX, MAX_BOUNDARY_LABEL_BYTES, REFERENCE_CONTRACT,
+    REFERENCE_SCHEMA, REFERENCE_SCHEMA_DIGEST, REFERENCE_VERSION, ReferenceError,
+    validate_exact_checkpoint_reference, verify_exact_checkpoint_reference_artifact,
+};
 pub use identity::{
     CallerId, FenceFailure, InstanceId, Lease, LeaseEpoch, LeaseId, LeaseProof, OperationId,
     SessionId, Tick, evaluate_fence,
