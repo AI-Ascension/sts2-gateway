@@ -4,6 +4,8 @@ mod auth;
 mod coop_native;
 mod coop_native_forwarder;
 mod coop_reports;
+#[cfg(test)]
+mod dependency_semantics_tests;
 mod forwarder;
 mod host_lease_control;
 mod host_lease_control_crypto;

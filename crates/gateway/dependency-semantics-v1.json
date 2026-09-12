@@ -1,0 +1,23 @@
+{
+  "corpus": "sts2-dependency-semantics-v1",
+  "sha256_input": "sts2 dependency semantics v1\n",
+  "sha256": "038008cdde470e288853b9eb6f37f53f792b797c62f917f88baa324d690704a4",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["version", "digest", "labels"],
+    "properties": {
+      "version": { "const": "v1" },
+      "digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+      "labels": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } }
+    }
+  },
+  "cases": [
+    { "name": "valid", "valid": true, "value": { "version": "v1", "digest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", "labels": ["route", "lease"] } },
+    { "name": "unknown-field", "valid": false, "value": { "version": "v1", "digest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", "labels": ["route"], "raw_prompt": "forbidden" } },
+    { "name": "duplicate-label", "valid": false, "value": { "version": "v1", "digest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", "labels": ["route", "route"] } },
+    { "name": "uppercase-digest", "valid": false, "value": { "version": "v1", "digest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdeF", "labels": ["route"] } },
+    { "name": "wrong-version", "valid": false, "value": { "version": "v2", "digest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", "labels": ["route"] } }
+  ]
+}
