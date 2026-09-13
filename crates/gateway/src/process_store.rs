@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: MIT
 
-use std::collections::BTreeMap;
-
 use serde::{Deserialize, Serialize};
 
 pub use crate::process_ownership::LifecycleOwnership;
@@ -13,6 +11,9 @@ use crate::{LaunchProfileId, LifecycleState};
 #[path = "process_store_sqlite.rs"]
 mod sqlite;
 pub use sqlite::SqliteLifecycleStore;
+#[path = "process_store_memory.rs"]
+mod memory;
+pub use memory::InMemoryLifecycleStore;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -241,96 +242,18 @@ pub trait LifecycleRecordStore {
         Err(LifecycleStoreError::Unsupported)
     }
 
+    /// Clears ownership only when the persisted row still equals the caller's
+    /// expected row. Stores with a durable ownership seam should override this
+    /// to fence stale coordinators; the default preserves compatibility with
+    /// legacy stores that already fail closed on ownership mutation.
+    fn clear_ownership_if(
+        &mut self,
+        ownership: &LifecycleOwnership,
+    ) -> Result<(), LifecycleStoreError> {
+        self.clear_ownership(ownership.instance_id())
+    }
+
     fn clear_ownership(&mut self, _instance_id: InstanceId) -> Result<(), LifecycleStoreError> {
         Err(LifecycleStoreError::Unsupported)
-    }
-}
-
-#[derive(Clone, Debug, Default)]
-pub struct InMemoryLifecycleStore {
-    records: BTreeMap<LifecycleRecordKey, LifecycleOperation>,
-    ownership: BTreeMap<InstanceId, LifecycleOwnership>,
-    fail_insert: bool,
-    fail_update: bool,
-    fail_update_after: Option<usize>,
-}
-
-impl InMemoryLifecycleStore {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn set_fail_insert(&mut self, value: bool) {
-        self.fail_insert = value;
-    }
-
-    pub fn set_fail_update(&mut self, value: bool) {
-        self.fail_update = value;
-    }
-
-    pub fn set_fail_update_after(&mut self, updates_before_failure: Option<usize>) {
-        self.fail_update_after = updates_before_failure;
-    }
-}
-
-impl LifecycleRecordStore for InMemoryLifecycleStore {
-    fn get(
-        &self,
-        key: LifecycleRecordKey,
-    ) -> Result<Option<LifecycleOperation>, LifecycleStoreError> {
-        Ok(self.records.get(&key).cloned())
-    }
-
-    fn insert(&mut self, operation: LifecycleOperation) -> Result<(), LifecycleStoreError> {
-        if self.fail_insert {
-            return Err(LifecycleStoreError::Database);
-        }
-        let key = LifecycleRecordKey::new(operation.instance_id(), operation.operation_id());
-        if self.records.contains_key(&key) {
-            return Err(LifecycleStoreError::Conflict);
-        }
-        self.records.insert(key, operation);
-        Ok(())
-    }
-
-    fn update(&mut self, operation: LifecycleOperation) -> Result<(), LifecycleStoreError> {
-        if self.fail_update
-            || self
-                .fail_update_after
-                .is_some_and(|remaining| remaining == 0)
-        {
-            return Err(LifecycleStoreError::Database);
-        }
-        if let Some(remaining) = self.fail_update_after.as_mut() {
-            *remaining = remaining.saturating_sub(1);
-        }
-        let key = LifecycleRecordKey::new(operation.instance_id(), operation.operation_id());
-        if !self.records.contains_key(&key) {
-            return Err(LifecycleStoreError::NotFound);
-        }
-        self.records.insert(key, operation);
-        Ok(())
-    }
-
-    fn list(&self) -> Result<Vec<LifecycleOperation>, LifecycleStoreError> {
-        Ok(self.records.values().cloned().collect())
-    }
-
-    fn count(&self) -> Result<usize, LifecycleStoreError> {
-        Ok(self.records.len())
-    }
-
-    fn list_ownership(&self) -> Result<Vec<LifecycleOwnership>, LifecycleStoreError> {
-        Ok(self.ownership.values().cloned().collect())
-    }
-
-    fn set_ownership(&mut self, ownership: LifecycleOwnership) -> Result<(), LifecycleStoreError> {
-        self.ownership.insert(ownership.instance_id(), ownership);
-        Ok(())
-    }
-
-    fn clear_ownership(&mut self, instance_id: InstanceId) -> Result<(), LifecycleStoreError> {
-        self.ownership.remove(&instance_id);
-        Ok(())
     }
 }

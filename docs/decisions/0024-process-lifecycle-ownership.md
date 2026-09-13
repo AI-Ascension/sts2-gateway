@@ -42,8 +42,10 @@ uncertain. Rejected requests never replace that row. Fresh operations receive a 
 sequence, so caller-selected operation IDs remain idempotency keys rather than ordering authority.
 An approved user-data namespace may be reserved by only one active instance; a missing or stale
 profile record is treated as a conflict because isolation cannot be proven. The on-disk SQLite
-store holds an exclusive coordinator lock for its lifetime, fencing competing lifecycle
-coordinators before they can admit process effects.
+store holds an exclusive coordinator lock for its lifetime and persists a coordinator token.
+Every operation and ownership mutation checks that token in the same transaction as its admission;
+ownership replacement and clearing are conditional, so a stale coordinator cannot overwrite or
+remove a newer owner even if the lock file is replaced.
 
 Retained operation records have an explicit `max_records` budget in `ProcessLifecycleConfig`.
 Records are not silently evicted: an exact duplicate may replay at capacity, while a fresh
@@ -57,7 +59,9 @@ reconnect or service restart, an unresolved intent calls the adapter's explicit 
 missing recovery result is `Unknown`; it is never converted into a blind relaunch. Only an
 explicit pre-start rejection (`StartRejected`, `ProfileRequired`, or `ProfileNotApproved`) is
 terminal `Failed`; every other launch fault is `Unknown` with its durable capacity reservation
-retained and an optional recovered identity attached. Stop/cleanup faults retain the exact
+retained. If a profile adapter created a child before reporting the fault, it also retains the
+exact identity-bearing cleanup obligation, including a profile-mismatched image, until an exact
+identity and child-free observation permits settlement. Stop/cleanup faults retain the exact
 identity as `Blocked` for an explicit reconciliation or cleanup retry.
 
 Restart force-stops the verified old identity, checks descendant scope, replaces the old ownership
@@ -97,13 +101,14 @@ reconstructing mutable authority from request history. A full budget returns
 `process_lifecycle_tests` and the focused integration fixtures use only injected clocks, stores,
 lease decisions, and synthetic process ports. They prove approved-profile resolution, launch-once
 duplicate replay, reconnect/recovery without relaunch, crash-before/after-creation outcomes,
-wrong image/install and PID/birth rejection, stale epochs, unowned attach, stop failure and
-foreign-descendant blocking, restart epoch rotation, SQLite record replay and disk reopen,
-single-writer fencing, profile namespace isolation, and capacity exhaustion before a process
-effect, identity-less recovery quarantine, rejected-request ownership preservation,
-server-sequence ordering, transient inspection/descendant retention, and repeated read-only
-recovery until an exact replacement identity is found. The tests do not launch a native game or
-claim host compatibility; all process evidence is synthetic/source-component evidence.
+wrong image/install and independent PID/birth rejection, stale epochs, unowned attach, stop
+failure and foreign-descendant blocking, restart epoch rotation, SQLite record replay and disk
+reopen, single-writer and stale-coordinator fencing, profile namespace isolation, and capacity
+exhaustion before a process effect, identity-bearing partial-launch cleanup retention,
+identity-less recovery quarantine, rejected-request ownership preservation, server-sequence
+ordering, transient inspection/descendant retention, and repeated read-only recovery until an
+exact replacement identity is found. The tests do not launch a native game or claim host
+compatibility; all process evidence is synthetic/source-component evidence.
 
 ## Amendment — durable ownership and retention correction
 

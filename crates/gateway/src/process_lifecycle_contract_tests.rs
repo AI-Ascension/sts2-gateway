@@ -144,6 +144,23 @@ fn failed_start_cleanup_retains_identity_when_descendants_survive() -> Result<()
     assert!(operation.process().is_some());
     assert_eq!(lifecycle.process().stop_modes(), vec![StopMode::Force]);
     assert!(lifecycle.owned.contains_key(&super::InstanceId::new(7)));
+
+    let retained = operation
+        .process()
+        .cloned()
+        .ok_or_else(|| "missing cleanup identity".to_owned())?;
+    lifecycle
+        .process_mut()
+        .set_descendants(retained.process(), Vec::new());
+    let cleaned = lifecycle
+        .reconcile(
+            super::lease().proof(),
+            super::AuthorityEpoch::new(1),
+            OperationId::new(1),
+        )
+        .map_err(|error| error.to_string())?;
+    assert_eq!(cleaned.operation_state(), LifecycleOperationState::Failed);
+    assert!(!lifecycle.ownership.contains_key(&super::InstanceId::new(7)));
     Ok(())
 }
 

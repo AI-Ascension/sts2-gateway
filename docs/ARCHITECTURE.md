@@ -68,10 +68,11 @@ The initialized package keeps lease/fence policy local and testable without I/O.
 `ApprovedLaunchProfiles` catalog, `ProcessLifecycle`, and a `LifecycleRecordStore`; the store keeps
 one authoritative per-instance ownership row, including identity-less reservations and a
 gateway-issued sequence, independently of request history. A user-data namespace is reserved by
-at most one active instance, and ambiguous launch faults retain an `Unknown` reservation until
-read-only recovery proves what happened. Its SQLite implementation commits each operation
-transition before invoking the process port and holds an exclusive coordinator lock for the
-store lifetime. The attached runtime owns its bounded
+at most one active instance, and ambiguous launch faults retain an `Unknown` reservation plus
+any identity-bearing cleanup obligation until exact, child-free absence is proven. Its SQLite
+implementation commits each operation transition before invoking the process port, holds an
+exclusive coordinator lock for the store lifetime, and transactionally fences ownership and
+operation admission with a durable coordinator token. The attached runtime owns its bounded
 optional journal adapter and its process-lifetime exclusive journal lock
 at the process boundary; it is not wired to the profile lifecycle component. The
 POC and Runtime-v2 checks verify checked-in copies of their protocol artifacts as inert data; no
@@ -127,8 +128,10 @@ with the gateway: failed forced expiry cleanup revokes the lease, retains the pr
 `failed`, and makes `reconcile` return `ProcessStop` for an explicit authorized cleanup retry.
 The profile-approved lifecycle path is stricter where an adapter reports a launch fault after a
 child may have been created: only explicit pre-start rejection is terminal `Failed`; all other
-launch faults become `Unknown` while the durable ownership reservation remains in force and
-read-only recovery may attach the exact identity.
+launch faults become `Unknown` while the durable ownership reservation remains in force. If the
+adapter created a process before reporting the fault, its exact identity remains attached to the
+cleanup obligation and reconciliation may stop it only after an exact identity and descendant
+check.
 
 ## Trust and failure boundaries
 

@@ -148,6 +148,12 @@ where
     ) -> Result<crate::LifecycleResponse, LifecycleError> {
         let profile = self.profile_for_operation(&operation)?;
         if operation.process().is_some() {
+            let retained = operation.process().cloned();
+            if let Some(identity) = retained
+                && !identity.matches_profile(operation.instance_id(), profile)
+            {
+                return self.reconcile_failed_launch(operation, identity);
+            }
             return self.verify_record(operation);
         }
         let previous_process = operation.process().cloned();
@@ -165,5 +171,79 @@ where
         };
         let launch = ProcessLaunch::new(identity);
         self.finish_recovered(operation, launch, profile)
+    }
+
+    /// Reconciles a launch that produced an identity the approved profile did
+    /// not authorize. The adapter has retained the exact identity so cleanup
+    /// can be retried without guessing a PID. We only stop after the current
+    /// observed identity is byte-for-byte equal to the retained identity;
+    /// identity drift leaves the operation blocked and the reservation held.
+    fn reconcile_failed_launch(
+        &mut self,
+        mut operation: LifecycleOperation,
+        identity: ProcessIdentity,
+    ) -> Result<crate::LifecycleResponse, LifecycleError> {
+        let actual = match self.process.inspect_identity(identity.process()) {
+            Ok(actual) => actual,
+            Err(fault) => {
+                return self.unknown(
+                    operation,
+                    Some(identity),
+                    Some(LifecycleFailure::Process(fault)),
+                );
+            }
+        };
+        if actual != identity {
+            operation.set_state(
+                LifecycleOperationState::Blocked,
+                Some(identity),
+                Some(LifecycleFailure::IdentityMismatch),
+            );
+            self.persist_update(operation.clone())?;
+            self.set_owner_process_for_operation(&operation, operation.process().cloned())?;
+            return Err(LifecycleError::IdentityMismatch);
+        }
+
+        match self.process.inspect(identity.process()) {
+            Ok(ProcessState::Exited { .. }) => {
+                self.finish_failed_launch_cleanup(operation, identity)
+            }
+            Ok(ProcessState::Running) => {
+                if let Err(fault) = self.process.stop(identity.process(), StopMode::Force) {
+                    return self.block_cleanup(operation, LifecycleFailure::Process(fault));
+                }
+                self.finish_failed_launch_cleanup(operation, identity)
+            }
+            Err(fault) => self.unknown(
+                operation,
+                Some(identity),
+                Some(LifecycleFailure::Process(fault)),
+            ),
+        }
+    }
+
+    fn finish_failed_launch_cleanup(
+        &mut self,
+        mut operation: LifecycleOperation,
+        identity: ProcessIdentity,
+    ) -> Result<crate::LifecycleResponse, LifecycleError> {
+        let descendants = match self.process.descendants(identity.process()) {
+            Ok(descendants) => descendants,
+            Err(fault) => return self.block_cleanup(operation, LifecycleFailure::Process(fault)),
+        };
+        if !descendants.is_empty() {
+            return self.block_cleanup(operation, LifecycleFailure::ForeignDescendant);
+        }
+        operation.set_state(
+            LifecycleOperationState::Failed,
+            None,
+            Some(LifecycleFailure::IdentityMismatch),
+        );
+        self.persist_update(operation.clone())?;
+        self.clear_owned_for(&operation)?;
+        Ok(crate::LifecycleResponse::new(
+            &operation,
+            crate::LifecycleState::Failed,
+        ))
     }
 }

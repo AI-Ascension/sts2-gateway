@@ -46,11 +46,11 @@ where
                     LifecycleOperationState::Stopped | LifecycleOperationState::Failed
                 );
                 (terminal && operation_order(&latest) >= owner_order(owner))
-                    .then_some(owner.instance_id())
+                    .then_some((owner.instance_id(), owner.clone()))
             })
             .collect::<Vec<_>>();
-        for instance_id in stale_owners {
-            self.store.clear_ownership(instance_id)?;
+        for (instance_id, owner) in stale_owners {
+            self.store.clear_ownership_if(&owner)?;
             self.ownership.remove(&instance_id);
             self.owned.remove(&instance_id);
         }
@@ -179,7 +179,11 @@ where
             self.owned.remove(&instance_id);
             return Ok(());
         }
-        self.store.clear_ownership(instance_id)?;
+        let Some(current) = self.ownership.get(&instance_id).cloned() else {
+            self.owned.remove(&instance_id);
+            return Ok(());
+        };
+        self.store.clear_ownership_if(&current)?;
         self.ownership.remove(&instance_id);
         self.owned.remove(&instance_id);
         Ok(())

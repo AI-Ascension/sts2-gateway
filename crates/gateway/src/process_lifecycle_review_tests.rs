@@ -5,31 +5,7 @@ use super::{
     InstanceId, LifecycleOperationState, LifecycleRequest, ProcessFault, ProcessLifecycle,
     ProcessLifecycleConfig, StopMode, new_lifecycle, profiles,
 };
-use crate::{
-    ApprovedLaunchProfileAdapter, LifecycleError, LifecycleFailure, LifecycleStoreError,
-    OperationId, SqliteLifecycleStore,
-};
-
-fn unique_store_path(label: &str) -> std::path::PathBuf {
-    use std::time::{SystemTime, UNIX_EPOCH};
-
-    let nonce = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_or(0, |duration| duration.as_nanos());
-    std::env::temp_dir().join(format!(
-        "sts2-gateway-{label}-{}-{nonce}.sqlite",
-        std::process::id()
-    ))
-}
-
-fn remove_store_files(path: &std::path::Path) {
-    let _ = std::fs::remove_file(path);
-    let _ = std::fs::remove_file(path.with_extension("sqlite-wal"));
-    let _ = std::fs::remove_file(path.with_extension("sqlite-shm"));
-    let mut lock_path = path.as_os_str().to_os_string();
-    lock_path.push(".lifecycle.lock");
-    let _ = std::fs::remove_file(std::path::PathBuf::from(lock_path));
-}
+use crate::{ApprovedLaunchProfileAdapter, LifecycleError, LifecycleFailure, OperationId};
 
 #[test]
 fn launch_failure_is_retained_without_leaking_capacity() -> Result<(), String> {
@@ -83,11 +59,11 @@ fn ambiguous_launch_failure_keeps_a_capacity_reservation() -> Result<(), String>
 fn adapter_cleanup_failure_becomes_unknown_with_a_durable_reservation() -> Result<(), String> {
     let profiles = profiles()?;
     let mut process = FakeProcess::default();
-    process.set_wrong_identity(true);
+    process.set_wrong_image(true);
     process.set_stop_fault(Some(ProcessFault::StopFailed));
     let adapter = ApprovedLaunchProfileAdapter::new(profiles.clone(), process);
     let mut lifecycle = ProcessLifecycle::new(
-        ProcessLifecycleConfig::try_new(2).map_err(|error| format!("{error:?}"))?,
+        ProcessLifecycleConfig::try_new(1).map_err(|error| format!("{error:?}"))?,
         profiles,
         FakeClock::default(),
         adapter,
@@ -114,12 +90,38 @@ fn adapter_cleanup_failure_becomes_unknown_with_a_durable_reservation() -> Resul
             .ownership
             .get(&InstanceId::new(7))
             .map(|owner| owner.process()),
-        Some(None)
+        Some(Some(
+            lifecycle
+                .operation(InstanceId::new(7), OperationId::new(1))
+                .and_then(|operation| operation.process())
+                .ok_or_else(|| "missing retained launch identity".to_owned())?
+        ))
     );
+    lifecycle
+        .bind_lease(super::lease_for(8))
+        .map_err(|error| error.to_string())?;
     assert_eq!(
-        lifecycle.apply(super::launch_request(2)),
-        Err(LifecycleError::InstanceBusy)
+        lifecycle.apply(super::launch_request_for(2, 8, 1)),
+        Err(LifecycleError::CapacityExceeded)
     );
+    assert_eq!(lifecycle.process().process().starts(), 1);
+
+    lifecycle.process_mut().process_mut().set_stop_fault(None);
+    let cleaned = lifecycle
+        .reconcile(
+            super::lease().proof(),
+            AuthorityEpoch::new(1),
+            OperationId::new(1),
+        )
+        .map_err(|error| error.to_string())?;
+    assert_eq!(cleaned.operation_state(), LifecycleOperationState::Failed);
+    assert!(!lifecycle.ownership.contains_key(&InstanceId::new(7)));
+
+    lifecycle.process_mut().process_mut().set_wrong_image(false);
+    lifecycle
+        .apply(super::launch_request(3))
+        .map_err(|error| error.to_string())?;
+    assert_eq!(lifecycle.process().process().starts(), 2);
     Ok(())
 }
 
@@ -137,74 +139,16 @@ fn profile_namespace_cannot_be_shared_across_instances() -> Result<(), String> {
         lifecycle.apply(super::launch_request_for(2, 8, 1)),
         Err(LifecycleError::UserDataNamespaceBusy)
     );
+    assert_eq!(
+        lifecycle.apply(super::launch_request_for(3, 8, 2)),
+        Err(LifecycleError::UserDataNamespaceBusy)
+    );
     assert_eq!(lifecycle.process().starts(), 1);
     assert!(
         lifecycle
             .operation(InstanceId::new(8), OperationId::new(2))
             .is_none()
     );
-    Ok(())
-}
-
-#[test]
-fn disk_store_rejects_a_competing_coordinator_until_the_owner_drops() -> Result<(), String> {
-    let path = unique_store_path("single-writer");
-    let first = SqliteLifecycleStore::open(&path).map_err(|error| format!("{error:?}"))?;
-    assert!(matches!(
-        SqliteLifecycleStore::open(&path),
-        Err(LifecycleStoreError::Conflict)
-    ));
-    drop(first);
-    let reopened = SqliteLifecycleStore::open(&path).map_err(|error| format!("{error:?}"))?;
-    drop(reopened);
-    remove_store_files(&path);
-    Ok(())
-}
-
-#[test]
-fn disk_store_reopens_with_durable_ownership_and_replays_without_starting_again()
--> Result<(), String> {
-    let path = unique_store_path("recovery");
-    let store = SqliteLifecycleStore::open(&path).map_err(|error| format!("{error:?}"))?;
-    let mut lifecycle = ProcessLifecycle::new(
-        ProcessLifecycleConfig::try_new(2).map_err(|error| format!("{error:?}"))?,
-        profiles()?,
-        FakeClock::default(),
-        FakeProcess::default(),
-        store,
-        DeterministicLeaseDecision,
-    )
-    .map_err(|error| error.to_string())?;
-    lifecycle
-        .bind_lease(super::lease())
-        .map_err(|error| error.to_string())?;
-    lifecycle
-        .apply(super::launch_request(1))
-        .map_err(|error| error.to_string())?;
-    let (process, store) = lifecycle.into_parts();
-    drop(store);
-
-    let store = SqliteLifecycleStore::open(&path).map_err(|error| format!("{error:?}"))?;
-    let mut restarted = ProcessLifecycle::new(
-        ProcessLifecycleConfig::try_new(2).map_err(|error| format!("{error:?}"))?,
-        profiles()?,
-        FakeClock::default(),
-        process,
-        store,
-        DeterministicLeaseDecision,
-    )
-    .map_err(|error| error.to_string())?;
-    restarted
-        .bind_lease(super::lease())
-        .map_err(|error| error.to_string())?;
-    let replay = restarted
-        .apply(super::launch_request(1))
-        .map_err(|error| error.to_string())?;
-    assert_eq!(replay.operation_state(), LifecycleOperationState::Started);
-    assert_eq!(restarted.process().starts(), 1);
-    let (_, store) = restarted.into_parts();
-    drop(store);
-    remove_store_files(&path);
     Ok(())
 }
 

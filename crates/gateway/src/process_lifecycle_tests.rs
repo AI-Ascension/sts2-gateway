@@ -27,6 +27,7 @@ struct FakeProcess {
     inspect_fault: Option<ProcessFault>,
     stop_fault: Option<ProcessFault>,
     wrong_identity: bool,
+    wrong_image: bool,
     retain_after_stop: bool,
     descendants_after_stop: Vec<ProcessDescendantIdentity>,
     recover_enabled: bool,
@@ -46,6 +47,10 @@ impl FakeProcess {
 
     fn set_wrong_identity(&mut self, value: bool) {
         self.wrong_identity = value;
+    }
+
+    fn set_wrong_image(&mut self, value: bool) {
+        self.wrong_image = value;
     }
 
     fn set_identity_fault(&mut self, fault: Option<ProcessFault>) {
@@ -128,7 +133,7 @@ impl ProcessPort for FakeProcess {
         } else {
             specification.instance_id()
         };
-        let executable = if self.wrong_identity {
+        let executable = if self.wrong_identity || self.wrong_image {
             ExecutableIdentity::new(
                 profile.executable().install_id(),
                 profile.executable().executable_id(),
@@ -410,3 +415,6 @@ mod contract_tests;
 
 #[path = "process_lifecycle_review_tests.rs"]
 mod review_tests;
+
+#[path = "process_lifecycle_disk_tests.rs"]
+mod disk_tests;
