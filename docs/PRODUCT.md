@@ -27,25 +27,32 @@ The accepted gateway scope is:
 - per-instance isolation, bounded queues/payloads, backpressure, and sanitized diagnostics; and
 - independent gateway API compatibility and release metadata.
 
-These are scope decisions for the public product boundary. The generic package implements an
-in-memory control-plane core and deterministic seam fixtures. The accepted sprint slice adds a
-separately documented, fixed attached runtime adapter with its own bounded route/identity oracle;
-it is not a general lifecycle or public-release contract.
+These are scope decisions for the public product boundary. The package implements the control-plane
+core, an approved opaque launch-profile catalog, durable lifecycle operation records with bounded
+no-eviction retention and authoritative per-instance ownership reservations, and deterministic
+process-port fixtures. The profile lifecycle component is a gateway-local
+source/component contract; the separately documented attached runtime adapter remains a fixed
+single-instance route/identity oracle and is not wired to native process launch.
 
 ## Consumers and non-goals
 
 The harness consumes gateway control operations as coordinator, and the MCP server consumes the
 authenticated fixed data contract as an adapter. The game-mod is a downstream runtime peer. The
 gateway does not own game rules, game state, host objects, loader/ABI code, MCP framing or tool
-catalogs, model/provider calls, episodes, trajectories, replay, scoring, saves, profiles, or
-arbitrary proxying. It does not contact a provider or discover remote game processes implicitly.
+catalogs, model/provider calls, episodes, trajectories, replay, scoring, saves, or game profiles.
+It only resolves its own approved opaque launch-profile catalog and never provides arbitrary proxying,
+provider contact, or implicit remote-process discovery.
 
 ## Evidence and next gate
 
 The repository has an initialized control-plane package. Its local evidence includes static policy,
 format, lint, build, and deterministic fake-instance tests for allocation, readiness, process
 inspection/crash, expiry, wrong instance, stale epoch, cleanup, shutdown, bounded forwarding, and
-transport failure. The POC and Runtime-v2 tests verify copied protocol artifacts; the v2 fake lane
+transport failure. The profile lifecycle fixtures additionally cover approved profile resolution,
+durable intent/replay, identity-verified attach, partial-launch reconciliation, stop/restart
+fencing, descendant scope, epoch rotation, profile user-data namespace isolation, ambiguous-launch
+capacity reservation, and single-writer disk-store fencing. The POC and Runtime-v2 tests verify copied
+protocol artifacts; the v2 fake lane
 also covers exactly-once application, retained-receipt reconciliation, duplicate replay, conflict,
 stale fencing, cancellation, persistence checkpoint failure, bounded capacity, and restart recovery;
 the attached journal also fails closed on same-path process contention.
@@ -82,8 +89,9 @@ game process. The runtime-v1 fixed action remains the safe host-visible `show_ru
 uses `end_turn` through its fixed authenticated forwarding seam and optional bounded journal, but the
 attached binary has no verified host-capable mod adapter and therefore makes no live gameplay mutation
 claim. Source/build, controlled component-network, and exact-host v1 forwarding evidence are confirmed
-independently; process supervision, general lifecycle, v2 settlement, and broader host/platform
-compatibility remain `unverified`.
+independently. Profile lifecycle behavior is source/component evidence only; runtime process
+supervision, native launch/recovery, v2 settlement, and broader host/platform compatibility remain
+`unverified`.
 
 ## Game-information query transport
 

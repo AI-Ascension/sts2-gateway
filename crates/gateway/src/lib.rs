@@ -10,6 +10,29 @@ mod identity;
 mod lifecycle;
 mod maintenance;
 mod ports;
+mod process_adapter;
+mod process_identity;
+mod process_lifecycle;
+#[path = "process_lifecycle_actions.rs"]
+mod process_lifecycle_actions;
+#[path = "process_lifecycle_failures.rs"]
+mod process_lifecycle_failures;
+mod process_lifecycle_namespace;
+#[path = "process_lifecycle_operations.rs"]
+mod process_lifecycle_operations;
+mod process_lifecycle_order;
+#[path = "process_lifecycle_ownership.rs"]
+mod process_lifecycle_ownership;
+#[path = "process_lifecycle_recovery.rs"]
+mod process_lifecycle_recovery;
+#[path = "process_lifecycle_recovery_actions.rs"]
+mod process_lifecycle_recovery_actions;
+mod process_lifecycle_types;
+#[path = "process_lifecycle_verification.rs"]
+mod process_lifecycle_verification;
+mod process_ownership;
+mod process_profile;
+mod process_store;
 mod process_supervisor;
 mod protocol_artifact;
 mod recovery;
@@ -17,6 +40,10 @@ mod runtime_v2;
 mod runtime_v2_artifact;
 mod save_profile;
 mod seeded_run;
+
+#[cfg(test)]
+#[path = "process_lifecycle_tests.rs"]
+mod process_lifecycle_tests;
 
 use std::fmt;
 
@@ -29,14 +56,31 @@ pub use exact_checkpoint_reference::{
     validate_exact_checkpoint_reference, verify_exact_checkpoint_reference_artifact,
 };
 pub use identity::{
-    CallerId, FenceFailure, InstanceId, Lease, LeaseEpoch, LeaseId, LeaseProof, OperationId,
-    SessionId, Tick, evaluate_fence,
+    AuthorityEpoch, CallerId, FenceFailure, InstanceId, Lease, LeaseEpoch, LeaseId, LeaseProof,
+    OperationId, SessionId, Tick, evaluate_fence,
 };
 pub use lifecycle::{InstanceSnapshot, LifecycleState};
 pub use ports::{
     Clock, DeterministicLeaseDecision, FixedRoute, HealthFault, LaunchSpec, LeaseDecisionPort,
     ProcessFault, ProcessHandle, ProcessPort, ProcessState, Readiness, ReadinessPort, StopMode,
     TransportFault, TransportPort, TransportRequest, TransportResponse,
+};
+pub use process_adapter::ApprovedLaunchProfileAdapter;
+pub use process_identity::{ProcessDescendantIdentity, ProcessIdentity, ProcessLaunch};
+pub use process_lifecycle::ProcessLifecycle;
+pub use process_lifecycle_types::{
+    LifecycleError, LifecycleRequest, LifecycleResponse, ProcessLifecycleConfig,
+};
+pub use process_ownership::LifecycleOwnership;
+pub use process_profile::{
+    ApprovedLaunchProfiles, ExecutableIdentity, LaunchProfile, LaunchProfileError, LaunchProfileId,
+    MAX_PROFILE_DESCENDANTS, MAX_START_TIMEOUT_MILLIS, MAX_STOP_TIMEOUT_MILLIS, ProcessPolicy,
+    UserDataConfig,
+};
+pub use process_store::{
+    InMemoryLifecycleStore, LifecycleAction, LifecycleFailure, LifecycleOperation,
+    LifecycleOperationState, LifecycleRecordKey, LifecycleRecordStore, LifecycleStoreError,
+    SqliteLifecycleStore,
 };
 pub use process_supervisor::{
     ProcessSupervisor, ProcessSupervisorConfig, ProcessSupervisorConfigError,

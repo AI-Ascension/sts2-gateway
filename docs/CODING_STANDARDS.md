@@ -51,9 +51,11 @@ tests for every accepted contract. Keep gateway-specific contracts here; move a 
 `sts2-protocol` only under [ADR 0002](decisions/0002-sixth-target-protocol-boundary.md).
 
 Before adding a dependency, check the standard library and existing ports, then record license,
-MSRV, feature, security, and boundary impact. Pin versions through the workspace lockfile. This
-initialization package adds no network, runtime, process, or serialization dependency; any future
-adapter dependency needs an explicit boundary decision.
+MSRV, feature, security, and boundary impact. Pin versions through the workspace lockfile. The
+profile lifecycle component reuses the existing pinned serialization and SQLite dependencies
+behind [ADR 0024](decisions/0024-process-lifecycle-ownership.md); it adds no network, game-host, or
+native-process dependency. Any future deployment adapter dependency needs an explicit boundary
+decision.
 
 ## Aggregate naming authority
 

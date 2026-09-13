@@ -21,8 +21,9 @@ This target has repository governance, one target-owned control-plane package, a
 runtime binary, and deterministic fake tests. The controlled component lane uses synthetic data,
 while the authorized exact-host lane uses the packaged game-mod listener. Attached forwarding,
 authentication, lease fencing, and the bounded probe path are confirmed for that exact host; external
-process supervision, real concurrency isolation, host gameplay, and general compatibility remain
-`unverified`.
+process execution, real concurrency isolation, host gameplay, and general compatibility remain
+`unverified`. The profile lifecycle component is confirmed only at the gateway source/component
+boundary; it is not wired into the attached executable or a native deployment.
 
 Static policy results may establish configuration and source compatibility with the pinned Rust
 toolchain. They do not establish compatibility with a game or a historical implementation.
@@ -40,6 +41,7 @@ Keep these values separate and record each in a future compatibility matrix:
 | --- | --- | --- |
 | Rust/toolchain | repository | Can the governance and gateway code build with the declared MSRV? |
 | Gateway API | gateway | Do control/data requests, errors, identity, and lease rules match? |
+| Profile lifecycle contract | gateway | Do approved profile, identity, operation, epoch, and cleanup rules match the gateway consumer? |
 | Game-mod HTTP contract | game-mod | Does the fixed downstream route contract match? |
 | Game host/loader | game-mod | Can the host boundary load and execute in the claimed environment? |
 | MCP revision | MCP server | Can the adapter map its accepted calls to the gateway? |
@@ -79,6 +81,27 @@ workflow calls on a recovery ledger reject with `AuthorityRequired`. Missing or 
 identity in workflow state rejects restoration with `PersistedStateMismatch`, and unavailable
 receipt retention rejects reconciliation before any receipt read. No Runtime-v2 artifact, MCP route,
 protocol/mod file, or attached executable restart guarantee changes.
+
+Issue #50 adds another gateway-local lifecycle surface. `ApprovedLaunchProfiles` admits only
+opaque profile IDs and resolves exact executable/install/image identity, isolated user-data
+namespace, and bounded process policy. `ProcessLifecycle` authenticates lease and authority
+epochs, persists operation intent before calling `ProcessPort`, and retains duplicate/lost-response
+outcomes for reconciliation. Attach requires an identity from an earlier gateway record;
+stop/restart verify process birth/image/instance identity and descendant scope. Launch acknowledges
+`Starting`, not gameplay readiness. Existing constructors and methods remain available, but the
+new identity-bearing profile path rejects legacy ports before starting a process. In addition,
+the public lifecycle and fault enums gained variants, and the lifecycle record now includes a
+gateway-issued ordering sequence while caller operation IDs remain idempotency keys; Rust callers
+with exhaustive `match` expressions must add arms (wildcard or non-exhaustive matches remain
+source-compatible). Treat this as an additive
+source/component change for wildcard-matching consumers and a source-breaking migration for
+exhaustive enum consumers, rather than a blanket minor compatibility claim.
+Active instances cannot reuse the same approved user-data namespace; ambiguous launch faults remain
+`Unknown` with a durable reservation until read-only recovery proves the outcome. The SQLite
+lifecycle store fences competing coordinators with an exclusive process-lifetime lock. These
+guarantees are source/component behavior only.
+Native launch, host readiness, harness workflow mapping, and disposable-process acceptance remain
+`unverified`.
 
 - **Patch:** correction that preserves accepted identity, route, lease, error, and timing behavior.
 - **Minor:** additive bounded field or operation with an older-client behavior defined.
@@ -223,7 +246,7 @@ The prior Runtime-v4 source/component record at commit `17b93bf35e5256f6adf690aa
 | Surface | Current evidence | Result |
 | --- | --- | --- |
 | `runtime-v3-gameplay` fixed routes and forwarder | Source validation and route allowlist tests | Source-derived; live gateway/host settlement unverified |
-| Older numeric-ID co-op and process-supervisor prototypes | Bounded deterministic fakes and identity/failure tests | Source-derived; live restart, cleanup, isolation, and multiplayer unverified |
+| Profile-approved process lifecycle and legacy process supervisor | Bounded deterministic fakes, durable intent/replay tests, exact identity/descendant checks, and epoch rotation | Gateway source/component confirmed; native launch, host readiness, live restart/cleanup, isolation, and harness mapping unverified |
 | Coordinator-reported synchronization | Real gateway/MCP executable exchange plus injected-time ledger tests | Confirmed coordination component; native multiplayer unverified |
 
 These surfaces are additive to Runtime-v2 and do not inherit its runtime evidence.
@@ -295,8 +318,8 @@ field, digest, artifact byte, or valid serialized message changes.
 Runtime-v3 inherits the component adapter authentication settings and configured MCP session
 header. Read scope authorizes state, legal actions, wait, and reobserve; mutate scope is required
 for dispatch, and control scope for recovery. A read credential cannot dispatch or recover.
-The process-supervisor and older numeric-ID co-op APIs remain local prototypes. The attached
-runtime separately produces the complete `coop-synchronization-v1` response from recent
+The legacy process-supervisor API and profile lifecycle component remain gateway-local source
+contracts; neither is wired into the attached executable. The attached runtime separately produces the complete `coop-synchronization-v1` response from recent
 coordinator reports, with no use of peer synchronization to authorize gameplay forwarding.
 
 Recovery uses route-level control scope because the canonical request kinds include release-lease

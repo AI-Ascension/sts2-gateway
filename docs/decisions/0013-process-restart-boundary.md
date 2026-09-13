@@ -22,6 +22,11 @@ Concrete executable, profile, credential, readiness, and persistence behavior re
 injected `ProcessPort`. Runtime restart, lease-epoch rotation, and target-game recovery require a
 separate deployment adapter and remain unverified.
 
+ADR 0024 extends this source seam with an approved profile catalog, identity-bearing lifecycle
+records, durable reconciliation, and authority-epoch fencing. It does not change the generic
+handle-only restart contract above or claim native process execution, host readiness, or deployment
+compatibility.
+
 ## Evidence
 
 The deterministic supervisor test proves replacement ownership and the old-handle boundary. It is
