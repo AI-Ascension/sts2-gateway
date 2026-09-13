@@ -5,6 +5,20 @@ host compatibility and release publication.
 
 ## [Unreleased]
 
+- Add the gateway-owned profile lifecycle contract for issue #50. An opaque approved
+  `LaunchProfileId` resolves to bounded executable/install/image identity, isolated user-data
+  namespace, and process policy; authenticated launch, identity-checked attach, stop, restart,
+  durable intent/replay, and explicit `Blocked`/`Unknown` cleanup outcomes are covered by
+  deterministic process-port fixtures and an SQLite record seam. Durable per-instance ownership
+  reservations, server-issued operation ordering, repeated read-only recovery, and an explicit
+  no-eviction operation-record budget now prevent duplicate launch, stale-history replacement,
+  and unbounded retention. Ambiguous launch faults stay `Unknown` with a durable reservation,
+  approved user-data namespaces cannot be reused concurrently, and on-disk SQLite coordinators
+  are fenced by an exclusive lock. This is source/component evidence only: native process launch, host
+  readiness, harness workflow mapping, and deployment compatibility remain unverified behind the
+  `sts2-harness` prerequisites. Legacy ports reject the profile-aware launch path before
+  starting; consumers with exhaustive matches over the expanded public lifecycle/fault enums must
+  add arms.
 - Add the authenticated, bounded `game-information-query-v1` read transport for capabilities and
   the canonical envelope query route (with additive operation-specific aliases). Fixed
   instance-scoped routes derive only their allowlisted loopback producer paths after
@@ -18,7 +32,6 @@ host compatibility and release publication.
   `376845b0c86b4afcd2c79ffba753eb7e7e416f5410da26b4dae970cfee2221d9`. Synthetic gateway
   transport evidence is confirmed; native producer, MCP (#51/#52), harness, deployment, and
   release compatibility remain unverified. See [ADR 0024](docs/decisions/0024-game-information-query-routing.md).
-
 - Add the proposed gateway-local save-profile component from
   [ADR 0024](docs/decisions/0024-save-profile-provisioning-and-fencing.md): fixed fenced
   list/current/select/create-disposable/lookup routes, fresh opaque user-data allocation with

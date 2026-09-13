@@ -1,7 +1,8 @@
 # Repository layout
 
 The target keeps a standard Rust governance root and one non-empty target-owned control-plane
-package plus a separate attached runtime binary. General lifecycle adapters remain unverified.
+package plus a separate attached runtime binary. The profile lifecycle component and durable record
+store are source-level gateway code; native lifecycle adapters remain unverified.
 
 ```text
 sts2-gateway/
@@ -26,9 +27,11 @@ product behavior. `conformance/cases/poc-v1.json` is a verbatim protocol-owned c
 because the normative artifact checksum inventory covers it; it does not move protocol ownership or
 implementation into this repository. Do not add an empty placeholder crate to
 make a command pass. Every future module needs one responsibility, a named consumer, a build/test
-purpose, and an explicit boundary. The gateway package deliberately contains no concrete process,
-transport, host, provider, storage, or protocol implementation. The attached runtime adapter is an
-explicitly separate binary under `crates/gateway/src/bin/`.
+purpose, and an explicit boundary. The gateway package deliberately contains no concrete OS
+process, transport, host, provider, or protocol implementation. Its SQLite record store is a
+gateway-local durable component behind the lifecycle port; native process execution remains an
+injected deployment concern. The attached runtime adapter is an explicitly separate binary under
+`crates/gateway/src/bin/`.
 
 The target does not import the sibling game-mod, MCP, or harness implementation. The POC consumes a
 checked-in artifact copy and has no protocol implementation path dependency. A future compile

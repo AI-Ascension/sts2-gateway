@@ -7,10 +7,11 @@ instances. It owns lifecycle, process ownership, identity, authentication, lease
 readiness, health, fixed routing, isolation, bounded backpressure, and cleanup. It is not a game
 authority, host adapter, MCP server, model runner, or generic reverse proxy.
 
-This document describes the accepted boundary and the initialized package seams. The package is a
-small in-memory control-plane core; its attached `runtime-v1` adapter has a confirmed exact-host
-trace, while the separate `runtime-v2` gameplay-operation path is deterministic fake/source evidence
-only and live host settlement remains `unverified`.
+This document describes the accepted boundary and the initialized package seams. The package
+contains a deterministic control-plane core, bounded durable lifecycle records, and a profile-gated
+process lifecycle component. Its attached `runtime-v1` adapter has a confirmed exact-host trace,
+while the separate `runtime-v2` gameplay-operation path and native process execution remain
+deterministic fake/source evidence only; live host settlement remains `unverified`.
 
 ## Runtime topology
 
@@ -61,11 +62,18 @@ Compile time:  gateway -> owner-local gateway contracts
                gateway -> sts2-protocol only for an accepted neutral contract
 ```
 
-The initialized package keeps lifecycle records and lease/fence policy local and testable without
-I/O. Its `Clock`, `ProcessPort`, `ReadinessPort`, `TransportPort`, `LeaseDecisionPort`, and
-`RuntimeV2ForwardingPort` are explicit seams. The attached runtime owns its bounded optional journal
-adapter and its process-lifetime exclusive journal lock at the process boundary; the generic package
-does not acquire filesystem persistence. The
+The initialized package keeps lease/fence policy local and testable without I/O. Its `Clock`,
+`ProcessPort`, `ReadinessPort`, `TransportPort`, `LeaseDecisionPort`, and
+`RuntimeV2ForwardingPort` are explicit seams. Profile-approved process lifecycle uses the
+`ApprovedLaunchProfiles` catalog, `ProcessLifecycle`, and a `LifecycleRecordStore`; the store keeps
+one authoritative per-instance ownership row, including identity-less reservations and a
+gateway-issued sequence, independently of request history. A user-data namespace is reserved by
+at most one active instance, and ambiguous launch faults retain an `Unknown` reservation until
+read-only recovery proves what happened. Its SQLite implementation commits each operation
+transition before invoking the process port and holds an exclusive coordinator lock for the
+store lifetime. The attached runtime owns its bounded
+optional journal adapter and its process-lifetime exclusive journal lock
+at the process boundary; it is not wired to the profile lifecycle component. The
 POC and Runtime-v2 checks verify checked-in copies of their protocol artifacts as inert data; no
 protocol implementation path dependency is present. See
 [ADR 0001](decisions/0001-gateway-ownership-and-dependencies.md),
@@ -84,11 +92,13 @@ identifiers. The attached runtime additionally fences the configured MCP session
 `x-mcp-session-id` without placing that transport identity in the frozen Runtime-v2 envelope or
 forwarding it to the game-mod.
 
-The proposed lifecycle vocabulary is `created`, `starting`, `ready`, `busy`, `degraded`, `stopping`,
-`stopped`, `failed`, and `expired`. The gateway owns admission and successor transitions. A lease
+The lifecycle vocabulary is `created`, `starting`, `ready`, `busy`, `degraded`, `stopping`, `stopped`,
+`failed`, `unknown`, and `expired`. The gateway owns admission and successor transitions. A lease
 expiry, gateway restart, instance crash, shutdown, or owner change invalidates the old epoch. The
 old epoch is rejected before forwarding, and a replacement instance receives fresh identity rather
-than inheriting an ambiguous record.
+than inheriting an ambiguous record. Profile lifecycle operations additionally retain an exact
+process birth/image/install/instance identity and reject a stale or foreign process before stop,
+restart, or attach.
 
 Workflow-facing Runtime-v2 admission additionally uses the gateway-local `RuntimeV2Authority`,
 which binds instance, session, lease, lease epoch, and an owner-issued boot epoch outside the
@@ -115,6 +125,10 @@ unreturned allocation record and restores capacity without reusing its consumed 
 identity. It does not guess a handle to kill. Once a start has succeeded, cleanup responsibility stays
 with the gateway: failed forced expiry cleanup revokes the lease, retains the process handle in
 `failed`, and makes `reconcile` return `ProcessStop` for an explicit authorized cleanup retry.
+The profile-approved lifecycle path is stricter where an adapter reports a launch fault after a
+child may have been created: only explicit pre-start rejection is terminal `Failed`; all other
+launch faults become `Unknown` while the durable ownership reservation remains in force and
+read-only recovery may attach the exact identity.
 
 ## Trust and failure boundaries
 
@@ -134,11 +148,18 @@ The initialized package currently provides:
 - `ReadinessPort` for readiness/health observation;
 - `TransportPort` for fixed route classes and bounded opaque payload forwarding; and
 - `LeaseDecisionPort` for identity, expiry, and epoch-fence decisions; and
-- `RuntimeV2ForwardingPort` for the fixed `end_turn` dispatch and read-only receipt lookup.
+- `RuntimeV2ForwardingPort` for the fixed `end_turn` dispatch and read-only receipt lookup; and
+- the profile catalog, durable lifecycle-record store, and `ProcessLifecycle` coordinator for
+  authenticated launch, attach, stop, restart, reconciliation, and bounded process ownership.
 
-Lifecycle records, allocation, admission, shutdown, cleanup, and state transitions are owned by
-the gateway core itself. Future adapters may add scheduling, safe port reservation, persistence,
-authentication credential verification, and restart reconciliation only behind reviewed seams.
+Allocation, admission, shutdown, cleanup, and state transitions are owned by the gateway core.
+The profile lifecycle component supplies the approved process operation record and reconciliation
+path behind those seams; concrete OS process, signal, readiness, and host adapters remain reviewed
+deployment inputs.
+
+Lifecycle operation history has an explicit no-eviction `max_records` budget. A fresh operation is
+rejected before a process-port effect when the budget is exhausted, while exact retained duplicates
+remain replayable; startup fails closed if persisted history already exceeds the configured budget.
 
 Each seam needs a named consumer, resource limit, shutdown path, deterministic fake, and evidence
 level. The package has deterministic fakes for its current tests; they are not runtime adapters.
@@ -189,10 +210,12 @@ effect from acceptance.
 
 `CoopSession` is an additive peer ledger with two-to-four bounded peers, one local role, generation
 matching, and explicit disconnected/missing-peer and disagreement state. Mutation authorization is
-available only while synchronized. The process supervisor similarly owns only injected process
-handles; its bounded restart seam stops the old owned handle before starting one replacement and
-fails closed if replacement start fails. Concrete executable, profile, credential, and cleanup
-adapters remain deployment inputs and require runtime evidence.
+available only while synchronized. The process supervisor owns only injected process handles; its
+bounded restart seam stops the old owned handle before starting one replacement and fails closed if
+replacement start fails. The additive profile lifecycle component now resolves approved executable
+and isolated-user-data identities, persists operation intents, and fences restarts with authority
+epochs. Its deterministic adapter/fixtures are source/component evidence; concrete OS process,
+credential, cleanup, and host readiness remain deployment inputs.
 
 The semantic gameplay adapter now enforces the canonical copied schema, its exact digest,
 authenticated header/body identity agreement, expected route kinds, operation/correlation binding,
@@ -213,8 +236,8 @@ configuration and terminal in-process release admission. Runtime-v2 exact receip
 separate from new-action generation admission; read-only reconciliation polls accepted or unknown
 work without redispatch, and historical receipts cannot rewind current observation. See
 [ADR 0011](decisions/0011-attached-runtime-hardening.md). The queued executable includes Runtime-v2 journal recovery, but still has no timed lease renewal,
-durable boot epoch, or concrete process supervisor; the co-op and supervisor library seams are
-local prototypes and are not connected to runtime admission or co-op wire serialization.
+durable boot epoch, or runtime-connected process supervisor; the co-op, supervisor, and profile
+lifecycle library seams are not connected to runtime admission or co-op wire serialization.
 
 The adapter also exposes `POST /v1/recovery/host-fence` as a control-scoped,
 fixed bridge for the additive `watchdog-recovery-v1` sideband. It validates the

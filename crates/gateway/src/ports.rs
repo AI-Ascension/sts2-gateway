@@ -3,16 +3,24 @@
 use crate::identity::{
     FenceFailure, InstanceId, Lease, LeaseProof, OperationId, Tick, evaluate_fence,
 };
+use crate::process_identity::{ProcessDescendantIdentity, ProcessIdentity, ProcessLaunch};
+use crate::process_profile::LaunchProfile;
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum ProcessFault {
     Unavailable,
     StartRejected,
     InspectionFailed,
     StopFailed,
+    StopTimedOut,
+    ProfileRequired,
+    ProfileNotApproved,
+    IdentityMismatch,
+    DescendantOutOfScope,
 }
 
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct ProcessHandle(u64);
 
 impl ProcessHandle {
@@ -27,28 +35,44 @@ impl ProcessHandle {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct LaunchSpec {
     instance_id: InstanceId,
+    profile_id: Option<crate::LaunchProfileId>,
 }
 
 impl LaunchSpec {
     pub(crate) const fn new(instance_id: InstanceId) -> Self {
-        Self { instance_id }
+        Self {
+            instance_id,
+            profile_id: None,
+        }
+    }
+
+    pub const fn for_profile(instance_id: InstanceId, profile_id: crate::LaunchProfileId) -> Self {
+        Self {
+            instance_id,
+            profile_id: Some(profile_id),
+        }
     }
 
     pub const fn instance_id(self) -> InstanceId {
         self.instance_id
     }
+
+    pub const fn profile_id(self) -> Option<crate::LaunchProfileId> {
+        self.profile_id
+    }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum ProcessState {
     Running,
     Exited { code: Option<i32> },
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum StopMode {
     Graceful,
     Force,
@@ -65,6 +89,57 @@ pub trait ProcessPort {
     fn inspect(&mut self, process: ProcessHandle) -> Result<ProcessState, ProcessFault>;
 
     fn stop(&mut self, process: ProcessHandle, mode: StopMode) -> Result<(), ProcessFault>;
+
+    /// Starts with a server-resolved profile and transfers an identity-bearing launch.
+    ///
+    /// A legacy port cannot prove the exact identity or cleanup a partially transferred launch
+    /// through this result type. Its default therefore rejects the profile-aware path before
+    /// invoking `start`; adapters that can establish and clean up an identity-bearing launch
+    /// must override this method. An adapter may report an ambiguous fault after creating a
+    /// child (for example when cleanup itself fails); `ProcessLifecycle` treats such a fault as
+    /// `Unknown` and retains its durable reservation, then uses `recover_owned` as a read-only
+    /// attachment opportunity.
+    fn start_with_profile(
+        &mut self,
+        _specification: LaunchSpec,
+        _profile: LaunchProfile,
+    ) -> Result<ProcessLaunch, ProcessFault> {
+        Err(ProcessFault::ProfileRequired)
+    }
+
+    /// Returns the exact identity currently associated with a handle.
+    ///
+    /// Legacy ports return an intentionally non-matching opaque identity. Profile-aware ports
+    /// override this method; lifecycle admission never treats the legacy value as authorized.
+    fn inspect_identity(
+        &mut self,
+        process: ProcessHandle,
+    ) -> Result<ProcessIdentity, ProcessFault> {
+        match self.inspect(process)? {
+            ProcessState::Running => Ok(ProcessIdentity::legacy(process)),
+            ProcessState::Exited { .. } => Err(ProcessFault::InspectionFailed),
+        }
+    }
+
+    /// Returns the currently observed direct descendants of an owned process.
+    fn descendants(
+        &mut self,
+        _process: ProcessHandle,
+    ) -> Result<Vec<ProcessDescendantIdentity>, ProcessFault> {
+        Ok(Vec::new())
+    }
+
+    /// Recovers a process created for a previously persisted launch intent.
+    ///
+    /// Returning `None` is a definitive absence only for an adapter that can inspect its owned
+    /// process registry; the default reports no recovery capability.
+    fn recover_owned(
+        &mut self,
+        _instance_id: InstanceId,
+        _profile: LaunchProfile,
+    ) -> Result<Option<ProcessIdentity>, ProcessFault> {
+        Ok(None)
+    }
 }
 
 /// Supplies monotonic time; implementations must not use wall time for ordering decisions.
