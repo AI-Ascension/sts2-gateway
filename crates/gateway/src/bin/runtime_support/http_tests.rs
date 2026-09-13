@@ -75,6 +75,28 @@ fn cancelable_read_preserves_successful_bytes_at_a_bounded_poll() -> std::io::Re
 }
 
 #[test]
+fn cancelable_response_waits_past_a_poll_until_the_overall_deadline() -> std::io::Result<()> {
+    let (mut client, mut server) = pair()?;
+    let writer = std::thread::spawn(move || -> std::io::Result<()> {
+        std::thread::sleep(Duration::from_millis(50));
+        server.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 1\r\n\r\nx")
+    });
+    let start = Instant::now();
+    let response = super::read_response_with_limit_cancelable(
+        &mut client,
+        start + Duration::from_millis(250),
+        super::MAX_RESPONSE_BYTES,
+        || false,
+    )
+    .map_err(|error| std::io::Error::other(format!("delayed response failed: {error:?}")))?;
+    assert!(start.elapsed() >= Duration::from_millis(25));
+    assert_eq!(response.status, 200);
+    assert_eq!(response.body, b"x");
+    assert!(matches!(writer.join(), Ok(Ok(()))));
+    Ok(())
+}
+
+#[test]
 fn request_header_drip_does_not_reset_deadline() -> std::io::Result<()> {
     let (mut client, mut server) = pair()?;
     let writer = std::thread::spawn(move || -> std::io::Result<()> {

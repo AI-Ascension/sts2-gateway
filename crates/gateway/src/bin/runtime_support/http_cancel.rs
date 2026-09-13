@@ -114,7 +114,10 @@ where
             Ok(_read) if Instant::now() >= expires => Err(ReadError::Timeout),
             Ok(read) => Ok(read),
             Err(error)
-                if error.kind() == std::io::ErrorKind::TimedOut && read_expires < expires =>
+                if matches!(
+                    error.kind(),
+                    std::io::ErrorKind::TimedOut | std::io::ErrorKind::WouldBlock
+                ) && read_expires < expires =>
             {
                 continue;
             }

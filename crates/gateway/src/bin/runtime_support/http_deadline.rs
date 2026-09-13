@@ -89,7 +89,12 @@ where
                 ));
             }
             Ok(count) => bytes = &bytes[count..],
-            Err(error) if error.kind() == io::ErrorKind::TimedOut && poll_deadline < deadline => {
+            Err(error)
+                if matches!(
+                    error.kind(),
+                    io::ErrorKind::TimedOut | io::ErrorKind::WouldBlock
+                ) && poll_deadline < deadline =>
+            {
                 continue;
             }
             Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
