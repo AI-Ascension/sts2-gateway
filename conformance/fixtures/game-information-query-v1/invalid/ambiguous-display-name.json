@@ -1,0 +1,1 @@
+{"base_fixture":"artifacts/game-information-query-v1/golden/static-page-1-request.json","expected_error":"ambiguous_id","id":"GIQ-INVALID-AMBIGUOUS-DISPLAY-NAME","mutations":[{"path":"/query/query_kind","value":"search"},{"path":"/query/filters/display_name","value":"Strike"}],"schema_valid":true}

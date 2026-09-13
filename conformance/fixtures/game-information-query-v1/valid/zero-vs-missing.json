@@ -1,0 +1,1 @@
+{"fields":[{"availability":"available","name":"amount","source":{"kind":"game_mod","ref":"instance-1"},"unit":"count","value":0},{"availability":"missing","name":"cost","source":{"kind":"content_manifest","ref":null},"unit":null,"value":null}],"id":"GIQ-VALID-ZERO-VS-MISSING"}

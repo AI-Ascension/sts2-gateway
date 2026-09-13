@@ -55,6 +55,21 @@ These are inert contract data and gateway-owned transport validation. The protoc
 responsible for the neutral model and conformance meaning; the game-mod remains responsible for
 host observation and projection.
 
+## Game-information query additions
+
+```text
+protocol-artifact/game-information-query-v1/  pinned manifest, schema, goldens, conformance, consumer pin, checksums
+schemas/game-information-query-v1.schema.json  protocol-owned source-path schema mirror
+conformance/cases/game-information-query-v1.json  implementation-neutral consumer case
+conformance/fixtures/game-information-query-v1/  synthetic valid and invalid vectors
+crates/gateway/src/bin/runtime_support/game_information*  fixed route, forwarder, and payload validation
+crates/gateway/src/bin/runtime_support/service_game_information*  lease-fenced HTTP dispatch and tests
+```
+
+The artifact remains protocol-owned inert data. The gateway owns only the authenticated route,
+producer transport, authority/lease/snapshot binding, and bounded validation; game-information
+meaning, extraction, MCP tools, and harness behavior stay with their named owners.
+
 ## Runtime-v4 expert rest-action additions
 
 ```text

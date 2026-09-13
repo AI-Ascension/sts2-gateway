@@ -1,0 +1,1 @@
+{"base_fixture":"artifacts/game-information-query-v1/golden/live-detail-request.json","expected_error":"invalid_bounds","id":"GIQ-INVALID-INTEGER-BOUNDS","mutations":[{"path":"/query/binding/instance_ref/epoch","value":9007199254740992}],"schema_valid":false}

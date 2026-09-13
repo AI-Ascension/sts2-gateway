@@ -1,0 +1,1 @@
+{"expected_error":"malformed","id":"GIQ-INVALID-DUPLICATE-KEY","raw":"{\"protocol_version\":\"game-information-query-v1\",\"protocol_version\":\"game-information-query-v1\"}","schema_valid":false}

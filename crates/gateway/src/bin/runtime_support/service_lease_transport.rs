@@ -7,7 +7,7 @@ use std::net::{SocketAddr, TcpStream};
 use std::time::{Duration, Instant};
 
 use super::super::http::{
-    HttpResponse, MAX_RESPONSE_BYTES, read_response_with_limit, write_request,
+    HttpResponse, MAX_RESPONSE_BYTES, ReadError, read_response_with_limit, write_request,
 };
 use super::RuntimeService;
 use super::support::read_error_status;
@@ -31,20 +31,52 @@ impl RuntimeService {
         correlation: Option<&str>,
         max_response_bytes: usize,
     ) -> Result<HttpResponse, u16> {
-        let expires = Instant::now() + Duration::from_secs(5);
+        self.forward_mod_with_limit_detailed(method, path, body, correlation, max_response_bytes)
+            .map_err(read_error_status)
+    }
+
+    pub(super) fn forward_mod_with_limit_detailed(
+        &self,
+        method: &str,
+        path: &str,
+        body: &[u8],
+        correlation: Option<&str>,
+        max_response_bytes: usize,
+    ) -> Result<HttpResponse, ReadError> {
+        self.forward_mod_with_limit_detailed_timeout(
+            method,
+            path,
+            body,
+            correlation,
+            max_response_bytes,
+            Duration::from_secs(5),
+        )
+    }
+
+    pub(super) fn forward_mod_with_limit_detailed_timeout(
+        &self,
+        method: &str,
+        path: &str,
+        body: &[u8],
+        correlation: Option<&str>,
+        max_response_bytes: usize,
+        exchange_timeout: Duration,
+    ) -> Result<HttpResponse, ReadError> {
+        let expires = Instant::now() + exchange_timeout;
         let address = self
             .config
             .mod_address
             .parse::<SocketAddr>()
-            .map_err(|_| 503_u16)?;
+            .map_err(|_| ReadError::Unavailable)?;
         let mut stream =
-            TcpStream::connect_timeout(&address, Duration::from_secs(2)).map_err(|_| 503_u16)?;
+            TcpStream::connect_timeout(&address, Duration::from_secs(2).min(exchange_timeout))
+                .map_err(|_| ReadError::Unavailable)?;
         stream
-            .set_read_timeout(Some(Duration::from_secs(5)))
-            .map_err(|_| 503_u16)?;
+            .set_read_timeout(Some(exchange_timeout))
+            .map_err(|_| ReadError::Unavailable)?;
         stream
-            .set_write_timeout(Some(Duration::from_secs(5)))
-            .map_err(|_| 503_u16)?;
+            .set_write_timeout(Some(exchange_timeout))
+            .map_err(|_| ReadError::Unavailable)?;
         let mut headers = BTreeMap::new();
         headers.insert(
             String::from("Authorization"),
@@ -95,9 +127,9 @@ impl RuntimeService {
                 correlation.to_owned(),
             );
         }
-        write_request(&mut stream, method, path, &headers, body, expires).map_err(|_| 503_u16)?;
+        write_request(&mut stream, method, path, &headers, body, expires)
+            .map_err(|_| ReadError::Unavailable)?;
         read_response_with_limit(&mut stream, expires, max_response_bytes)
-            .map_err(read_error_status)
     }
 }
 

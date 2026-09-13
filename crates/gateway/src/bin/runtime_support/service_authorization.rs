@@ -83,6 +83,9 @@ pub(super) fn required_scope(request: &HttpRequest, instance_id: &str) -> AuthSc
     if RuntimeMapRoute::parse(&request.method, &request.path, instance_id).is_some() {
         return AuthScope::Read;
     }
+    if GameInformationRoute::parse(&request.method, &request.path, instance_id).is_some() {
+        return AuthScope::Read;
+    }
     if let Some(route) = RuntimeSaveProfileRoute::parse(&request.method, &request.path, instance_id)
     {
         return if route.is_mutation() {

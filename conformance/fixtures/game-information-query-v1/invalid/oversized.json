@@ -1,0 +1,1 @@
+{"base_fixture":"artifacts/game-information-query-v1/golden/static-page-1-request.json","expected_error":"result_limit_exceeded","id":"GIQ-INVALID-OVERSIZED","mutations":[{"path":"/query/limits/page_bytes","value":262145}],"schema_valid":false}

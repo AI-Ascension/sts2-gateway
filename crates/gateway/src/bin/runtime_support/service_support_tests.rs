@@ -27,6 +27,8 @@ pub(super) fn test_service() -> Result<RuntimeService, String> {
         workflow_authority: None,
         coop_native_peer_token: None,
         coop_native_peer_id: None,
+        game_information_content_manifest_id: String::from("content-1"),
+        game_information_run_id: String::from("run-1"),
         save_profile_enabled: true,
     };
     let binding = RuntimeV2Binding::new(
@@ -73,6 +75,9 @@ pub(super) fn test_service() -> Result<RuntimeService, String> {
         ),
     )
     .map_err(|error| error.to_string())?;
+    let game_information_content_manifest_id =
+        config.game_information_content_manifest_id.clone();
+    let game_information_run_id = config.game_information_run_id.clone();
     let save_profile = service_save_profile::SaveProfileRuntime::new(
         config.save_profile_enabled,
         &config.mod_address,
@@ -106,6 +111,14 @@ pub(super) fn test_service() -> Result<RuntimeService, String> {
             MAX_RESPONSE_BYTES,
         ),
         runtime_map: RuntimeMapForwarder::new(MAX_MAP_RESPONSE_BYTES),
+        game_information: GameInformationForwarder::new(
+            super::game_information_forwarder::MAX_REQUEST_BYTES,
+            super::game_information_forwarder::MAX_RESPONSE_BYTES,
+            &game_information_content_manifest_id,
+            &game_information_run_id,
+        ),
+        game_information_exchange_timeout: Duration::from_secs(5),
+        game_information_cursor_bindings: BTreeMap::new(),
         save_profile,
         save_profile_active_run: false,
         seeded_run,
