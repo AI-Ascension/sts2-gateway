@@ -22,7 +22,7 @@ fn status_mapping_keeps_unknown_explicit() {
 }
 
 #[test]
-fn lookup_receipt_keeps_the_original_operation_route() {
+fn lookup_receipt_keeps_the_original_operation_route() -> Result<(), String> {
     let request = SaveProfileForwardRequest {
         operation_id: String::from("op-list"),
         context: SaveProfileContext {
@@ -47,13 +47,12 @@ fn lookup_receipt_keeps_the_original_operation_route() {
         "correlation_id": "corr-list",
         "operation_id": "op-list"
     });
+    let body = serde_json::to_vec(&body).map_err(|error| error.to_string())?;
     let decoded = decode_lookup_response(
         request,
-        super::super::http::HttpResponse {
-            status: 200,
-            body: serde_json::to_vec(&body).expect("synthetic response serializes"),
-        },
+        super::super::http::HttpResponse { status: 200, body },
     )
-    .expect("synthetic lookup response validates");
+    .map_err(|error| format!("{error:?}"))?;
     assert_eq!(decoded.route, SaveProfileRoute::List);
+    Ok(())
 }
