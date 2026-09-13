@@ -7,10 +7,11 @@ use std::net::{SocketAddr, TcpStream};
 use std::time::{Duration, Instant};
 
 use super::super::http::{
-    HttpResponse, MAX_RESPONSE_BYTES, ReadError, read_response_with_limit, write_request,
+    HttpResponse, MAX_RESPONSE_BYTES, ReadError, read_response_with_limit,
+    read_response_with_limit_cancelable, write_request, write_request_cancelable,
 };
-use super::RuntimeService;
 use super::support::read_error_status;
+use super::{RequestCancellation, RuntimeService};
 
 impl RuntimeService {
     pub(super) fn forward_mod(
@@ -77,14 +78,72 @@ impl RuntimeService {
         stream
             .set_write_timeout(Some(exchange_timeout))
             .map_err(|_| ReadError::Unavailable)?;
+        let headers = self.mod_request_headers(correlation, body.len());
+        write_request(&mut stream, method, path, &headers, body, expires)
+            .map_err(|_| ReadError::Unavailable)?;
+        read_response_with_limit(&mut stream, expires, max_response_bytes)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn forward_mod_with_limit_detailed_timeout_cancelable(
+        &self,
+        method: &str,
+        path: &str,
+        body: &[u8],
+        correlation: Option<&str>,
+        max_response_bytes: usize,
+        exchange_timeout: Duration,
+        cancellation: &RequestCancellation,
+    ) -> Result<HttpResponse, ReadError> {
+        if cancellation.is_cancelled() {
+            return Err(ReadError::Cancelled);
+        }
+        let expires = Instant::now() + exchange_timeout;
+        let address = self
+            .config
+            .mod_address
+            .parse::<SocketAddr>()
+            .map_err(|_| ReadError::Unavailable)?;
+        let mut stream =
+            TcpStream::connect_timeout(&address, Duration::from_secs(2).min(exchange_timeout))
+                .map_err(|_| ReadError::Unavailable)?;
+        stream
+            .set_read_timeout(Some(exchange_timeout))
+            .map_err(|_| ReadError::Unavailable)?;
+        stream
+            .set_write_timeout(Some(exchange_timeout))
+            .map_err(|_| ReadError::Unavailable)?;
+        if cancellation.is_cancelled() {
+            return Err(ReadError::Cancelled);
+        }
+        let headers = self.mod_request_headers(correlation, body.len());
+        if cancellation.is_cancelled() {
+            return Err(ReadError::Cancelled);
+        }
+        write_request_cancelable(&mut stream, method, path, &headers, body, expires, || {
+            cancellation.is_cancelled()
+        })?;
+        if cancellation.is_cancelled() {
+            return Err(ReadError::Cancelled);
+        }
+        read_response_with_limit_cancelable(&mut stream, expires, max_response_bytes, || {
+            cancellation.is_cancelled()
+        })
+    }
+
+    fn mod_request_headers(
+        &self,
+        correlation: Option<&str>,
+        body_len: usize,
+    ) -> BTreeMap<String, String> {
         let mut headers = BTreeMap::new();
         headers.insert(
             String::from("Authorization"),
             format!("Bearer {}", self.config.mod_token),
         );
         headers.insert(String::from("Host"), self.config.mod_address.clone());
-        headers.insert(String::from("Content-Length"), body.len().to_string());
-        if !body.is_empty() {
+        headers.insert(String::from("Content-Length"), body_len.to_string());
+        if body_len > 0 {
             headers.insert(
                 String::from("Content-Type"),
                 String::from("application/json"),
@@ -127,9 +186,7 @@ impl RuntimeService {
                 correlation.to_owned(),
             );
         }
-        write_request(&mut stream, method, path, &headers, body, expires)
-            .map_err(|_| ReadError::Unavailable)?;
-        read_response_with_limit(&mut stream, expires, max_response_bytes)
+        headers
     }
 }
 

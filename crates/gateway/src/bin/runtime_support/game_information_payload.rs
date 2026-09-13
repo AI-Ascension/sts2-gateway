@@ -30,10 +30,16 @@ pub(super) fn validate_query(
     content_manifest_id: &str,
     run_id: &str,
 ) -> QueryValidation {
-    let Some(kind) = route.query_kind() else {
+    let Some(query_kind) = query.get("query_kind").and_then(Value::as_str) else {
         return QueryValidation::Invalid;
     };
-    if query.get("query_kind").and_then(Value::as_str) != Some(kind) {
+    if route
+        .query_kind()
+        .is_some_and(|expected| expected != query_kind)
+        || (route == GameInformationRoute::Query
+            && GameInformationRoute::from_query_kind(query_kind).is_none())
+        || route == GameInformationRoute::Capabilities
+    {
         return QueryValidation::Invalid;
     }
     let Some(binding) = query.get("binding").and_then(Value::as_object) else {

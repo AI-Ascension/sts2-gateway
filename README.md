@@ -178,10 +178,13 @@ graph, and independent navigation bindings before returning data. The route is s
 evidence; live map freshness and visualizer rendering remain unverified. See
 [ADR 0017](docs/decisions/0017-runtime-map-read-route.md).
 
-The additive `game-information-query-v1` transport exposes fixed authenticated capabilities,
-list, search, get, detail, and availability routes. Static reads bind to configured content;
-live reads bind to instance/run/lease-epoch/snapshot scope. The gateway forwards only the
-operation-specific producer path, applies bounded request/response/item/page/text/cursor and existing
+The additive `game-information-query-v1` transport exposes fixed authenticated capabilities and the
+canonical `POST /v1/instances/{instance_id}/game-information/query` envelope (plus additive
+operation-specific aliases). Static reads bind to configured content; live reads bind to
+instance/run/lease-epoch/snapshot scope. A successful capabilities response is required for the
+current producer authority before a query; advertised operations and negotiated limits are enforced
+before forwarding, and caller disconnect cancels owned producer work. The gateway forwards only the
+fixed operation-specific producer path, applies bounded request/response/item/page/text/cursor and existing
 queue/timeout controls, preserves typed producer errors, and implements no response cache. This
 is gateway source/component evidence pinned to protocol source
 `34f68b182c09472c3a0573ff478e17e6ed53c91f` at schema digest

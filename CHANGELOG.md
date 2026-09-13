@@ -5,12 +5,15 @@ host compatibility and release publication.
 
 ## [Unreleased]
 
-- Add the authenticated, bounded `game-information-query-v1` read transport for capabilities,
-  list, search, get, detail, and availability. Fixed instance-scoped routes forward only their
-  operation-specific loopback producer paths after caller/session/lease/epoch and static
-  content/live snapshot fencing; request, response, page, item, queue, and timeout budgets are
-  enforced, typed producer errors are preserved, and no response cache or cross-instance fallback
-  exists. The gateway pins protocol source commit
+- Add the authenticated, bounded `game-information-query-v1` read transport for capabilities and
+  the canonical envelope query route (with additive operation-specific aliases). Fixed
+  instance-scoped routes derive only their allowlisted loopback producer paths after
+  caller/session/lease/epoch and static content/live snapshot fencing. A successful capabilities
+  response is required for the current producer authority; advertised operations and negotiated
+  limits are enforced before forwarding, caller disconnect cancels owned producer work, request,
+  response, page, item, queue, and timeout budgets are enforced, typed producer errors are
+  preserved, and no response cache or cross-instance fallback exists. The gateway pins protocol
+  source commit
   `34f68b182c09472c3a0573ff478e17e6ed53c91f` at schema digest
   `376845b0c86b4afcd2c79ffba753eb7e7e416f5410da26b4dae970cfee2221d9`. Synthetic gateway
   transport evidence is confirmed; native producer, MCP (#51/#52), harness, deployment, and

@@ -63,6 +63,18 @@ fn response_body_drip_does_not_reset_deadline() -> std::io::Result<()> {
 }
 
 #[test]
+fn cancelable_read_preserves_successful_bytes_at_a_bounded_poll() -> std::io::Result<()> {
+    let (mut client, mut server) = pair()?;
+    server.write_all(b"x")?;
+    let mut bytes = [0_u8; 1];
+    let read =
+        super::deadline::read_with_timeout(&mut client, &mut bytes, Duration::from_millis(1))?;
+    assert_eq!(read, 1);
+    assert_eq!(bytes, [b'x']);
+    Ok(())
+}
+
+#[test]
 fn request_header_drip_does_not_reset_deadline() -> std::io::Result<()> {
     let (mut client, mut server) = pair()?;
     let writer = std::thread::spawn(move || -> std::io::Result<()> {

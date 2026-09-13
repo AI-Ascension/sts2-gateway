@@ -204,6 +204,7 @@ fn matches_request(request: &SeededRunMessage, response: &SeededRunMessage) -> b
 
 fn map_read_error(error: ReadError) -> SeededRunTransportFault {
     match error {
+        ReadError::Cancelled => SeededRunTransportFault::Timeout,
         ReadError::Timeout => SeededRunTransportFault::Timeout,
         ReadError::Malformed | ReadError::Oversized => SeededRunTransportFault::MalformedResponse,
         ReadError::Unavailable => SeededRunTransportFault::Timeout,

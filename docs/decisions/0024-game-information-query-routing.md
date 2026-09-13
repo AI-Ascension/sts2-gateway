@@ -20,12 +20,15 @@ must remain byte-verified. A changed upstream artifact requires re-vendoring and
 
 ## Fixed route and producer mapping
 
-Only these operation-keyed mappings are admitted. The caller supplies an operation body, never a
-downstream path or URL:
+The canonical caller surface is one envelope route plus a bodyless capability probe. The gateway
+derives the fixed producer operation from `query.query_kind`; callers never supply a downstream
+path or URL. Operation-specific paths remain additive compatibility aliases for clients pinned to
+the first gateway revision:
 
 | Operation | Gateway method/path | Producer method/path | Request/response |
 | --- | --- | --- | --- |
 | capabilities | `GET /v1/instances/{instance_id}/game-information/capabilities` | `GET /api/v1/game-information/capabilities` | bodyless request; `capabilities_response` or typed `error_response` |
+| query (`query_kind=list/search/get/detail/availability`) | `POST /v1/instances/{instance_id}/game-information/query` | `POST /api/v1/game-information/{query_kind}` | `query_request` / `query_response` or typed `error_response` |
 | list | `POST /v1/instances/{instance_id}/game-information/list` | `POST /api/v1/game-information/list` | `query_request` / `query_response` or typed `error_response` |
 | search | `POST /v1/instances/{instance_id}/game-information/search` | `POST /api/v1/game-information/search` | `query_request` / `query_response` or typed `error_response` |
 | get | `POST /v1/instances/{instance_id}/game-information/get` | `POST /api/v1/game-information/get` | `query_request` / `query_response` or typed `error_response` |
@@ -34,7 +37,9 @@ downstream path or URL:
 
 The route parser is closed over method, configured instance, and operation. Unknown operations,
 methods, path segments, query parameters, redirects, arbitrary URLs, reflection forwarding, and
-cross-instance or cross-profile fallback are rejected before a producer connection.
+cross-instance or cross-profile fallback are rejected before a producer connection. The canonical
+`query` route rejects an unknown or unsupported envelope `query_kind`; it cannot select an
+arbitrary producer path.
 
 ## Admission, scope, and readiness
 
@@ -47,8 +52,12 @@ snapshot/parent state-generation fence. Definition references, instance filters,
 and cursor bindings retain the same content, locale, visibility, run, instance, epoch, and
 snapshot identities. No response is silently retried against another snapshot or authority.
 
-Capabilities are a read-only readiness check. The producer must advertise limits no larger than
-the gateway budget and `snapshot_policy.supports_live`; an absent or malformed capability
+Capabilities are a read-only readiness check and are bound to the complete producer authority
+(endpoint, instance, caller/session, lease/epoch, content, and run). A query is admitted only
+after a successful capability response for that authority. The producer must advertise limits no
+larger than the gateway budget and `snapshot_policy.supports_live`; each query kind, entity,
+projection, detail level, field, mode, cursor, message, and query limit is checked against the
+negotiated set before a producer connection. An absent, stale, malformed, or rejected capability
 response is unavailable/invalid rather than an implicit fallback. A producer typed
 `error_response` keeps its status and body after correlation and schema validation.
 
@@ -59,9 +68,10 @@ bounded to 4,096 item bytes, 32 items, 65,536 page bytes, 4,096 text bytes, and 
 single FIFO admission queue is shared with the attached runtime and is configurable from 1
 through 64; it permits one active worker operation per service. Producer connect time is capped
 at two seconds and the complete exchange at five seconds. HTTP framing rejects oversized or
-incomplete bodies before parsing. A timeout, caller disconnect, or transport error drops the
-owned read connection and returns a bounded typed outcome; it does not retry or leak the request
-to another instance. There is no response cache. Cursor continuations are a bounded (64-entry)
+incomplete bodies before parsing. A timeout, caller disconnect, or transport error cancels and
+drops the owned downstream connection and returns a bounded typed outcome; a disconnected queued
+request is never forwarded and work is not retried or leaked to another instance. There is no
+response cache. Cursor continuations are a bounded (64-entry)
 in-memory binding registry, not a data cache, and compare the complete normalized query before
 reuse; lease/epoch or content changes create a new service authority and cannot reuse it.
 
@@ -72,8 +82,10 @@ seeded-run routes and artifacts are unchanged. Rejection maps to stable gateway 
 missing/invalid/oversized bodies, scope/limit failures, stale cursors, unavailable transport,
 oversized or malformed responses, and preserved producer errors. The oracle invokes the
 production dispatcher with synthetic loopback producers and asserts exact method/path/body and
-identity headers for static list, live detail, and capabilities; unknown operations make zero
-connections; stale/wrong lease and cross-scope requests make zero connections; oversized output,
-timeout, cancellation, and continuation changes stay within the budgets. These tests establish
+identity headers for canonical and alias queries, live detail, and capabilities; missing/rejected
+capabilities and negotiated limits make zero query connections; unknown operations make zero
+connections; stale/wrong lease and cross-scope requests make zero connections; a real HTTP caller
+disconnect cancels a stalled producer; oversized output, timeout, and continuation changes stay
+within the budgets. These tests establish
 gateway source/component transport behavior only. Native extraction, host compatibility, MCP
 tool registration, harness execution, deployment, and release compatibility remain unverified.
