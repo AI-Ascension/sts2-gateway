@@ -60,10 +60,10 @@ terminal `Failed`; every other launch fault is `Unknown` with its durable capaci
 retained and an optional recovered identity attached. Stop/cleanup faults retain the exact
 identity as `Blocked` for an explicit reconciliation or cleanup retry.
 
-Restart force-stops the verified old identity, checks descendant scope, clears old ownership, and
-rotates the authority epoch before launching the replacement. Requests carrying the previous
-epoch are rejected before the process port is called. Failed cleanup or uncertain identity retains
-the record and blocks replacement allocation.
+Restart force-stops the verified old identity, checks descendant scope, replaces the old ownership
+row with an identity-less reservation for the replacement, and rotates the authority epoch before
+launching it. Requests carrying the previous epoch are rejected before the process port is called.
+Failed cleanup or uncertain identity retains the record and blocks replacement allocation.
 
 ## Compatibility and rejection/cancellation behavior
 
