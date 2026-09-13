@@ -38,7 +38,18 @@ where
         }
 
         let active_record_conflict = self.records.values().any(|operation| {
-            if operation.instance_id() == instance_id || !operation.state().is_active() {
+            if operation.instance_id() == instance_id
+                || self.ownership.contains_key(&operation.instance_id())
+                || !operation.state().is_active()
+            {
+                return false;
+            }
+            let Some(latest) = self.latest_authoritative_record(operation.instance_id()) else {
+                return false;
+            };
+            if latest.operation_id() != operation.operation_id() {
+                // Older active history is not an outstanding reservation once
+                // a newer authoritative operation has superseded it.
                 return false;
             }
             let Some(existing_id) = self.profile_id_for_record(operation) else {

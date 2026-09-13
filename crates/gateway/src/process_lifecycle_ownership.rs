@@ -234,6 +234,18 @@ where
             })
     }
 
+    /// Returns whether an operation is still the newest authoritative record
+    /// for its instance. Ownership rows can be cleared after a confirmed
+    /// stop, but retained history must continue fencing an older blocked or
+    /// unknown operation from performing a replacement launch.
+    pub(crate) fn operation_is_current(&self, operation: &LifecycleOperation) -> bool {
+        self.latest_authoritative_record(operation.instance_id())
+            .is_none_or(|latest| {
+                operation.operation_id() == latest.operation_id()
+                    && operation_order(operation) >= operation_order(&latest)
+            })
+    }
+
     pub(crate) fn occupied_count(&self) -> usize {
         let mut instances = self
             .ownership

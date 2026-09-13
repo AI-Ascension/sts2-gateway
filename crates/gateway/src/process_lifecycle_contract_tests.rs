@@ -10,10 +10,6 @@ use crate::{
 };
 
 impl super::FakeProcess {
-    fn set_identity_fault(&mut self, fault: Option<ProcessFault>) {
-        self.identity_fault = fault;
-    }
-
     fn set_descendants_after_stop(&mut self, descendants: Vec<ProcessDescendantIdentity>) {
         self.descendants_after_stop = descendants;
     }

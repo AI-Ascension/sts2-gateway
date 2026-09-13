@@ -48,6 +48,10 @@ impl FakeProcess {
         self.wrong_identity = value;
     }
 
+    fn set_identity_fault(&mut self, fault: Option<ProcessFault>) {
+        self.identity_fault = fault;
+    }
+
     fn set_retain_after_stop(&mut self, value: bool) {
         self.retain_after_stop = value;
     }

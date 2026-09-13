@@ -72,6 +72,13 @@ where
         &mut self,
         operation: LifecycleOperation,
     ) -> Result<LifecycleResponse, LifecycleError> {
+        if operation.state().is_active() && !self.operation_is_current(&operation) {
+            // Reconciliation is allowed to inspect only the current
+            // authoritative operation. A newer terminal stop can clear the
+            // ownership row while retaining this older record; do not let
+            // that stale restart/unknown operation launch a replacement.
+            return self.block_operation(operation, LifecycleFailure::InstanceBusy);
+        }
         match operation.state() {
             LifecycleOperationState::IntentRecorded | LifecycleOperationState::Starting => {
                 match operation.action().clone() {

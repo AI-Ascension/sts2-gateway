@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 
-use crate::process_store::{LifecycleAction, LifecycleOperation, LifecycleOperationState};
+use crate::process_store::{
+    LifecycleAction, LifecycleFailure, LifecycleOperation, LifecycleOperationState,
+};
 use crate::{
     AuthorityEpoch, InstanceId, LifecycleError, LifecycleRequest, LifecycleResponse, ProcessPort,
 };
@@ -168,6 +170,13 @@ where
         &mut self,
         operation: LifecycleOperation,
     ) -> Result<LifecycleResponse, LifecycleError> {
+        if operation.state().is_active() && !self.operation_is_current(&operation) {
+            // A newer authoritative stop/release may have cleared the
+            // ownership row. Keep the stale operation replayable as a
+            // terminal rejection, but never let reconciliation perform a
+            // replacement launch from its old sequence.
+            return self.block_operation(operation, LifecycleFailure::InstanceBusy);
+        }
         match operation.state() {
             LifecycleOperationState::Started | LifecycleOperationState::Attached => {
                 self.verify_record(operation)
