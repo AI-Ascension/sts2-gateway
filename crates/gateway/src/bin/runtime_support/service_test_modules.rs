@@ -27,6 +27,8 @@ mod runtime_v3_catalog_tests;
 mod runtime_v3_receipt_tests;
 #[path = "service_support_tests.rs"]
 mod test_support;
+#[path = "service_save_profile_tests.rs"]
+mod save_profile_tests;
 
 #[path = "service_coop_tests.rs"]
 mod coop_tests;

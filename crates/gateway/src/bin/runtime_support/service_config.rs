@@ -10,6 +10,10 @@ pub(super) use runtime_v2::build_runtime_v2;
 #[path = "service_config_coop_native.rs"]
 mod coop_native;
 use coop_native::peer_binding_from_environment;
+#[path = "service_config_values.rs"]
+mod values;
+pub(super) use values::configured_mcp_session;
+use values::parse_bool;
 
 pub(super) fn coop_reports_from_environment() -> Result<Option<CoopReports>, String> {
     match std::env::var("STS2_COOP_ROSTER") {
@@ -43,6 +47,10 @@ impl RuntimeConfig {
             "STS2_RUNTIME_V2_QUEUE_CAPACITY",
             DEFAULT_QUEUE_CAPACITY,
         )?)?;
+        let save_profile_enabled = parse_bool(
+            "STS2_SAVE_PROFILE_ENABLED",
+            env_or_default("STS2_SAVE_PROFILE_ENABLED", "false")?.as_str(),
+        )?;
         let journal_path = optional_path("STS2_RUNTIME_V2_JOURNAL")?;
         let recovery_store_path = optional_path("STS2_RECOVERY_STORE")?;
         let recovery_deployment_id = match recovery_store_path.as_ref() {
@@ -195,6 +203,7 @@ impl RuntimeConfig {
             workflow_authority,
             coop_native_peer_token,
             coop_native_peer_id,
+            save_profile_enabled,
         })
     }
 }
@@ -293,22 +302,4 @@ pub(super) fn parse_queue_capacity(value: &str) -> Result<usize, String> {
         ));
     }
     Ok(capacity)
-}
-
-pub(super) fn configured_mcp_session(
-    value: Result<String, std::env::VarError>,
-) -> Result<String, String> {
-    let session = match value {
-        Ok(value) => value,
-        Err(std::env::VarError::NotPresent) => String::from("mcp-session-1"),
-        Err(std::env::VarError::NotUnicode(_)) => {
-            return Err(String::from("STS2_MCP_SESSION_ID is not valid UTF-8"));
-        }
-    };
-    if !safe_identity(&session) {
-        return Err(String::from(
-            "STS2_MCP_SESSION_ID is empty, unsafe, or oversized",
-        ));
-    }
-    Ok(session)
 }

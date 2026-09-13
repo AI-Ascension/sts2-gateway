@@ -89,6 +89,21 @@ impl RuntimeService {
                 .restore_state(state)
                 .map_err(|error| format!("seeded-run journal state is invalid: {error}"))?;
         }
+        let save_profile_authority = SaveProfileAuthority {
+            instance_id: config.instance_id.clone(),
+            caller_id: config.caller_id.clone(),
+            session_id: config.session_id.clone(),
+            lease_id: config.lease_id.clone(),
+            lease_epoch: config.lease_epoch,
+            expires_at_millis: None,
+        };
+        let save_profile = service_save_profile::SaveProfileRuntime::new(
+            config.save_profile_enabled,
+            &config.mod_address,
+            &config.mod_token,
+            save_profile_authority,
+            config.operation_capacity,
+        )?;
         let mut runtime_v2 = configuration::build_runtime_v2(&config, binding, forwarder)?;
         if let Some(path) = config.journal_path.as_deref()
             && let Some(state) = journal::load(path)?
@@ -131,6 +146,8 @@ impl RuntimeService {
                 MAX_RESPONSE_BYTES,
             ),
             runtime_map: RuntimeMapForwarder::new(MAX_MAP_RESPONSE_BYTES),
+            save_profile,
+            save_profile_active_run: false,
             seeded_run,
             metrics: RuntimeMetrics::default(),
             coop_reports,
