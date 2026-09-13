@@ -234,37 +234,6 @@ where
             })
     }
 
-    /// Returns whether an operation is still the newest authoritative record
-    /// for its instance. Ownership rows can be cleared after a confirmed
-    /// stop, but retained history must continue fencing an older blocked or
-    /// unknown operation from performing a replacement launch.
-    pub(crate) fn operation_is_current(&self, operation: &LifecycleOperation) -> bool {
-        let latest = self
-            .records
-            .values()
-            .filter(|candidate| {
-                candidate.instance_id() == operation.instance_id()
-                    && candidate.state() != LifecycleOperationState::Rejected
-            })
-            .max_by_key(|candidate| {
-                // Legacy records have no gateway-issued sequence. Compare
-                // their caller IDs against all records for that instance so
-                // persisted pre-sequence intents remain recoverable while
-                // sequenced records still use the authoritative server order.
-                if operation.sequence() == 0 || candidate.sequence() == 0 {
-                    (0, candidate.operation_id().value(), 0)
-                } else {
-                    operation_order(candidate)
-                }
-            });
-        latest.is_none_or(|latest| {
-            operation.operation_id() == latest.operation_id()
-                && (operation.sequence() == 0
-                    || latest.sequence() == 0
-                    || operation_order(operation) >= operation_order(latest))
-        })
-    }
-
     pub(crate) fn occupied_count(&self) -> usize {
         let mut instances = self
             .ownership

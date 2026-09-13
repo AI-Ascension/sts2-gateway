@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-use crate::process_store::{LifecycleOperation, LifecycleOwnership};
+use crate::process_store::{LifecycleOperation, LifecycleOperationState, LifecycleOwnership};
 
 pub(crate) fn operation_order(operation: &LifecycleOperation) -> (u8, u64, u64) {
     if operation.sequence() == 0 {
@@ -41,5 +41,34 @@ where
         self.ownership
             .get(&operation.instance_id())
             .is_none_or(|owner| operation_order(operation) >= owner_order(owner))
+    }
+
+    /// Returns whether an operation is still the newest authoritative record
+    /// for its instance. Retained history continues fencing stale launches
+    /// after ownership is cleared by a confirmed stop.
+    pub(crate) fn operation_is_current(&self, operation: &LifecycleOperation) -> bool {
+        let latest = self
+            .records
+            .values()
+            .filter(|candidate| {
+                candidate.instance_id() == operation.instance_id()
+                    && candidate.state() != LifecycleOperationState::Rejected
+            })
+            .max_by_key(|candidate| {
+                // Legacy records have no gateway-issued sequence. Compare
+                // their caller IDs so pre-sequence intents remain recoverable;
+                // sequenced records use the authoritative server order.
+                if operation.sequence() == 0 || candidate.sequence() == 0 {
+                    (0, candidate.operation_id().value(), 0)
+                } else {
+                    operation_order(candidate)
+                }
+            });
+        latest.is_none_or(|latest| {
+            operation.operation_id() == latest.operation_id()
+                && (operation.sequence() == 0
+                    || latest.sequence() == 0
+                    || operation_order(operation) >= operation_order(latest))
+        })
     }
 }
