@@ -11,10 +11,18 @@ host compatibility and release publication.
   content/live snapshot fencing; request, response, page, item, queue, and timeout budgets are
   enforced, typed producer errors are preserved, and no response cache or cross-instance fallback
   exists. The gateway pins protocol source commit
-  `924acc650e5b6d57ecb9f602abe65caa3b025f53` at schema digest
-  `e5ba81b0520687cf59db6a94aea3b38606e86300f6eb2b0e858f55704e62f76c`. Synthetic gateway
+  `34f68b182c09472c3a0573ff478e17e6ed53c91f` at schema digest
+  `376845b0c86b4afcd2c79ffba753eb7e7e416f5410da26b4dae970cfee2221d9`. Synthetic gateway
   transport evidence is confirmed; native producer, MCP (#51/#52), harness, deployment, and
   release compatibility remain unverified. See [ADR 0024](docs/decisions/0024-game-information-query-routing.md).
+
+- Add the proposed gateway-local save-profile component from
+  [ADR 0024](docs/decisions/0024-save-profile-provisioning-and-fencing.md): fixed fenced
+  list/current/select/create-disposable/lookup routes, fresh opaque user-data allocation with
+  provenance and traversal/symlink/overwrite refusal, retained operation intent, and explicit
+  timeout/disconnect/unknown reconciliation. Deterministic source/component tests pass; game-mod
+  contract acceptance, issue #50 launch-profile wiring, production persistence, native save
+  behavior, and cross-restart durability remain unverified.
 
 - Add an authorized, bounded public checkpoint-reference read route with closed response
   validation and explicit unavailable results when no producer exists. Native capture remains

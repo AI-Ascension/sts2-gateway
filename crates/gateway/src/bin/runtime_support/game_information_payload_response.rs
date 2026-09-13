@@ -4,8 +4,8 @@ use serde_json::Value;
 use std::collections::BTreeMap;
 
 use super::game_information_payload::{
-    MAX_CURSOR_BYTES, MAX_MESSAGE_BYTES, MAX_PAGE_BYTES, MAX_PAGE_ITEMS, MAX_TEXT_BYTES,
-    instance_matches_headers, normalized_query,
+    MAX_CURSOR_BYTES, MAX_ITEM_BYTES, MAX_MESSAGE_BYTES, MAX_PAGE_BYTES, MAX_PAGE_ITEMS,
+    MAX_TEXT_BYTES, instance_matches_headers, normalized_query,
 };
 
 pub(super) fn validate_query_response(
@@ -93,6 +93,10 @@ fn limits_within_gateway_budget(limits: &serde_json::Map<String, Value>) -> bool
         .and_then(Value::as_u64)
         .is_some_and(|value| (1..=MAX_PAGE_ITEMS).contains(&value))
         && limits
+            .get("item_bytes")
+            .and_then(Value::as_u64)
+            .is_some_and(|value| (1..=MAX_ITEM_BYTES).contains(&value))
+        && limits
             .get("page_bytes")
             .and_then(Value::as_u64)
             .is_some_and(|value| (1..=MAX_PAGE_BYTES).contains(&value))
@@ -135,6 +139,7 @@ fn page_bounds_valid(page: &serde_json::Map<String, Value>, query: &Value) -> bo
         return false;
     };
     let item_limit = limits.get("page_items").and_then(Value::as_u64);
+    let item_bytes_limit = limits.get("item_bytes").and_then(Value::as_u64);
     let page_limit = limits.get("page_bytes").and_then(Value::as_u64);
     let text_limit = limits.get("text_bytes").and_then(Value::as_u64);
     let final_page = page.get("final_page") == Some(&Value::Bool(true));
@@ -142,22 +147,31 @@ fn page_bounds_valid(page: &serde_json::Map<String, Value>, query: &Value) -> bo
     if final_page != next_cursor.is_none_or(Value::is_null) {
         return false;
     }
-    let measured_page_bytes = serde_json::to_vec(page)
+    let mut page_without_accounting = page.clone();
+    page_without_accounting.remove("accounting");
+    let measured_page_bytes = serde_json::to_vec(&page_without_accounting)
         .ok()
         .map_or(u64::MAX, |bytes| bytes.len() as u64);
-    let items_fit = items.iter().all(|item| {
-        serde_json::to_vec(item)
-            .ok()
-            .is_some_and(|bytes| bytes.len() as u64 <= page_limit.unwrap_or(0))
-    });
+    let measured_payload_bytes = serde_json::to_vec(items)
+        .ok()
+        .map_or(u64::MAX, |bytes| bytes.len() as u64);
+    let measured_item_bytes = items
+        .iter()
+        .map(|item| {
+            serde_json::to_vec(item)
+                .ok()
+                .map_or(u64::MAX, |bytes| bytes.len() as u64)
+        })
+        .max()
+        .unwrap_or(0);
     items.len() as u64 <= item_limit.unwrap_or(0)
-        && items_fit
+        && measured_item_bytes <= item_bytes_limit.unwrap_or(0)
         && measured_page_bytes <= page_limit.unwrap_or(0)
+        && measured_payload_bytes <= page_limit.unwrap_or(0)
         && accounting.get("item_count").and_then(Value::as_u64) == Some(items.len() as u64)
-        && accounting
-            .get("payload_bytes")
-            .and_then(Value::as_u64)
-            .is_some_and(|bytes| bytes <= page_limit.unwrap_or(0))
+        && accounting.get("item_bytes").and_then(Value::as_u64) == Some(measured_item_bytes)
+        && accounting.get("payload_bytes").and_then(Value::as_u64) == Some(measured_payload_bytes)
+        && accounting.get("page_bytes").and_then(Value::as_u64) == Some(measured_page_bytes)
         && accounting
             .get("text_bytes")
             .and_then(Value::as_u64)
@@ -208,7 +222,7 @@ fn items_valid(
     page.get("accounting")
         .and_then(|accounting| accounting.get("text_bytes"))
         .and_then(Value::as_u64)
-        .is_some_and(|declared| declared >= text_bytes)
+        .is_some_and(|declared| declared == text_bytes)
 }
 
 fn item_instance_valid(
@@ -245,6 +259,9 @@ fn field_availability_valid(field: &serde_json::Map<String, Value>) -> bool {
 }
 
 fn field_text_bytes(field: &serde_json::Map<String, Value>) -> u64 {
+    if field.get("availability").and_then(Value::as_str) != Some("available") {
+        return 0;
+    }
     match field.get("value") {
         Some(Value::String(value)) => value.len() as u64,
         Some(Value::Array(values)) => values
@@ -256,10 +273,7 @@ fn field_text_bytes(field: &serde_json::Map<String, Value>) -> u64 {
         | Some(Value::Bool(_))
         | Some(Value::Number(_))
         | Some(Value::Null)
-        | None => field
-            .get("reason")
-            .and_then(Value::as_str)
-            .map_or(0, |reason| reason.len() as u64),
+        | None => 0,
     }
 }
 

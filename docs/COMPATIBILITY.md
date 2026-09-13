@@ -343,18 +343,19 @@ action-option identity, and responses over 256 KiB; it does not retry or synthes
 ## Game-information query visibility row
 
 The additive `game-information-query-v1` gateway consumer is pinned to protocol source commit
-`924acc650e5b6d57ecb9f602abe65caa3b025f53` at schema digest
-`e5ba81b0520687cf59db6a94aea3b38606e86300f6eb2b0e858f55704e62f76c`.
+`34f68b182c09472c3a0573ff478e17e6ed53c91f` at schema digest
+`376845b0c86b4afcd2c79ffba753eb7e7e416f5410da26b4dae970cfee2221d9`.
 
 | Surface | Producer pin | Current evidence | Result |
 | --- | --- | --- | --- |
-| `game-information-query-v1` artifact and consumer pin | protocol branch head `924acc650e5b6d57ecb9f602abe65caa3b025f53`, schema `e5ba81b0520687cf59db6a94aea3b38606e86300f6eb2b0e858f55704e62f76c` | copied README, manifest, schema, conformance, synthetic fixtures, consumer record, goldens, and checksum verification | Source-derived artifact-copy integrity; protocol producer and host compatibility unverified |
+| `game-information-query-v1` artifact and consumer pin | protocol branch head `34f68b182c09472c3a0573ff478e17e6ed53c91f`, schema `376845b0c86b4afcd2c79ffba753eb7e7e416f5410da26b4dae970cfee2221d9` | copied README, manifest, schema, conformance, synthetic fixtures, consumer record, goldens, and checksum verification | Source-derived artifact-copy integrity; protocol producer and host compatibility unverified |
 | Fixed game-information routes | six operation-keyed gateway routes to `/api/v1/game-information/{capabilities,list,search,get,detail,availability}` | real dispatcher with synthetic loopback producer, exact identity headers/paths, unknown-route zero-forward, scope/lease/epoch, response/page/item/text/cursor bounds, typed errors, timeout and continuation tests | Gateway source/component transport confirmed; native producer, snapshot freshness, MCP #51/#52, harness, deployment, and release unverified |
 
 Static queries are restricted to public scope and the configured content authority. Live queries
 are restricted to the admitted instance, configured run, lease epoch, and immutable snapshot/
-parent-generation fence. Requests are capped at 16 KiB; responses at 256 KiB; pages at 32 items
-and 65,536 bytes; text at 4,096 bytes; cursors at 512 bytes; and the shared FIFO queue at
+parent-generation fence. Requests are capped at 16 KiB; responses at 256 KiB; items at 4,096
+bytes; pages at 32 items and 65,536 bytes; text at 4,096 bytes; cursors at 512 bytes; and the
+shared FIFO queue at
 1–64 entries with a two-second connect and five-second exchange deadline. No response cache is
 implemented. The bounded continuation registry compares the complete normalized query and does
 not provide cross-instance, cross-content, cross-locale, cross-run, cross-epoch, or cross-scope
@@ -383,3 +384,29 @@ mutation. Invalid request data returns a client error; a downstream failure is r
 unavailable error; an invalid or oversized downstream response is a `502`. The profile manifest
 intentionally keeps `consumers: []`; the route is source/component evidence only until the mod
 producer, MCP reader, harness recovery reader, and independent admission review are complete.
+
+## Proposed save-profile provisioning
+
+[ADR 0024](decisions/0024-save-profile-provisioning-and-fencing.md) defines an additive,
+gateway-local save-profile component. The fixed instance-scoped routes are:
+
+| Method | Gateway suffix | Downstream path | Scope |
+| --- | --- | --- | --- |
+| GET | `save-profiles` | `/api/v1/save-profiles` | read |
+| GET | `save-profile/current` | `/api/v1/save-profile/current` | read |
+| POST | `save-profile/select` | `/api/v1/save-profile/select` | mutate |
+| POST | `save-profile/create-disposable` | `/api/v1/save-profile/create-disposable` | mutate |
+| GET | `save-profile/operations/{operation_id}` | `/api/v1/save-profile/operations/{operation_id}` | read |
+
+Requests require the existing authenticated caller/session/instance/lease/epoch/MCP-session and
+correlation fence. Bodies are empty for reads, exactly a profile plus validated baseline for
+selection, and empty or `{}` for disposable creation. Body and operation limits are 16 KiB and
+128 bytes. The gateway forwards no caller path, URL, command, profile root, arbitrary header, or
+unlisted body member. Unknown, foreign, traversal, symlink, and overwrite/adoption allocation
+states are blocked. Accepted, timed-out, disconnected, or malformed operations retain their
+identity and reconcile through the read-only lookup route; selection is never blindly replayed.
+
+This is a proposed minor surface pending game-mod save-profile contract acceptance and issue #50
+launch-profile integration. Deterministic source/component and synthetic loopback tests are
+confirmed; production persistence, native save behavior, host compatibility, and cross-restart
+durability remain `unverified`.

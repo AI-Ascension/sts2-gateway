@@ -96,3 +96,16 @@ crates/gateway/src/bin/runtime_support/service_coop_native.rs  lease-fenced down
 The gateway owns only the route, transport, identity, lease, and response relation checks. Native
 peer admission, legal game actions, shared effects, checksum production, and rejoin authority stay
 in the game-mod host boundary.
+
+## Save-profile additions
+
+```text
+crates/gateway/src/save_profile/                 gateway-local opaque identity, fencing, ledger, and ports
+crates/gateway/src/bin/runtime_support/save_profile*  fixed runtime routes and loopback forwarder
+crates/gateway/src/bin/runtime_support/service_save_profile*  attached service composition and wire mapping
+crates/gateway/tests/save_profile.rs             deterministic provisioning and ledger fixtures
+```
+
+These modules contain no host paths, save contents, process commands, or game-mod implementation.
+The in-memory stores and loopback peer are deterministic source/component fixtures. A future
+filesystem or launch-profile adapter must remain behind the named ports and an accepted contract.

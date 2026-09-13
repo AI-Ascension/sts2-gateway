@@ -13,8 +13,8 @@ release-like data. MCP issues #51 and #52 are the named consumers; this change i
 transport layer and does not add MCP tools or framing.
 
 The gateway pins protocol source commit
-`924acc650e5b6d57ecb9f602abe65caa3b025f53` and schema digest
-`e5ba81b0520687cf59db6a94aea3b38606e86300f6eb2b0e858f55704e62f76c`. The copied artifact,
+`34f68b182c09472c3a0573ff478e17e6ed53c91f` and schema digest
+`376845b0c86b4afcd2c79ffba753eb7e7e416f5410da26b4dae970cfee2221d9`. The copied artifact,
 source-path schema, conformance case, synthetic fixtures, consumer pin, and checksum inventory
 must remain byte-verified. A changed upstream artifact requires re-vendoring and a new pin.
 
@@ -55,7 +55,7 @@ response is unavailable/invalid rather than an implicit fallback. A producer typ
 ## Budgets and cancellation
 
 The request body is capped at 16 KiB and the response message at 256 KiB. Query limits are
-bounded to 32 items, 65,536 page bytes, 4,096 text bytes, and 512 cursor bytes. The existing
+bounded to 4,096 item bytes, 32 items, 65,536 page bytes, 4,096 text bytes, and 512 cursor bytes. The existing
 single FIFO admission queue is shared with the attached runtime and is configurable from 1
 through 64; it permits one active worker operation per service. Producer connect time is capped
 at two seconds and the complete exchange at five seconds. HTTP framing rejects oversized or

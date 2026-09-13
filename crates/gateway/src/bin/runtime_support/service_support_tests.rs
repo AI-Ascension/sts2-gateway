@@ -29,6 +29,7 @@ pub(super) fn test_service() -> Result<RuntimeService, String> {
         coop_native_peer_id: None,
         game_information_content_manifest_id: String::from("content-1"),
         game_information_run_id: String::from("run-1"),
+        save_profile_enabled: true,
     };
     let binding = RuntimeV2Binding::new(
         &config.instance_id,
@@ -77,6 +78,20 @@ pub(super) fn test_service() -> Result<RuntimeService, String> {
     let game_information_content_manifest_id =
         config.game_information_content_manifest_id.clone();
     let game_information_run_id = config.game_information_run_id.clone();
+    let save_profile = service_save_profile::SaveProfileRuntime::new(
+        config.save_profile_enabled,
+        &config.mod_address,
+        &config.mod_token,
+        SaveProfileAuthority {
+            instance_id: config.instance_id.clone(),
+            caller_id: config.caller_id.clone(),
+            session_id: config.session_id.clone(),
+            lease_id: config.lease_id.clone(),
+            lease_epoch: config.lease_epoch,
+            expires_at_millis: None,
+        },
+        config.operation_capacity,
+    )?;
 
     Ok(RuntimeService {
         config,
@@ -104,6 +119,8 @@ pub(super) fn test_service() -> Result<RuntimeService, String> {
         ),
         game_information_exchange_timeout: Duration::from_secs(5),
         game_information_cursor_bindings: BTreeMap::new(),
+        save_profile,
+        save_profile_active_run: false,
         seeded_run,
         journal_path: None,
         _journal_lock: None,

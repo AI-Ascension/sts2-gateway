@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "sts2-game-information-query-v1",
   "title": "STS2 game-information query and snapshot contract v1",
-  "description": "Bounded, read-only, versioned static and live game-information queries.",
+  "description": "Bounded, read-only, versioned static and live game-information queries. Revision 2 makes binding, typed-value, page-state, and byte-accounting relationships explicit.",
   "oneOf": [
     {"$ref": "#/$defs/query_request"},
     {"$ref": "#/$defs/query_response"},
@@ -68,6 +68,20 @@
     "detail_level": {
       "enum": ["summary", "standard", "full"]
     },
+    "field_name": {
+      "enum": [
+        "amount",
+        "cost",
+        "description",
+        "display_name",
+        "flags",
+        "owner",
+        "position",
+        "rarity",
+        "source_id",
+        "tags"
+      ]
+    },
     "visibility_scope": {
       "type": "string",
       "minLength": 1,
@@ -131,27 +145,49 @@
       "required": ["snapshot_id", "instance_ref", "state_generation"]
     },
     "query_binding": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "mode": {"enum": ["static", "live"]},
-        "content_manifest_id": {"$ref": "#/$defs/identity"},
-        "locale": {"$ref": "#/$defs/locale"},
-        "visibility_scope": {"$ref": "#/$defs/visibility_scope"},
-        "instance_ref": {
-          "anyOf": [{"$ref": "#/$defs/instance_ref"}, {"type": "null"}]
+      "allOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "mode": {"enum": ["static", "live"]},
+            "content_manifest_id": {"$ref": "#/$defs/identity"},
+            "locale": {"$ref": "#/$defs/locale"},
+            "visibility_scope": {"$ref": "#/$defs/visibility_scope"},
+            "instance_ref": {
+              "anyOf": [{"$ref": "#/$defs/instance_ref"}, {"type": "null"}]
+            },
+            "snapshot_ref": {
+              "anyOf": [{"$ref": "#/$defs/snapshot_ref"}, {"type": "null"}]
+            }
+          },
+          "required": [
+            "mode",
+            "content_manifest_id",
+            "locale",
+            "visibility_scope",
+            "instance_ref",
+            "snapshot_ref"
+          ]
         },
-        "snapshot_ref": {
-          "anyOf": [{"$ref": "#/$defs/snapshot_ref"}, {"type": "null"}]
+        {
+          "oneOf": [
+            {
+              "properties": {
+                "mode": {"const": "static"},
+                "instance_ref": {"type": "null"},
+                "snapshot_ref": {"type": "null"}
+              }
+            },
+            {
+              "properties": {
+                "mode": {"const": "live"},
+                "instance_ref": {"$ref": "#/$defs/instance_ref"},
+                "snapshot_ref": {"$ref": "#/$defs/snapshot_ref"}
+              }
+            }
+          ]
         }
-      },
-      "required": [
-        "mode",
-        "content_manifest_id",
-        "locale",
-        "visibility_scope",
-        "instance_ref",
-        "snapshot_ref"
       ]
     },
     "query_target": {
@@ -205,10 +241,11 @@
       "additionalProperties": false,
       "properties": {
         "page_items": {"type": "integer", "minimum": 1, "maximum": 128},
+        "item_bytes": {"type": "integer", "minimum": 1, "maximum": 262144},
         "page_bytes": {"type": "integer", "minimum": 1, "maximum": 262144},
         "text_bytes": {"type": "integer", "minimum": 1, "maximum": 65536}
       },
-      "required": ["page_items", "page_bytes", "text_bytes"]
+      "required": ["page_items", "item_bytes", "page_bytes", "text_bytes"]
     },
     "query": {
       "type": "object",
@@ -220,6 +257,12 @@
         "filters": {"$ref": "#/$defs/query_filters"},
         "projection": {"$ref": "#/$defs/projection"},
         "detail_level": {"$ref": "#/$defs/detail_level"},
+        "fields": {
+          "type": "array",
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/field_name"}
+        },
         "binding": {"$ref": "#/$defs/query_binding"},
         "parent_observation": {
           "anyOf": [{"$ref": "#/$defs/parent_observation"}, {"type": "null"}]
@@ -236,10 +279,39 @@
         "filters",
         "projection",
         "detail_level",
+        "fields",
         "binding",
         "parent_observation",
         "limits",
         "cursor"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "binding": {
+                "properties": {"mode": {"const": "live"}}
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "parent_observation": {"$ref": "#/$defs/parent_observation"}
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "binding": {
+                "properties": {"mode": {"const": "static"}}
+              }
+            }
+          },
+          "then": {
+            "properties": {"parent_observation": {"type": "null"}}
+          }
+        }
       ]
     },
     "cursor_binding": {
@@ -252,6 +324,12 @@
         "filters": {"$ref": "#/$defs/query_filters"},
         "projection": {"$ref": "#/$defs/projection"},
         "detail_level": {"$ref": "#/$defs/detail_level"},
+        "fields": {
+          "type": "array",
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/field_name"}
+        },
         "binding": {"$ref": "#/$defs/query_binding"},
         "parent_observation": {
           "anyOf": [{"$ref": "#/$defs/parent_observation"}, {"type": "null"}]
@@ -265,6 +343,7 @@
         "filters",
         "projection",
         "detail_level",
+        "fields",
         "binding",
         "parent_observation",
         "limits"
@@ -289,77 +368,160 @@
       "required": ["kind", "ref"]
     },
     "field": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "name": {
-          "enum": [
-            "amount",
-            "cost",
-            "description",
-            "display_name",
-            "flags",
-            "owner",
-            "position",
-            "rarity",
-            "source_id",
-            "tags"
-          ]
-        },
-        "kind": {
-          "enum": [
-            "boolean",
-            "definition_ref",
-            "integer",
-            "instance_ref",
-            "text",
-            "text_list"
-          ]
-        },
-        "availability": {
-          "enum": [
-            "available",
-            "unavailable",
-            "not_observable",
-            "redacted",
-            "unsupported",
-            "missing"
-          ]
-        },
-        "value": {
-          "oneOf": [
-            {"type": "boolean"},
-            {"type": "integer", "minimum": -2147483648, "maximum": 2147483647},
-            {"$ref": "#/$defs/text"},
-            {
-              "type": "array",
-              "maxItems": 64,
-              "items": {"$ref": "#/$defs/text"}
+      "allOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "name": {"$ref": "#/$defs/field_name"},
+            "kind": {
+              "enum": [
+                "boolean",
+                "definition_ref",
+                "integer",
+                "instance_ref",
+                "text",
+                "text_list"
+              ]
             },
-            {"$ref": "#/$defs/definition_ref"},
-            {"$ref": "#/$defs/instance_ref"},
-            {"type": "null"}
+            "availability": {
+              "enum": [
+                "available",
+                "unavailable",
+                "not_observable",
+                "redacted",
+                "unsupported",
+                "missing"
+              ]
+            },
+            "value": {
+              "oneOf": [
+                {"type": "boolean"},
+                {"type": "integer", "minimum": -2147483648, "maximum": 2147483647},
+                {"$ref": "#/$defs/text"},
+                {
+                  "type": "array",
+                  "maxItems": 64,
+                  "items": {"$ref": "#/$defs/text"}
+                },
+                {"$ref": "#/$defs/definition_ref"},
+                {"$ref": "#/$defs/instance_ref"},
+                {"type": "null"}
+              ]
+            },
+            "unit": {
+              "anyOf": [
+                {"enum": ["none", "count", "gold", "hp", "block", "percent"]},
+                {"type": "null"}
+              ]
+            },
+            "source": {"$ref": "#/$defs/source"},
+            "reason": {
+              "anyOf": [{"$ref": "#/$defs/reason"}, {"type": "null"}]
+            }
+          },
+          "required": [
+            "name",
+            "kind",
+            "availability",
+            "value",
+            "unit",
+            "source",
+            "reason"
           ]
         },
-        "unit": {
-          "anyOf": [
-            {"enum": ["none", "count", "gold", "hp", "block", "percent"]},
-            {"type": "null"}
+        {
+          "oneOf": [
+            {
+              "properties": {
+                "kind": {"const": "boolean"},
+                "value": {
+                  "anyOf": [{"type": "boolean"}, {"type": "null"}]
+                }
+              }
+            },
+            {
+              "properties": {
+                "kind": {"const": "definition_ref"},
+                "value": {
+                  "anyOf": [{"$ref": "#/$defs/definition_ref"}, {"type": "null"}]
+                }
+              }
+            },
+            {
+              "properties": {
+                "kind": {"const": "integer"},
+                "value": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -2147483648,
+                      "maximum": 2147483647
+                    },
+                    {"type": "null"}
+                  ]
+                }
+              }
+            },
+            {
+              "properties": {
+                "kind": {"const": "instance_ref"},
+                "value": {
+                  "anyOf": [{"$ref": "#/$defs/instance_ref"}, {"type": "null"}]
+                }
+              }
+            },
+            {
+              "properties": {
+                "kind": {"const": "text"},
+                "value": {
+                  "anyOf": [{"$ref": "#/$defs/text"}, {"type": "null"}]
+                }
+              }
+            },
+            {
+              "properties": {
+                "kind": {"const": "text_list"},
+                "value": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "maxItems": 64,
+                      "items": {"$ref": "#/$defs/text"}
+                    },
+                    {"type": "null"}
+                  ]
+                }
+              }
+            }
           ]
         },
-        "source": {"$ref": "#/$defs/source"},
-        "reason": {
-          "anyOf": [{"$ref": "#/$defs/reason"}, {"type": "null"}]
+        {
+          "oneOf": [
+            {
+              "properties": {
+                "availability": {"const": "available"},
+                "value": {"not": {"type": "null"}},
+                "reason": {"type": "null"}
+              }
+            },
+            {
+              "properties": {
+                "availability": {
+                  "enum": [
+                    "unavailable",
+                    "not_observable",
+                    "redacted",
+                    "unsupported",
+                    "missing"
+                  ]
+                },
+                "value": {"type": "null"},
+                "reason": {"$ref": "#/$defs/reason"}
+              }
+            }
+          ]
         }
-      },
-      "required": [
-        "name",
-        "kind",
-        "availability",
-        "value",
-        "unit",
-        "source",
-        "reason"
       ]
     },
     "item": {
@@ -403,52 +565,96 @@
       "additionalProperties": false,
       "properties": {
         "item_count": {"type": "integer", "minimum": 0, "maximum": 128},
+        "item_bytes": {"type": "integer", "minimum": 0, "maximum": 262144},
         "payload_bytes": {"type": "integer", "minimum": 0, "maximum": 262144},
+        "page_bytes": {"type": "integer", "minimum": 0, "maximum": 262144},
         "text_bytes": {"type": "integer", "minimum": 0, "maximum": 65536}
       },
-      "required": ["item_count", "payload_bytes", "text_bytes"]
+      "required": ["item_count", "item_bytes", "payload_bytes", "page_bytes", "text_bytes"]
     },
     "page": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "items": {
-          "type": "array",
-          "maxItems": 128,
-          "items": {"$ref": "#/$defs/item"}
-        },
-        "next_cursor": {
-          "anyOf": [{"$ref": "#/$defs/cursor"}, {"type": "null"}]
-        },
-        "cursor_binding": {
-          "anyOf": [{"$ref": "#/$defs/cursor_binding"}, {"type": "null"}]
-        },
-        "final_page": {"type": "boolean"},
-        "total_count_known": {"type": "boolean"},
-        "total_count": {
-          "anyOf": [
-            {"type": "integer", "minimum": 0, "maximum": 1000000},
-            {"type": "null"}
+      "allOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "items": {
+              "type": "array",
+              "maxItems": 128,
+              "items": {"$ref": "#/$defs/item"}
+            },
+            "next_cursor": {
+              "anyOf": [{"$ref": "#/$defs/cursor"}, {"type": "null"}]
+            },
+            "cursor_binding": {
+              "anyOf": [{"$ref": "#/$defs/cursor_binding"}, {"type": "null"}]
+            },
+            "final_page": {"type": "boolean"},
+            "total_count_known": {"type": "boolean"},
+            "total_count": {
+              "anyOf": [
+                {"type": "integer", "minimum": 0, "maximum": 1000000},
+                {"type": "null"}
+              ]
+            },
+            "coverage": {
+              "enum": ["complete", "partial", "unavailable", "not_observable"]
+            },
+            "ordering": {"$ref": "#/$defs/ordering"},
+            "limits": {"$ref": "#/$defs/limits"},
+            "accounting": {"$ref": "#/$defs/accounting"}
+          },
+          "required": [
+            "items",
+            "next_cursor",
+            "cursor_binding",
+            "final_page",
+            "total_count_known",
+            "total_count",
+            "coverage",
+            "ordering",
+            "limits",
+            "accounting"
           ]
         },
-        "coverage": {
-          "enum": ["complete", "partial", "unavailable", "not_observable"]
+        {
+          "oneOf": [
+            {
+              "properties": {
+                "final_page": {"const": true},
+                "next_cursor": {"type": "null"},
+                "cursor_binding": {"type": "null"}
+              }
+            },
+            {
+              "properties": {
+                "final_page": {"const": false},
+                "next_cursor": {"$ref": "#/$defs/cursor"},
+                "cursor_binding": {"$ref": "#/$defs/cursor_binding"}
+              }
+            }
+          ]
         },
-        "ordering": {"$ref": "#/$defs/ordering"},
-        "limits": {"$ref": "#/$defs/limits"},
-        "accounting": {"$ref": "#/$defs/accounting"}
-      },
-      "required": [
-        "items",
-        "next_cursor",
-        "cursor_binding",
-        "final_page",
-        "total_count_known",
-        "total_count",
-        "coverage",
-        "ordering",
-        "limits",
-        "accounting"
+        {
+          "oneOf": [
+            {
+              "properties": {
+                "total_count_known": {"const": true},
+                "total_count": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 1000000
+                }
+              }
+            },
+            {
+              "properties": {
+                "total_count_known": {"const": false},
+                "total_count": {"type": "null"}
+              }
+            }
+          ]
+        }
       ]
     },
     "parent_observation": {
@@ -462,23 +668,43 @@
       "required": ["instance_ref", "snapshot_ref", "state_generation"]
     },
     "result": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "page": {"$ref": "#/$defs/page"},
-        "result_generation": {
-          "anyOf": [{"$ref": "#/$defs/safe_integer"}, {"type": "null"}]
+      "allOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "page": {"$ref": "#/$defs/page"},
+            "result_generation": {
+              "anyOf": [{"$ref": "#/$defs/safe_integer"}, {"type": "null"}]
+            },
+            "parent_observation": {
+              "anyOf": [{"$ref": "#/$defs/parent_observation"}, {"type": "null"}]
+            },
+            "read_only": {"const": true}
+          },
+          "required": [
+            "page",
+            "result_generation",
+            "parent_observation",
+            "read_only"
+          ]
         },
-        "parent_observation": {
-          "anyOf": [{"$ref": "#/$defs/parent_observation"}, {"type": "null"}]
-        },
-        "read_only": {"const": true}
-      },
-      "required": [
-        "page",
-        "result_generation",
-        "parent_observation",
-        "read_only"
+        {
+          "oneOf": [
+            {
+              "properties": {
+                "result_generation": {"type": "null"},
+                "parent_observation": {"type": "null"}
+              }
+            },
+            {
+              "properties": {
+                "result_generation": {"$ref": "#/$defs/safe_integer"},
+                "parent_observation": {"$ref": "#/$defs/parent_observation"}
+              }
+            }
+          ]
+        }
       ]
     },
     "snapshot_policy": {
@@ -555,6 +781,13 @@
           "uniqueItems": true,
           "items": {"$ref": "#/$defs/detail_level"}
         },
+        "fields": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 10,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/field_name"}
+        },
         "limits": {"$ref": "#/$defs/limits"},
         "max_message_bytes": {
           "type": "integer",
@@ -574,6 +807,7 @@
         "entity_kinds",
         "projections",
         "detail_levels",
+        "fields",
         "limits",
         "max_message_bytes",
         "max_cursor_bytes",
@@ -684,6 +918,44 @@
             "capabilities": {"type": "null"},
             "error": {"type": "null"}
           }
+        },
+        {
+          "oneOf": [
+            {
+              "properties": {
+                "query": {
+                  "properties": {
+                    "binding": {
+                      "properties": {"mode": {"const": "static"}}
+                    }
+                  }
+                },
+                "result": {
+                  "properties": {
+                    "result_generation": {"type": "null"},
+                    "parent_observation": {"type": "null"}
+                  }
+                }
+              }
+            },
+            {
+              "properties": {
+                "query": {
+                  "properties": {
+                    "binding": {
+                      "properties": {"mode": {"const": "live"}}
+                    }
+                  }
+                },
+                "result": {
+                  "properties": {
+                    "result_generation": {"$ref": "#/$defs/safe_integer"},
+                    "parent_observation": {"$ref": "#/$defs/parent_observation"}
+                  }
+                }
+              }
+            }
+          ]
         }
       ]
     },

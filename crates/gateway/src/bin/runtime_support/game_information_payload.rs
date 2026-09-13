@@ -9,6 +9,7 @@ pub(super) use super::game_information_payload_response::{
 };
 
 pub(super) const MAX_PAGE_ITEMS: u64 = 32;
+pub(super) const MAX_ITEM_BYTES: u64 = 4_096;
 pub(super) const MAX_PAGE_BYTES: u64 = 65_536;
 pub(super) const MAX_TEXT_BYTES: u64 = 4_096;
 pub(super) const MAX_MESSAGE_BYTES: usize = 262_144;
@@ -127,6 +128,10 @@ fn limits_within_gateway_budget(limits: Option<&serde_json::Map<String, Value>>)
         .get("page_items")
         .and_then(Value::as_u64)
         .is_some_and(|value| (1..=MAX_PAGE_ITEMS).contains(&value))
+        && limits
+            .get("item_bytes")
+            .and_then(Value::as_u64)
+            .is_some_and(|value| (1..=MAX_ITEM_BYTES).contains(&value))
         && limits
             .get("page_bytes")
             .and_then(Value::as_u64)

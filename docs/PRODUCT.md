@@ -22,6 +22,8 @@ The accepted gateway scope is:
   selector-admission validation;
 - caller authentication and authorization for control and fixed data routes;
 - fixed method/path/header/body allowlists and target revalidation;
+- isolated opaque automation user-data provisioning, save-profile route fencing, retained
+  operation intent, and explicit uncertainty reconciliation;
 - per-instance isolation, bounded queues/payloads, backpressure, and sanitized diagnostics; and
 - independent gateway API compatibility and release metadata.
 
@@ -88,13 +90,25 @@ compatibility remain `unverified`.
 The additive `game-information-query-v1` transport exposes fixed authenticated
 `/v1/instances/{instance_id}/game-information/{operation}` routes for capabilities, list, search,
 get, detail, and availability. Static reads bind to the configured content authority; live reads
-bind to the instance, run, lease epoch, and snapshot scope. Request/response/page/text/cursor
+bind to the instance, run, lease epoch, and snapshot scope. Request/response/item/page/text/cursor
 bounds and the existing FIFO admission/timeout controls apply, with exact producer paths and
 typed producer errors preserved. This is gateway source/component transport evidence pinned to
-protocol source `924acc650e5b6d57ecb9f602abe65caa3b025f53` and schema digest
-`e5ba81b0520687cf59db6a94aea3b38606e86300f6eb2b0e858f55704e62f76c`; native producer,
+protocol source `34f68b182c09472c3a0573ff478e17e6ed53c91f` and schema digest
+`376845b0c86b4afcd2c79ffba753eb7e7e416f5410da26b4dae970cfee2221d9`; native producer,
 snapshot freshness, MCP consumers (#51/#52), harness, deployment, and release remain
 unverified. See [ADR 0024](decisions/0024-game-information-query-routing.md).
+
+## Save-profile component
+
+The proposed save-profile surface is gateway transport and isolation control, not save authority.
+The attached runtime accepts only fixed list/current/select/create-disposable and operation-lookup
+paths, with explicit read or mutate scopes and the complete caller/session/instance/lease/epoch
+fence. It allocates a fresh opaque user-data identity, records provenance, rejects unknown or
+foreign contents, traversal, symlink escape, and implicit adoption, and retains accepted or
+uncertain work for lookup without blind retries. The game-mod owns profile meaning and authoritative
+baselines. This slice uses deterministic in-memory stores and synthetic loopback peers; launch
+profile issue #50 integration, production persistence, game-mod contract acceptance, and native
+save compatibility are `unverified`.
 
 ## Candidate Runtime-v4 rest actions
 

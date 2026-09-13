@@ -16,7 +16,7 @@ use sts2_gateway::{
     RuntimeV2CombatPhase, RuntimeV2Ledger, RuntimeV2LedgerConfig, RuntimeV2LedgerError,
     RuntimeV2Message, RuntimeV2Observation, RuntimeV2RecoveryCapabilities,
     RuntimeV2RecoveryContract, RuntimeV2RecoveryError, RuntimeV2Status, RuntimeV2TransportFault,
-    SeededRunBinding, SeededRunLedger, SeededRunLedgerConfig,
+    SaveProfileAuthority, SeededRunBinding, SeededRunLedger, SeededRunLedgerConfig,
 };
 
 use super::auth::{AuthFailure, AuthPolicy, AuthScope};
@@ -70,6 +70,8 @@ pub(crate) struct RuntimeService {
     game_information: GameInformationForwarder,
     game_information_exchange_timeout: Duration,
     game_information_cursor_bindings: BTreeMap<String, Value>,
+    save_profile: service_save_profile::SaveProfileRuntime,
+    save_profile_active_run: bool,
     seeded_run: SeededRunLedger<HttpSeededRunForwarder>,
     journal_path: Option<PathBuf>,
     _journal_lock: Option<journal::JournalLock>,
@@ -113,6 +115,7 @@ struct RuntimeConfig {
     coop_native_peer_id: Option<String>,
     game_information_content_manifest_id: String,
     game_information_run_id: String,
+    save_profile_enabled: bool,
 }
 
 /// Gateway-local identity for exactly one native producer route.  This is deliberately a
@@ -203,6 +206,12 @@ mod routes;
 mod runtime;
 #[path = "service_seeded_run.rs"]
 mod seeded_run;
+#[path = "service_save_profile.rs"]
+mod service_save_profile;
+#[path = "service_save_profile_request.rs"]
+mod service_save_profile_request;
+#[path = "service_save_profile_wire.rs"]
+mod service_save_profile_wire;
 #[path = "service_support.rs"]
 mod support;
 #[path = "service_v2.rs"]

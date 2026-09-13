@@ -2,7 +2,6 @@
 
 use super::super::host_lease_control::host_lease_key_from_environment;
 use super::*;
-use uuid::{Uuid, Variant};
 
 #[path = "service_config_runtime_v2.rs"]
 mod runtime_v2;
@@ -10,9 +9,10 @@ pub(super) use runtime_v2::build_runtime_v2;
 #[path = "service_config_coop_native.rs"]
 mod coop_native;
 use coop_native::peer_binding_from_environment;
-#[path = "service_config_identity.rs"]
-mod identity;
-pub(super) use identity::configured_mcp_session;
+#[path = "service_config_values.rs"]
+mod values;
+pub(super) use values::configured_mcp_session;
+use values::{parse_bool, parse_recovery_seconds, valid_uuid, valid_uuid_v4};
 
 pub(super) fn coop_reports_from_environment() -> Result<Option<CoopReports>, String> {
     match std::env::var("STS2_COOP_ROSTER") {
@@ -49,6 +49,10 @@ impl RuntimeConfig {
             "STS2_RUNTIME_V2_QUEUE_CAPACITY",
             DEFAULT_QUEUE_CAPACITY,
         )?)?;
+        let save_profile_enabled = parse_bool(
+            "STS2_SAVE_PROFILE_ENABLED",
+            env_or_default("STS2_SAVE_PROFILE_ENABLED", "false")?.as_str(),
+        )?;
         let journal_path = optional_path("STS2_RUNTIME_V2_JOURNAL")?;
         let recovery_store_path = optional_path("STS2_RECOVERY_STORE")?;
         let recovery_deployment_id = match recovery_store_path.as_ref() {
@@ -208,37 +212,9 @@ impl RuntimeConfig {
             coop_native_peer_id,
             game_information_content_manifest_id,
             game_information_run_id,
+            save_profile_enabled,
         })
     }
-}
-
-fn valid_uuid(value: &str) -> bool {
-    Uuid::parse_str(value).ok().is_some_and(|id| {
-        id.hyphenated().to_string() == value && id.get_variant() == Variant::RFC4122
-    })
-}
-
-fn valid_uuid_v4(value: &str) -> bool {
-    Uuid::parse_str(value).ok().is_some_and(|id| {
-        id.hyphenated().to_string() == value
-            && id.get_variant() == Variant::RFC4122
-            && id.get_version_num() == 4
-    })
-}
-
-fn parse_recovery_seconds(
-    name: &str,
-    default: &str,
-    minimum: u64,
-    maximum: u64,
-) -> Result<u64, String> {
-    let value = env_or_default(name, default)?
-        .parse::<u64>()
-        .map_err(|_| format!("{name} must be an integer"))?;
-    if !(minimum..=maximum).contains(&value) {
-        return Err(format!("{name} must be between {minimum} and {maximum}"));
-    }
-    Ok(value)
 }
 
 pub(super) fn required(name: &str) -> Result<String, String> {

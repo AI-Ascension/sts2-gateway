@@ -316,11 +316,11 @@ the corresponding loopback producer path. It rejects caller-supplied paths, URLs
 redirects, reflection, and cross-instance or cross-profile fallback.
 
 The copied protocol artifact is pinned at source commit
-`924acc650e5b6d57ecb9f602abe65caa3b025f53` and schema digest
-`e5ba81b0520687cf59db6a94aea3b38606e86300f6eb2b0e858f55704e62f76c`. Static requests are bound
+`34f68b182c09472c3a0573ff478e17e6ed53c91f` and schema digest
+`376845b0c86b4afcd2c79ffba753eb7e7e416f5410da26b4dae970cfee2221d9`. Static requests are bound
 to the configured content authority; live requests and returned items are bound to the admitted
 instance, run, lease epoch, snapshot, and state generation. The gateway enforces 16 KiB request,
-256 KiB response, 32-item/65,536-byte page, 4,096-byte text, 512-byte cursor, shared
+256 KiB response, 4,096-byte item, 32-item/65,536-byte page, 4,096-byte text, 512-byte cursor, shared
 1–64-entry FIFO queue, two-second connect, and five-second exchange budgets. It preserves
 validated typed producer errors and has no response cache; its bounded cursor registry retains
 complete normalized query bindings only. Native extraction, snapshot freshness, MCP tool
@@ -344,3 +344,23 @@ selector response may return to a `rest` observation, so its selected choices ar
 the earlier catalog. Missing prior admission, malformed or oversized payloads, identity drift, and
 unknown paths fail closed. This is source/component evidence for an unadmitted candidate; it does
 not establish a native producer, host settlement, MCP/harness consumption, or release behavior.
+
+## Isolated save-profile provisioning
+
+[ADR 0024](decisions/0024-save-profile-provisioning-and-fencing.md) adds the proposed gateway-local
+save-profile component. The attached runtime admits only fixed, instance-scoped list/current,
+select, create-disposable, and operation-lookup routes. It authenticates and checks caller,
+session, instance, lease, epoch, MCP session, correlation, active-run state, method, body, and
+operation bounds before forwarding to the matching fixed loopback game-mod path. No caller path,
+URL, command, profile root, arbitrary header, or unlisted JSON member is forwarded.
+
+The gateway allocates a nonzero opaque user-data identity and records owner, instance, operation,
+and contract provenance. It refuses unknown contents, traversal, symlink escape, foreign ownership,
+and implicit overwrite/adoption before any create call. Provisioning and selection intent are
+retained before downstream work. Duplicate identical operations replay their retained result;
+conflicts are rejected. Timeouts, disconnects, malformed replies, and possible accepted mutations
+remain `unknown` with an operation lookup path and recovery guidance, never a blind mutation retry.
+The game-mod remains authoritative for save-slot meaning, baselines, and host effects. Current
+evidence is deterministic source/component and synthetic loopback testing; production persistence,
+launch-profile issue #50 wiring, game-mod contract acceptance, and native save compatibility are
+unverified.

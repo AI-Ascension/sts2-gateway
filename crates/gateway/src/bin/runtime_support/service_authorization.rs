@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 
+use super::super::save_profile::RuntimeSaveProfileRoute;
 use super::*;
 
 pub(super) fn request_rejection(
@@ -84,6 +85,14 @@ pub(super) fn required_scope(request: &HttpRequest, instance_id: &str) -> AuthSc
     }
     if GameInformationRoute::parse(&request.method, &request.path, instance_id).is_some() {
         return AuthScope::Read;
+    }
+    if let Some(route) = RuntimeSaveProfileRoute::parse(&request.method, &request.path, instance_id)
+    {
+        return if route.is_mutation() {
+            AuthScope::Mutate
+        } else {
+            AuthScope::Read
+        };
     }
     let seeded_start_path = format!("/v2/instances/{instance_id}/seeded-run");
     let seeded_operation_prefix = format!("/v2/instances/{instance_id}/seeded-operations/");

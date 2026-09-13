@@ -9,7 +9,7 @@ use super::game_information_payload as payload;
 use super::http::MAX_BODY_BYTES;
 
 pub(crate) const SCHEMA_DIGEST: &str =
-    "e5ba81b0520687cf59db6a94aea3b38606e86300f6eb2b0e858f55704e62f76c";
+    "376845b0c86b4afcd2c79ffba753eb7e7e416f5410da26b4dae970cfee2221d9";
 pub(crate) const MAX_RESPONSE_BYTES: usize = payload::MAX_MESSAGE_BYTES;
 pub(crate) const MAX_REQUEST_BYTES: usize = MAX_BODY_BYTES;
 const PROTOCOL_VERSION: &str = "game-information-query-v1";

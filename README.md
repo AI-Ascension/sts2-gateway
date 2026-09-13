@@ -181,11 +181,11 @@ evidence; live map freshness and visualizer rendering remain unverified. See
 The additive `game-information-query-v1` transport exposes fixed authenticated capabilities,
 list, search, get, detail, and availability routes. Static reads bind to configured content;
 live reads bind to instance/run/lease-epoch/snapshot scope. The gateway forwards only the
-operation-specific producer path, applies bounded request/response/page/text/cursor and existing
+operation-specific producer path, applies bounded request/response/item/page/text/cursor and existing
 queue/timeout controls, preserves typed producer errors, and implements no response cache. This
 is gateway source/component evidence pinned to protocol source
-`924acc650e5b6d57ecb9f602abe65caa3b025f53` at schema digest
-`e5ba81b0520687cf59db6a94aea3b38606e86300f6eb2b0e858f55704e62f76c`; native producer,
+`34f68b182c09472c3a0573ff478e17e6ed53c91f` at schema digest
+`376845b0c86b4afcd2c79ffba753eb7e7e416f5410da26b4dae970cfee2221d9`; native producer,
 snapshot freshness, MCP consumers (#51/#52), harness, deployment, and release remain
 unverified. See [ADR 0024](docs/decisions/0024-game-information-query-routing.md).
 
