@@ -103,11 +103,14 @@ where
         let Some(identity) = operation.process().cloned() else {
             return Err(LifecycleError::IdentityMismatch);
         };
+        if !identity.matches_profile(operation.instance_id(), profile) {
+            return self.reconcile_retained_cleanup(operation, identity);
+        }
         let actual = match self.process.inspect_identity(identity.process()) {
             Ok(actual) => actual,
             Err(fault) => return self.process_failure(operation, fault),
         };
-        if actual != identity || !identity.matches_profile(operation.instance_id(), profile) {
+        if actual != identity {
             return self.block_cleanup(operation, LifecycleFailure::IdentityMismatch);
         }
         let state = match self.process.inspect(identity.process()) {
@@ -147,13 +150,12 @@ where
         operation: LifecycleOperation,
     ) -> Result<crate::LifecycleResponse, LifecycleError> {
         let profile = self.profile_for_operation(&operation)?;
+        if let Some(identity) = operation.process().cloned()
+            && !identity.matches_profile(operation.instance_id(), profile)
+        {
+            return self.reconcile_retained_cleanup(operation, identity);
+        }
         if operation.process().is_some() {
-            let retained = operation.process().cloned();
-            if let Some(identity) = retained
-                && !identity.matches_profile(operation.instance_id(), profile)
-            {
-                return self.reconcile_failed_launch(operation, identity);
-            }
             return self.verify_record(operation);
         }
         let previous_process = operation.process().cloned();
@@ -173,12 +175,12 @@ where
         self.finish_recovered(operation, launch, profile)
     }
 
-    /// Reconciles a launch that produced an identity the approved profile did
-    /// not authorize. The adapter has retained the exact identity so cleanup
-    /// can be retried without guessing a PID. We only stop after the current
-    /// observed identity is byte-for-byte equal to the retained identity;
-    /// identity drift leaves the operation blocked and the reservation held.
-    fn reconcile_failed_launch(
+    /// Reconciles an adapter-retained identity that did not pass the approved
+    /// profile check. The adapter retains the exact identity so cleanup can be
+    /// retried without guessing a PID. We only stop after the current observed
+    /// identity is byte-for-byte equal to the retained identity; identity drift
+    /// leaves the operation blocked and the reservation held.
+    pub(crate) fn reconcile_retained_cleanup(
         &mut self,
         mut operation: LifecycleOperation,
         identity: ProcessIdentity,

@@ -34,6 +34,7 @@ struct FakeProcess {
     recover_fault: Option<ProcessFault>,
     starts: usize,
     stops: Vec<(ProcessHandle, StopMode)>,
+    stop_fault_after_first: Option<ProcessFault>,
 }
 
 impl FakeProcess {
@@ -43,6 +44,10 @@ impl FakeProcess {
 
     fn set_stop_fault(&mut self, fault: Option<ProcessFault>) {
         self.stop_fault = fault;
+    }
+
+    fn set_stop_fault_after_first(&mut self, fault: Option<ProcessFault>) {
+        self.stop_fault_after_first = fault;
     }
 
     fn set_wrong_identity(&mut self, value: bool) {
@@ -101,6 +106,11 @@ impl ProcessPort for FakeProcess {
 
     fn stop(&mut self, process: ProcessHandle, mode: StopMode) -> Result<(), ProcessFault> {
         if let Some(fault) = self.stop_fault {
+            return Err(fault);
+        }
+        if !self.stops.is_empty()
+            && let Some(fault) = self.stop_fault_after_first
+        {
             return Err(fault);
         }
         self.stops.push((process, mode));
