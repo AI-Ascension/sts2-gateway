@@ -97,9 +97,10 @@ source-compatible). Treat this as an additive
 source/component change for wildcard-matching consumers and a source-breaking migration for
 exhaustive enum consumers, rather than a blanket minor compatibility claim.
 Active instances cannot reuse the same approved user-data namespace; ambiguous launch faults remain
-`Unknown` with a durable reservation until read-only recovery proves the outcome. The SQLite
-lifecycle store fences competing coordinators with an exclusive process-lifetime lock. These
-guarantees are source/component behavior only.
+`Unknown` with a durable reservation and any exact identity-bearing cleanup obligation until
+read-only recovery proves the outcome. The SQLite lifecycle store fences competing coordinators
+with an exclusive process-lifetime lock, a durable coordinator token, and transactional ownership
+admission. These guarantees are source/component behavior only.
 Native launch, host readiness, harness workflow mapping, and disposable-process acceptance remain
 `unverified`.
 

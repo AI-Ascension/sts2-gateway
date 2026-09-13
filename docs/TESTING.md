@@ -73,9 +73,10 @@ request serialization, and SQLite record replay. Additional review regressions c
 errors and identity-less replacement reservations, rejected-request ownership preservation despite
 caller-selected IDs, transient inspection and surviving descendants, identity-bearing blocked
 cleanup retry, ambiguous launch failures that remain `Unknown` and capacity-reserving,
-profile user-data namespace reuse rejection, exclusive disk-journal coordinator ownership,
-independent SQLite reopen/recovery, repeated read-only recovery, and record-budget exhaustion
-before a process effect.
+profile user-data namespace reuse rejection, identity-bearing partial-launch cleanup retention,
+exclusive and transactionally fenced disk-journal coordinator ownership, independent SQLite
+reopen/recovery, repeated read-only recovery, and record-budget exhaustion before a process
+effect.
 A launch response is `Starting` until a separate readiness adapter reports ready. These are
 confirmed gateway source/component outcomes from synthetic ports and stores; they do not launch an
 OS process, exercise game readiness, or establish harness/provider/native compatibility.

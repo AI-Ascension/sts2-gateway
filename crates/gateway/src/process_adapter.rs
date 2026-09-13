@@ -16,6 +16,10 @@ pub struct ApprovedLaunchProfileAdapter<P> {
     profiles: ApprovedLaunchProfiles,
     process: P,
     bindings: BTreeMap<ProcessHandle, LaunchProfile>,
+    /// Launch identities that were created by this adapter but could not yet
+    /// be cleaned up. The profile may be mismatched; the identity is still a
+    /// durable cleanup witness and must not be dropped.
+    unresolved: BTreeMap<ProcessHandle, ProcessIdentity>,
 }
 
 impl<P> ApprovedLaunchProfileAdapter<P> {
@@ -24,6 +28,7 @@ impl<P> ApprovedLaunchProfileAdapter<P> {
             profiles,
             process,
             bindings: BTreeMap::new(),
+            unresolved: BTreeMap::new(),
         }
     }
 
@@ -72,6 +77,7 @@ impl<P> ApprovedLaunchProfileAdapter<P> {
             let identity = launch.identity().clone();
             let process = identity.process();
             self.bindings.insert(process, profile);
+            self.unresolved.insert(process, identity.clone());
             return match self.process.stop(process, StopMode::Force) {
                 Err(fault) => Err(fault),
                 Ok(()) => match self.process.descendants(process) {
@@ -81,12 +87,15 @@ impl<P> ApprovedLaunchProfileAdapter<P> {
                     }
                     Ok(_) => {
                         self.bindings.remove(&process);
+                        self.unresolved.remove(&process);
                         Err(ProcessFault::IdentityMismatch)
                     }
                 },
             };
         }
-        self.bindings.insert(launch.identity().process(), profile);
+        let process = launch.identity().process();
+        self.bindings.insert(process, profile);
+        self.unresolved.remove(&process);
         Ok(launch)
     }
 
@@ -94,6 +103,13 @@ impl<P> ApprovedLaunchProfileAdapter<P> {
         &self,
         identity: &ProcessIdentity,
     ) -> Result<ProcessIdentity, ProcessFault> {
+        // A retained launch identity is an adapter-created cleanup obligation.
+        // It must be observable even when its executable or namespace failed
+        // profile validation; the lifecycle coordinator will fence cleanup by
+        // comparing the exact identity before stopping it.
+        if self.unresolved.contains_key(&identity.process()) {
+            return Ok(identity.clone());
+        }
         let Some(profile) = self.bindings.get(&identity.process()) else {
             return Ok(identity.clone());
         };
@@ -139,6 +155,7 @@ impl<P: ProcessPort> ProcessPort for ApprovedLaunchProfileAdapter<P> {
     fn stop(&mut self, process: ProcessHandle, mode: StopMode) -> Result<(), ProcessFault> {
         self.process.stop(process, mode)?;
         self.bindings.remove(&process);
+        self.unresolved.remove(&process);
         Ok(())
     }
 
@@ -157,11 +174,25 @@ impl<P: ProcessPort> ProcessPort for ApprovedLaunchProfileAdapter<P> {
         if self.profiles.resolve(profile.id()).ok() != Some(profile) {
             return Err(ProcessFault::ProfileNotApproved);
         }
+        if let Some(identity) = self
+            .unresolved
+            .values()
+            .find(|identity| identity.instance_id() == instance_id)
+            .cloned()
+        {
+            return Ok(Some(identity));
+        }
         let Some(identity) = self.process.recover_owned(instance_id, profile)? else {
             return Ok(None);
         };
-        if identity.matches_profile(instance_id, profile) {
-            self.bindings.insert(identity.process(), profile);
+        if identity.instance_id() != instance_id {
+            return Err(ProcessFault::IdentityMismatch);
+        }
+        self.bindings.insert(identity.process(), profile);
+        if !identity.matches_profile(instance_id, profile) {
+            self.unresolved.insert(identity.process(), identity.clone());
+        } else {
+            self.unresolved.remove(&identity.process());
         }
         Ok(Some(identity))
     }

@@ -130,6 +130,26 @@ fn attach_rejects_a_foreign_pid_or_birth_identity() -> Result<(), String> {
     );
     assert_eq!(process.starts(), 1);
     assert_eq!(process.stops(), 0);
+
+    let foreign_birth = ProcessIdentity::new(
+        identity.instance_id(),
+        identity.process(),
+        identity.pid(),
+        identity.birth_id().saturating_add(1),
+        identity.executable().ok_or("missing executable")?,
+        identity.user_data().ok_or("missing user data")?,
+    );
+    assert_eq!(
+        lifecycle.apply(LifecycleRequest::attach_existing(
+            sts2_gateway::OperationId::new(13),
+            lease.proof(),
+            AuthorityEpoch::new(1),
+            foreign_birth,
+        )),
+        Err(LifecycleError::IdentityMismatch)
+    );
+    assert_eq!(process.starts(), 1);
+    assert_eq!(process.stops(), 0);
     Ok(())
 }
 

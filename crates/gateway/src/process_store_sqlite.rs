@@ -5,7 +5,8 @@ use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
 use fs2::FileExt;
-use rusqlite::{Connection, Error as SqlError, ErrorCode, OptionalExtension};
+use rusqlite::{Connection, Error as SqlError, ErrorCode};
+use uuid::Uuid;
 
 use crate::InstanceId;
 
@@ -13,6 +14,11 @@ use super::{
     LifecycleOperation, LifecycleOwnership, LifecycleRecordKey, LifecycleRecordStore,
     LifecycleStoreError,
 };
+
+#[path = "process_store_sqlite_admission.rs"]
+mod admission;
+#[path = "process_store_sqlite_records.rs"]
+mod records;
 
 /// SQLite-backed operation records. Each mutation is committed before the process port is called.
 pub struct SqliteLifecycleStore {
@@ -22,6 +28,9 @@ pub struct SqliteLifecycleStore {
     /// conflict handling alone cannot fence coordinators that cache records
     /// and ownership in memory.
     _coordinator_lock: Option<File>,
+    /// Durable coordinator token used to fence a stale store if its lock file
+    /// is replaced or unlinked while the original coordinator is still alive.
+    coordinator_token: [u8; 16],
 }
 
 impl SqliteLifecycleStore {
@@ -58,12 +67,26 @@ impl SqliteLifecycleStore {
                  CREATE TABLE IF NOT EXISTS lifecycle_ownership (
                    instance_id INTEGER PRIMARY KEY,
                    body BLOB NOT NULL
+                 );
+                 CREATE TABLE IF NOT EXISTS lifecycle_coordinator (
+                   singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+                   token BLOB NOT NULL
                  );",
+            )
+            .map_err(|_| LifecycleStoreError::Database)?;
+        let coordinator_token = *Uuid::new_v4().as_bytes();
+        connection
+            .execute(
+                "INSERT INTO lifecycle_coordinator (singleton, token)
+                 VALUES (1, ?1)
+                 ON CONFLICT(singleton) DO UPDATE SET token = excluded.token",
+                rusqlite::params![coordinator_token.as_slice()],
             )
             .map_err(|_| LifecycleStoreError::Database)?;
         Ok(Self {
             connection,
             _coordinator_lock: coordinator_lock,
+            coordinator_token,
         })
     }
 
@@ -124,123 +147,5 @@ impl SqliteLifecycleStore {
         } else {
             LifecycleStoreError::Database
         }
-    }
-}
-
-impl LifecycleRecordStore for SqliteLifecycleStore {
-    fn get(
-        &self,
-        key: LifecycleRecordKey,
-    ) -> Result<Option<LifecycleOperation>, LifecycleStoreError> {
-        let instance_id = Self::sql_id(key.instance_id().value())?;
-        let operation_id = Self::sql_id(key.operation_id().value())?;
-        self.connection
-            .query_row(
-                "SELECT body FROM lifecycle_operations WHERE instance_id = ?1 AND operation_id = ?2",
-                rusqlite::params![instance_id, operation_id],
-                |row| row.get::<_, Vec<u8>>(0),
-            )
-            .optional()
-            .map_err(|_| LifecycleStoreError::Database)?
-            .map(|bytes| Self::decode(&bytes))
-            .transpose()
-    }
-
-    fn insert(&mut self, operation: LifecycleOperation) -> Result<(), LifecycleStoreError> {
-        let bytes = Self::encode(&operation)?;
-        let instance_id = Self::sql_id(operation.instance_id().value())?;
-        let operation_id = Self::sql_id(operation.operation_id().value())?;
-        self.connection
-            .execute(
-                "INSERT INTO lifecycle_operations (instance_id, operation_id, body)
-                 VALUES (?1, ?2, ?3)",
-                rusqlite::params![instance_id, operation_id, bytes],
-            )
-            .map(|_| ())
-            .map_err(Self::insert_error)
-    }
-
-    fn update(&mut self, operation: LifecycleOperation) -> Result<(), LifecycleStoreError> {
-        let bytes = Self::encode(&operation)?;
-        let instance_id = Self::sql_id(operation.instance_id().value())?;
-        let operation_id = Self::sql_id(operation.operation_id().value())?;
-        let changed = self
-            .connection
-            .execute(
-                "UPDATE lifecycle_operations SET body = ?1
-                 WHERE instance_id = ?2 AND operation_id = ?3",
-                rusqlite::params![bytes, instance_id, operation_id],
-            )
-            .map_err(|_| LifecycleStoreError::Database)?;
-        if changed != 1 {
-            return Err(LifecycleStoreError::NotFound);
-        }
-        Ok(())
-    }
-
-    fn list(&self) -> Result<Vec<LifecycleOperation>, LifecycleStoreError> {
-        let mut statement = self
-            .connection
-            .prepare("SELECT body FROM lifecycle_operations ORDER BY instance_id, operation_id")
-            .map_err(|_| LifecycleStoreError::Database)?;
-        let rows = statement
-            .query_map([], |row| row.get::<_, Vec<u8>>(0))
-            .map_err(|_| LifecycleStoreError::Database)?;
-        rows.map(|row| {
-            row.map_err(|_| LifecycleStoreError::Database)
-                .and_then(|bytes| Self::decode(&bytes))
-        })
-        .collect()
-    }
-
-    fn count(&self) -> Result<usize, LifecycleStoreError> {
-        self.connection
-            .query_row("SELECT COUNT(*) FROM lifecycle_operations", [], |row| {
-                row.get::<_, i64>(0)
-            })
-            .map_err(|_| LifecycleStoreError::Database)
-            .and_then(|count| {
-                usize::try_from(count).map_err(|_| LifecycleStoreError::Serialization)
-            })
-    }
-
-    fn list_ownership(&self) -> Result<Vec<LifecycleOwnership>, LifecycleStoreError> {
-        let mut statement = self
-            .connection
-            .prepare("SELECT body FROM lifecycle_ownership ORDER BY instance_id")
-            .map_err(|_| LifecycleStoreError::Database)?;
-        let rows = statement
-            .query_map([], |row| row.get::<_, Vec<u8>>(0))
-            .map_err(|_| LifecycleStoreError::Database)?;
-        rows.map(|row| {
-            row.map_err(|_| LifecycleStoreError::Database)
-                .and_then(|bytes| Self::decode_ownership(&bytes))
-        })
-        .collect()
-    }
-
-    fn set_ownership(&mut self, ownership: LifecycleOwnership) -> Result<(), LifecycleStoreError> {
-        let bytes = Self::encode_ownership(&ownership)?;
-        let instance_id = Self::sql_id(ownership.instance_id().value())?;
-        self.connection
-            .execute(
-                "INSERT INTO lifecycle_ownership (instance_id, body)
-                 VALUES (?1, ?2)
-                 ON CONFLICT(instance_id) DO UPDATE SET body = excluded.body",
-                rusqlite::params![instance_id, bytes],
-            )
-            .map(|_| ())
-            .map_err(|_| LifecycleStoreError::Database)
-    }
-
-    fn clear_ownership(&mut self, instance_id: InstanceId) -> Result<(), LifecycleStoreError> {
-        let instance_id = Self::sql_id(instance_id.value())?;
-        self.connection
-            .execute(
-                "DELETE FROM lifecycle_ownership WHERE instance_id = ?1",
-                rusqlite::params![instance_id],
-            )
-            .map(|_| ())
-            .map_err(|_| LifecycleStoreError::Database)
     }
 }

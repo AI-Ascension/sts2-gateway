@@ -131,8 +131,12 @@ pub trait ProcessPort {
 
     /// Recovers a process created for a previously persisted launch intent.
     ///
-    /// Returning `None` is a definitive absence only for an adapter that can inspect its owned
-    /// process registry; the default reports no recovery capability.
+    /// The returned identity may fail the approved profile check when it is
+    /// an adapter-retained cleanup obligation from a partial launch. Callers
+    /// must retain that exact identity and compare it again before cleanup.
+    /// Returning `None` is a definitive absence only for an adapter that can
+    /// inspect its owned process registry; the default reports no recovery
+    /// capability.
     fn recover_owned(
         &mut self,
         _instance_id: InstanceId,

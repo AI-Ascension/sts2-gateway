@@ -44,9 +44,12 @@ where
                         .recover_owned(operation.instance_id(), profile)
                         .ok()
                         .flatten()
-                        .filter(|identity| {
-                            identity.matches_profile(operation.instance_id(), profile)
-                        })
+                        // A profile mismatch is not evidence that the
+                        // process is foreign: this identity may be the exact
+                        // child created by the failed launch. Retain it as a
+                        // cleanup obligation and let reconciliation compare
+                        // the complete identity before any stop.
+                        .filter(|identity| identity.instance_id() == operation.instance_id())
                 });
                 let mut unknown = operation;
                 unknown.set_state(

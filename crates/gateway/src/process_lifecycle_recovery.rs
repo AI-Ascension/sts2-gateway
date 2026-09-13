@@ -117,6 +117,10 @@ where
             LifecycleOperationState::Blocked => {
                 if matches!(operation.action(), LifecycleAction::Restart { .. }) {
                     self.reconcile_restart(operation)
+                } else if matches!(operation.action(), LifecycleAction::LaunchNew { .. })
+                    && operation.process().is_some()
+                {
+                    self.reconcile_launch(operation)
                 } else if matches!(operation.action(), LifecycleAction::Stop { .. })
                     && operation.process().is_some()
                 {
