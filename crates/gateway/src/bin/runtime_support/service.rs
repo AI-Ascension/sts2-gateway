@@ -16,7 +16,7 @@ use sts2_gateway::{
     RuntimeV2CombatPhase, RuntimeV2Ledger, RuntimeV2LedgerConfig, RuntimeV2LedgerError,
     RuntimeV2Message, RuntimeV2Observation, RuntimeV2RecoveryCapabilities,
     RuntimeV2RecoveryContract, RuntimeV2RecoveryError, RuntimeV2Status, RuntimeV2TransportFault,
-    SeededRunBinding, SeededRunLedger, SeededRunLedgerConfig,
+    SaveProfileAuthority, SeededRunBinding, SeededRunLedger, SeededRunLedgerConfig,
 };
 
 use super::auth::{AuthFailure, AuthPolicy, AuthScope};
@@ -64,6 +64,8 @@ pub(crate) struct RuntimeService {
     runtime_v4_expert: RuntimeV4ExpertForwarder,
     runtime_v4_expert_rest_action: RuntimeV4ExpertRestActionForwarder,
     runtime_map: RuntimeMapForwarder,
+    save_profile: service_save_profile::SaveProfileRuntime,
+    save_profile_active_run: bool,
     seeded_run: SeededRunLedger<HttpSeededRunForwarder>,
     journal_path: Option<PathBuf>,
     _journal_lock: Option<journal::JournalLock>,
@@ -105,6 +107,7 @@ struct RuntimeConfig {
     workflow_authority: Option<RuntimeV2Authority>,
     coop_native_peer_token: Option<String>,
     coop_native_peer_id: Option<String>,
+    save_profile_enabled: bool,
 }
 
 /// Gateway-local identity for exactly one native producer route.  This is deliberately a
@@ -193,6 +196,12 @@ mod routes;
 mod runtime;
 #[path = "service_seeded_run.rs"]
 mod seeded_run;
+#[path = "service_save_profile.rs"]
+mod service_save_profile;
+#[path = "service_save_profile_request.rs"]
+mod service_save_profile_request;
+#[path = "service_save_profile_wire.rs"]
+mod service_save_profile_wire;
 #[path = "service_support.rs"]
 mod support;
 #[path = "service_v2.rs"]

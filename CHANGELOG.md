@@ -14,6 +14,13 @@ host compatibility and release publication.
   compatibility remain unverified behind the `sts2-harness` prerequisites. Legacy ports reject
   the profile-aware launch path before starting; consumers with exhaustive matches over the
   expanded public lifecycle/fault enums must add arms.
+- Add the proposed gateway-local save-profile component from
+  [ADR 0024](docs/decisions/0024-save-profile-provisioning-and-fencing.md): fixed fenced
+  list/current/select/create-disposable/lookup routes, fresh opaque user-data allocation with
+  provenance and traversal/symlink/overwrite refusal, retained operation intent, and explicit
+  timeout/disconnect/unknown reconciliation. Deterministic source/component tests pass; game-mod
+  contract acceptance, issue #50 launch-profile wiring, production persistence, native save
+  behavior, and cross-restart durability remain unverified.
 
 - Add an authorized, bounded public checkpoint-reference read route with closed response
   validation and explicit unavailable results when no producer exists. Native capture remains

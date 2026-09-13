@@ -27,6 +27,7 @@ pub(super) fn test_service() -> Result<RuntimeService, String> {
         workflow_authority: None,
         coop_native_peer_token: None,
         coop_native_peer_id: None,
+        save_profile_enabled: true,
     };
     let binding = RuntimeV2Binding::new(
         &config.instance_id,
@@ -72,6 +73,20 @@ pub(super) fn test_service() -> Result<RuntimeService, String> {
         ),
     )
     .map_err(|error| error.to_string())?;
+    let save_profile = service_save_profile::SaveProfileRuntime::new(
+        config.save_profile_enabled,
+        &config.mod_address,
+        &config.mod_token,
+        SaveProfileAuthority {
+            instance_id: config.instance_id.clone(),
+            caller_id: config.caller_id.clone(),
+            session_id: config.session_id.clone(),
+            lease_id: config.lease_id.clone(),
+            lease_epoch: config.lease_epoch,
+            expires_at_millis: None,
+        },
+        config.operation_capacity,
+    )?;
 
     Ok(RuntimeService {
         config,
@@ -91,6 +106,8 @@ pub(super) fn test_service() -> Result<RuntimeService, String> {
             MAX_RESPONSE_BYTES,
         ),
         runtime_map: RuntimeMapForwarder::new(MAX_MAP_RESPONSE_BYTES),
+        save_profile,
+        save_profile_active_run: false,
         seeded_run,
         journal_path: None,
         _journal_lock: None,

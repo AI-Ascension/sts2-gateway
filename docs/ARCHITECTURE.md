@@ -335,3 +335,23 @@ selector response may return to a `rest` observation, so its selected choices ar
 the earlier catalog. Missing prior admission, malformed or oversized payloads, identity drift, and
 unknown paths fail closed. This is source/component evidence for an unadmitted candidate; it does
 not establish a native producer, host settlement, MCP/harness consumption, or release behavior.
+
+## Isolated save-profile provisioning
+
+[ADR 0024](decisions/0024-save-profile-provisioning-and-fencing.md) adds the proposed gateway-local
+save-profile component. The attached runtime admits only fixed, instance-scoped list/current,
+select, create-disposable, and operation-lookup routes. It authenticates and checks caller,
+session, instance, lease, epoch, MCP session, correlation, active-run state, method, body, and
+operation bounds before forwarding to the matching fixed loopback game-mod path. No caller path,
+URL, command, profile root, arbitrary header, or unlisted JSON member is forwarded.
+
+The gateway allocates a nonzero opaque user-data identity and records owner, instance, operation,
+and contract provenance. It refuses unknown contents, traversal, symlink escape, foreign ownership,
+and implicit overwrite/adoption before any create call. Provisioning and selection intent are
+retained before downstream work. Duplicate identical operations replay their retained result;
+conflicts are rejected. Timeouts, disconnects, malformed replies, and possible accepted mutations
+remain `unknown` with an operation lookup path and recovery guidance, never a blind mutation retry.
+The game-mod remains authoritative for save-slot meaning, baselines, and host effects. Current
+evidence is deterministic source/component and synthetic loopback testing; production persistence,
+launch-profile issue #50 wiring, game-mod contract acceptance, and native save compatibility are
+unverified.

@@ -26,6 +26,8 @@ mod runtime_v4_expert_forwarder;
 mod runtime_v4_expert_rest_action;
 mod runtime_v4_expert_rest_action_forwarder;
 mod runtime_v4_expert_rest_action_semantics;
+mod save_profile;
+mod save_profile_forwarder;
 mod seeded_run_forwarder;
 mod service;
 mod strict_json;
