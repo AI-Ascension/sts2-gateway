@@ -137,31 +137,6 @@ where
         }
     }
 
-    fn reconcile_launch(
-        &mut self,
-        operation: LifecycleOperation,
-    ) -> Result<LifecycleResponse, LifecycleError> {
-        let profile = self.profile_for_operation(&operation)?;
-        if operation.process().is_some() {
-            return self.verify_record(operation);
-        }
-        let previous_process = operation.process().cloned();
-        let recovered = self.process.recover_owned(operation.instance_id(), profile);
-        let identity = match recovered {
-            Ok(Some(identity)) => identity,
-            Ok(None) => return self.unknown(operation, previous_process, None),
-            Err(fault) => {
-                return self.unknown(
-                    operation,
-                    previous_process,
-                    Some(LifecycleFailure::Process(fault)),
-                );
-            }
-        };
-        let launch = ProcessLaunch::new(identity);
-        self.finish_recovered(operation, launch, profile)
-    }
-
     pub(crate) fn reconcile_restart(
         &mut self,
         operation: LifecycleOperation,
@@ -300,7 +275,7 @@ where
         }
     }
 
-    fn unknown(
+    pub(crate) fn unknown(
         &mut self,
         mut operation: LifecycleOperation,
         process: Option<ProcessIdentity>,

@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 
 use crate::process_store::{LifecycleFailure, LifecycleOperation, LifecycleOperationState};
-use crate::{LaunchProfile, LifecycleError, ProcessIdentity, ProcessState, StopMode};
+use crate::{
+    LaunchProfile, LifecycleError, ProcessIdentity, ProcessLaunch, ProcessState, StopMode,
+};
 
 use super::ProcessLifecycle;
 
@@ -138,5 +140,30 @@ where
             Err(fault) => return self.process_failure(operation, fault),
         };
         self.finish_start(operation, launch, profile, LifecycleOperationState::Started)
+    }
+
+    pub(crate) fn reconcile_launch(
+        &mut self,
+        operation: LifecycleOperation,
+    ) -> Result<crate::LifecycleResponse, LifecycleError> {
+        let profile = self.profile_for_operation(&operation)?;
+        if operation.process().is_some() {
+            return self.verify_record(operation);
+        }
+        let previous_process = operation.process().cloned();
+        let recovered = self.process.recover_owned(operation.instance_id(), profile);
+        let identity = match recovered {
+            Ok(Some(identity)) => identity,
+            Ok(None) => return self.unknown(operation, previous_process, None),
+            Err(fault) => {
+                return self.unknown(
+                    operation,
+                    previous_process,
+                    Some(LifecycleFailure::Process(fault)),
+                );
+            }
+        };
+        let launch = ProcessLaunch::new(identity);
+        self.finish_recovered(operation, launch, profile)
     }
 }

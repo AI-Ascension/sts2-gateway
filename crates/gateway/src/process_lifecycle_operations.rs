@@ -175,6 +175,19 @@ where
             // ownership row. Keep the stale operation replayable as a
             // terminal rejection, but never let reconciliation perform a
             // replacement launch from its old sequence.
+            if matches!(
+                operation.state(),
+                LifecycleOperationState::Started | LifecycleOperationState::Attached
+            ) {
+                // A duplicate of an already completed operation is a
+                // read-only historical replay. Returning its retained result
+                // preserves idempotency without re-verifying a superseded
+                // process.
+                return Ok(LifecycleResponse::new(
+                    &operation,
+                    operation.state().lifecycle_state(),
+                ));
+            }
             return self.block_operation(operation, LifecycleFailure::InstanceBusy);
         }
         match operation.state() {

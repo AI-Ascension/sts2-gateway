@@ -23,3 +23,23 @@ pub(crate) fn owner_order(owner: &LifecycleOwnership) -> (u8, u64, u64) {
         (1, owner.sequence(), owner.operation_id().value())
     }
 }
+
+impl<C, P, S, F> super::ProcessLifecycle<C, P, S, F>
+where
+    C: crate::Clock,
+    P: crate::ProcessPort,
+    S: crate::LifecycleRecordStore,
+    F: crate::LeaseDecisionPort,
+{
+    pub(crate) fn lease_matches(&self, operation: &LifecycleOperation) -> bool {
+        self.leases
+            .get(&operation.instance_id())
+            .is_some_and(|lease| lease.proof() == operation.lease())
+    }
+
+    pub(crate) fn operation_can_update_owner(&self, operation: &LifecycleOperation) -> bool {
+        self.ownership
+            .get(&operation.instance_id())
+            .is_none_or(|owner| operation_order(operation) >= owner_order(owner))
+    }
+}

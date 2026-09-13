@@ -239,11 +239,30 @@ where
     /// stop, but retained history must continue fencing an older blocked or
     /// unknown operation from performing a replacement launch.
     pub(crate) fn operation_is_current(&self, operation: &LifecycleOperation) -> bool {
-        self.latest_authoritative_record(operation.instance_id())
-            .is_none_or(|latest| {
-                operation.operation_id() == latest.operation_id()
-                    && operation_order(operation) >= operation_order(&latest)
+        let latest = self
+            .records
+            .values()
+            .filter(|candidate| {
+                candidate.instance_id() == operation.instance_id()
+                    && candidate.state() != LifecycleOperationState::Rejected
             })
+            .max_by_key(|candidate| {
+                // Legacy records have no gateway-issued sequence. Compare
+                // their caller IDs against all records for that instance so
+                // persisted pre-sequence intents remain recoverable while
+                // sequenced records still use the authoritative server order.
+                if operation.sequence() == 0 || candidate.sequence() == 0 {
+                    (0, candidate.operation_id().value(), 0)
+                } else {
+                    operation_order(candidate)
+                }
+            });
+        latest.is_none_or(|latest| {
+            operation.operation_id() == latest.operation_id()
+                && (operation.sequence() == 0
+                    || latest.sequence() == 0
+                    || operation_order(operation) >= operation_order(latest))
+        })
     }
 
     pub(crate) fn occupied_count(&self) -> usize {
@@ -286,7 +305,10 @@ where
             .cloned()
     }
 
-    fn latest_authoritative_record(&self, instance_id: InstanceId) -> Option<LifecycleOperation> {
+    pub(crate) fn latest_authoritative_record(
+        &self,
+        instance_id: InstanceId,
+    ) -> Option<LifecycleOperation> {
         self.records
             .values()
             .filter(|operation| {
@@ -295,18 +317,6 @@ where
             })
             .max_by_key(|operation| operation_order(operation))
             .cloned()
-    }
-
-    fn lease_matches(&self, operation: &LifecycleOperation) -> bool {
-        self.leases
-            .get(&operation.instance_id())
-            .is_some_and(|lease| lease.proof() == operation.lease())
-    }
-
-    fn operation_can_update_owner(&self, operation: &LifecycleOperation) -> bool {
-        self.ownership
-            .get(&operation.instance_id())
-            .is_none_or(|owner| operation_order(operation) >= owner_order(owner))
     }
 
     fn persist_ownership(&mut self, ownership: LifecycleOwnership) -> Result<(), LifecycleError> {
