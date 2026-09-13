@@ -112,6 +112,9 @@ impl RuntimeService {
                 .restore_state(state)
                 .map_err(|error| format!("Runtime-v2 journal state is invalid: {error}"))?;
         }
+        let game_information_content_manifest_id =
+            config.game_information_content_manifest_id.clone();
+        let game_information_run_id = config.game_information_run_id.clone();
 
         let coop_native_peer_binding = config
             .coop_native_peer_token
@@ -146,6 +149,14 @@ impl RuntimeService {
                 MAX_RESPONSE_BYTES,
             ),
             runtime_map: RuntimeMapForwarder::new(MAX_MAP_RESPONSE_BYTES),
+            game_information: GameInformationForwarder::new(
+                super::game_information_forwarder::MAX_REQUEST_BYTES,
+                super::game_information_forwarder::MAX_RESPONSE_BYTES,
+                &game_information_content_manifest_id,
+                &game_information_run_id,
+            ),
+            game_information_exchange_timeout: Duration::from_secs(5),
+            game_information_cursor_bindings: BTreeMap::new(),
             save_profile,
             save_profile_active_run: false,
             seeded_run,
@@ -198,5 +209,39 @@ impl RuntimeService {
             Ok(worker_result) => result.and(worker_result),
             Err(_) => Err(String::from("gateway worker panicked")),
         }
+    }
+
+    pub(super) fn state_path(&self) -> String {
+        format!("/v1/instances/{}/state", self.config.instance_id)
+    }
+
+    pub(super) fn action_path(&self) -> String {
+        format!("/v1/instances/{}/action", self.config.instance_id)
+    }
+
+    pub(super) fn release_path(&self) -> String {
+        format!("/v1/instances/{}/release", self.config.instance_id)
+    }
+
+    pub(super) fn runtime_v2_action_path(&self) -> String {
+        format!("/v2/instances/{}/action", self.config.instance_id)
+    }
+
+    pub(super) fn runtime_v2_state_path(&self) -> String {
+        format!("/v2/instances/{}/state", self.config.instance_id)
+    }
+
+    pub(super) fn runtime_v2_metrics_path(&self) -> String {
+        format!("/v2/instances/{}/metrics", self.config.instance_id)
+    }
+
+    pub(super) fn runtime_v2_shutdown_path(&self) -> String {
+        format!("/v2/instances/{}/shutdown", self.config.instance_id)
+    }
+
+    pub(super) fn runtime_v2_operation_id<'a>(&self, path: &'a str) -> Option<&'a str> {
+        let prefix = format!("/v2/instances/{}/operations/", self.config.instance_id);
+        path.strip_prefix(&prefix)
+            .filter(|operation_id| !operation_id.is_empty() && !operation_id.contains('/'))
     }
 }

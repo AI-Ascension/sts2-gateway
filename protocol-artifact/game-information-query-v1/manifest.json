@@ -1,0 +1,41 @@
+{
+  "artifact": "sts2-protocol/game-information-query-v1",
+  "protocol_version": "game-information-query-v1",
+  "schema": "schema.json",
+  "schema_digest": "376845b0c86b4afcd2c79ffba753eb7e7e416f5410da26b4dae970cfee2221d9",
+  "source_commit": "34f68b182c09472c3a0573ff478e17e6ed53c91f",
+  "provenance": {
+    "source": "schemas/game-information-query-v1.schema.json",
+    "generator": "hand-authored",
+    "license": "MIT"
+  },
+  "consumers": [
+    "sts2-game-mod",
+    "sts2-gateway",
+    "sts2-mcp-server",
+    "sts2-harness"
+  ],
+  "goldens": [
+    "golden/capabilities-response.json",
+    "golden/error-stale-cursor.json",
+    "golden/live-detail-request.json",
+    "golden/live-detail-response.json",
+    "golden/static-page-1-request.json",
+    "golden/static-page-1-response.json",
+    "golden/static-page-2-request.json",
+    "golden/static-page-2-response.json"
+  ],
+  "fixtures": [
+    "../../conformance/fixtures/game-information-query-v1/valid/utf8-boundary.json",
+    "../../conformance/fixtures/game-information-query-v1/valid/source-provenance.json",
+    "../../conformance/fixtures/game-information-query-v1/valid/empty-vs-unavailable.json",
+    "../../conformance/fixtures/game-information-query-v1/valid/zero-vs-missing.json"
+  ],
+  "negative_fixtures": [
+    "../../conformance/fixtures/game-information-query-v1/invalid"
+  ],
+  "conformance": "../../conformance/cases/game-information-query-v1.json",
+  "consumer_conformance": "consumer-conformance.json",
+  "consumer_conformance_status": "component_serialized_conformance",
+  "checksums": "SHA256SUMS"
+}

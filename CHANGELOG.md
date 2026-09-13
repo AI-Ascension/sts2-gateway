@@ -19,6 +19,16 @@ host compatibility and release publication.
   `sts2-harness` prerequisites. Legacy ports reject the profile-aware launch path before
   starting; consumers with exhaustive matches over the expanded public lifecycle/fault enums must
   add arms.
+- Add the authenticated, bounded `game-information-query-v1` read transport for capabilities,
+  list, search, get, detail, and availability. Fixed instance-scoped routes forward only their
+  operation-specific loopback producer paths after caller/session/lease/epoch and static
+  content/live snapshot fencing; request, response, page, item, queue, and timeout budgets are
+  enforced, typed producer errors are preserved, and no response cache or cross-instance fallback
+  exists. The gateway pins protocol source commit
+  `34f68b182c09472c3a0573ff478e17e6ed53c91f` at schema digest
+  `376845b0c86b4afcd2c79ffba753eb7e7e416f5410da26b4dae970cfee2221d9`. Synthetic gateway
+  transport evidence is confirmed; native producer, MCP (#51/#52), harness, deployment, and
+  release compatibility remain unverified. See [ADR 0024](docs/decisions/0024-game-information-query-routing.md).
 - Add the proposed gateway-local save-profile component from
   [ADR 0024](docs/decisions/0024-save-profile-provisioning-and-fencing.md): fixed fenced
   list/current/select/create-disposable/lookup routes, fresh opaque user-data allocation with

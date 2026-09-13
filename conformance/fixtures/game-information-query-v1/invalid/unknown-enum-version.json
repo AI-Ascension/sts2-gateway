@@ -1,0 +1,1 @@
+{"base_fixture":"artifacts/game-information-query-v1/golden/static-page-1-request.json","expected_error":"unsupported_version","id":"GIQ-INVALID-UNKNOWN-ENUM-VERSION","mutations":[{"path":"/protocol_version","value":"game-information-query-v2"},{"path":"/query/entity_kind","value":"card_instance"}],"schema_valid":false}

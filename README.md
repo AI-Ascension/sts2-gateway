@@ -178,6 +178,17 @@ graph, and independent navigation bindings before returning data. The route is s
 evidence; live map freshness and visualizer rendering remain unverified. See
 [ADR 0017](docs/decisions/0017-runtime-map-read-route.md).
 
+The additive `game-information-query-v1` transport exposes fixed authenticated capabilities,
+list, search, get, detail, and availability routes. Static reads bind to configured content;
+live reads bind to instance/run/lease-epoch/snapshot scope. The gateway forwards only the
+operation-specific producer path, applies bounded request/response/item/page/text/cursor and existing
+queue/timeout controls, preserves typed producer errors, and implements no response cache. This
+is gateway source/component evidence pinned to protocol source
+`34f68b182c09472c3a0573ff478e17e6ed53c91f` at schema digest
+`376845b0c86b4afcd2c79ffba753eb7e7e416f5410da26b4dae970cfee2221d9`; native producer,
+snapshot freshness, MCP consumers (#51/#52), harness, deployment, and release remain
+unverified. See [ADR 0024](docs/decisions/0024-game-information-query-routing.md).
+
 The candidate `runtime-v4-expert-rest-action-v1` profile adds fixed authenticated dispatch and
 read-only reconciliation routes for native rest-site options and selector follow-up actions. The
 gateway validates the exact candidate artifact, forwards only the fixed mod paths, and retains

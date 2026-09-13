@@ -297,3 +297,69 @@ fn stale_operation_replay_cannot_replace_a_newer_owner() -> Result<(), String> {
     );
     Ok(())
 }
+
+#[test]
+fn stale_blocked_restart_is_fenced_after_stop_and_namespace_is_released() -> Result<(), String> {
+    let mut lifecycle = new_lifecycle(FakeProcess::default(), InMemoryLifecycleStore::new())?;
+    lifecycle
+        .apply(super::launch_request(1))
+        .map_err(|error| error.to_string())?;
+    lifecycle
+        .process_mut()
+        .set_identity_fault(Some(ProcessFault::InspectionFailed));
+
+    assert_eq!(
+        lifecycle.apply(LifecycleRequest::restart(
+            OperationId::new(2),
+            super::lease().proof(),
+            AuthorityEpoch::new(1),
+            super::LaunchProfileId::new(1),
+        )),
+        Err(LifecycleError::Process(ProcessFault::InspectionFailed))
+    );
+    assert_eq!(
+        lifecycle
+            .operation(InstanceId::new(7), OperationId::new(2))
+            .map(|operation| operation.state()),
+        Some(LifecycleOperationState::Blocked)
+    );
+
+    lifecycle.process_mut().set_identity_fault(None);
+    lifecycle.process_mut().set_retain_after_stop(true);
+    let stopped = lifecycle
+        .apply(LifecycleRequest::stop(
+            OperationId::new(3),
+            super::lease().proof(),
+            AuthorityEpoch::new(1),
+            StopMode::Force,
+        ))
+        .map_err(|error| error.to_string())?;
+    assert_eq!(stopped.operation_state(), LifecycleOperationState::Stopped);
+    assert!(!lifecycle.ownership.contains_key(&InstanceId::new(7)));
+    let starts_before = lifecycle.process().starts();
+
+    assert_eq!(
+        lifecycle.reconcile(
+            super::lease().proof(),
+            AuthorityEpoch::new(1),
+            OperationId::new(2),
+        ),
+        Err(LifecycleError::InstanceBusy)
+    );
+    assert_eq!(lifecycle.process().starts(), starts_before);
+    assert_eq!(
+        lifecycle
+            .operation(InstanceId::new(7), OperationId::new(2))
+            .map(|operation| operation.state()),
+        Some(LifecycleOperationState::Rejected)
+    );
+
+    lifecycle
+        .bind_lease(super::lease_for(8))
+        .map_err(|error| error.to_string())?;
+    lifecycle
+        .apply(super::launch_request_for(4, 8, 1))
+        .map_err(|error| error.to_string())?;
+    assert_eq!(lifecycle.process().starts(), starts_before + 1);
+    Ok(())
+}

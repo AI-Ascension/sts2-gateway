@@ -50,6 +50,11 @@ impl RuntimeService {
             return self.runtime_map_request(request, route);
         }
         if let Some(route) =
+            GameInformationRoute::parse(&request.method, &request.path, &self.config.instance_id)
+        {
+            return self.game_information_request(request, route);
+        }
+        if let Some(route) =
             RuntimeSaveProfileRoute::parse(&request.method, &request.path, &self.config.instance_id)
         {
             return self.save_profile_request(request, route);
@@ -232,40 +237,6 @@ impl RuntimeService {
                 "lease_epoch": self.config.lease_epoch
             })),
         )
-    }
-
-    pub(super) fn state_path(&self) -> String {
-        format!("/v1/instances/{}/state", self.config.instance_id)
-    }
-
-    pub(super) fn action_path(&self) -> String {
-        format!("/v1/instances/{}/action", self.config.instance_id)
-    }
-
-    pub(super) fn release_path(&self) -> String {
-        format!("/v1/instances/{}/release", self.config.instance_id)
-    }
-
-    pub(super) fn runtime_v2_action_path(&self) -> String {
-        format!("/v2/instances/{}/action", self.config.instance_id)
-    }
-
-    pub(super) fn runtime_v2_state_path(&self) -> String {
-        format!("/v2/instances/{}/state", self.config.instance_id)
-    }
-
-    pub(super) fn runtime_v2_metrics_path(&self) -> String {
-        format!("/v2/instances/{}/metrics", self.config.instance_id)
-    }
-
-    pub(super) fn runtime_v2_shutdown_path(&self) -> String {
-        format!("/v2/instances/{}/shutdown", self.config.instance_id)
-    }
-
-    pub(super) fn runtime_v2_operation_id<'a>(&self, path: &'a str) -> Option<&'a str> {
-        let prefix = format!("/v2/instances/{}/operations/", self.config.instance_id);
-        path.strip_prefix(&prefix)
-            .filter(|operation_id| !operation_id.is_empty() && !operation_id.contains('/'))
     }
 
     pub(super) fn health(&mut self) -> (u16, Vec<u8>) {

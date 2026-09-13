@@ -330,6 +330,25 @@ disconnected visible components remain valid projection facts. This is a read-on
 transport/component guarantee. Live map freshness, host compatibility, and visualizer rendering
 require separate evidence.
 
+## Game-information query visibility
+
+ADR 0024 adds the additive, read-only `game-information-query-v1` transport for capabilities,
+list, search, get, detail, and availability. The gateway owns six fixed operation-keyed
+instance routes, read authentication, the caller/session/lease/epoch fence, and forwarding only
+the corresponding loopback producer path. It rejects caller-supplied paths, URLs, methods,
+redirects, reflection, and cross-instance or cross-profile fallback.
+
+The copied protocol artifact is pinned at source commit
+`34f68b182c09472c3a0573ff478e17e6ed53c91f` and schema digest
+`376845b0c86b4afcd2c79ffba753eb7e7e416f5410da26b4dae970cfee2221d9`. Static requests are bound
+to the configured content authority; live requests and returned items are bound to the admitted
+instance, run, lease epoch, snapshot, and state generation. The gateway enforces 16 KiB request,
+256 KiB response, 4,096-byte item, 32-item/65,536-byte page, 4,096-byte text, 512-byte cursor, shared
+1–64-entry FIFO queue, two-second connect, and five-second exchange budgets. It preserves
+validated typed producer errors and has no response cache; its bounded cursor registry retains
+complete normalized query bindings only. Native extraction, snapshot freshness, MCP tool
+registration, harness use, and host compatibility remain unverified.
+
 ## Runtime-v4 expert rest-action candidate
 
 [ADR 0019](decisions/0019-runtime-v4-expert-rest-action-route.md) adds the candidate

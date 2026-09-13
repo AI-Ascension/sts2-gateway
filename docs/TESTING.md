@@ -25,6 +25,7 @@ cargo test --workspace --all-targets --all-features --locked
 (cd protocol-artifact/runtime-map-v1 && sha256sum -c SHA256SUMS)
 (cd protocol-artifact/coop-receipt-query-v1 && sha256sum -c SHA256SUMS)
 (cd protocol-artifact/coop-native-v1 && sha256sum -c SHA256SUMS)
+(cd protocol-artifact/game-information-query-v1 && sha256sum -c SHA256SUMS)
 ```
 
 The policy command comes first in the normal local sequence. CI runs the same commands with bounded
@@ -91,6 +92,15 @@ without a successor or a persisted binding older than a retained result.
 The attached Runtime-v2 action profile also rejects operation IDs that cannot be reconciled by the fixed
 single-segment receipt route; an ephemeral listener verifies these invalid IDs cause zero forwards.
 Release/shutdown followed by allocation is rejected and leaves old lease-protected requests fenced.
+
+The game-information consumer suite exercises the real service dispatcher with synthetic loopback
+producers. It verifies exact fixed paths and caller/session/instance/lease/epoch headers for
+capabilities, static list, and live detail; rejects unknown operations before a connection;
+preserves a typed producer error; enforces static content and live run/snapshot scope; bounds
+request/response/page/item/text/cursor data; binds cursor continuations to the complete normalized
+query; and exercises timeout, cancellation, and cross-locale continuation rejection. No response
+cache is implemented, and no native producer, snapshot freshness, MCP tool, harness, or host
+compatibility is established.
 
 Control-plane regression oracles include six consecutive failed starts followed by four successful
 allocations at full configured capacity, without reusing failed instance/lease identities or stopping

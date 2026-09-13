@@ -1,0 +1,1 @@
+{"base_fixture":"artifacts/game-information-query-v1/golden/live-detail-response.json","expected_error":"read_only_violation","id":"GIQ-INVALID-READ-ONLY-VIOLATION","mutations":[{"path":"/result/read_only","value":false}],"schema_valid":false}

@@ -24,6 +24,8 @@ use super::coop_native::CoopNativeRoute;
 use super::coop_native_forwarder::CoopNativeForwarder;
 use super::coop_reports::CoopReports;
 use super::forwarder::HttpRuntimeV2Forwarder;
+use super::game_information::GameInformationRoute;
+use super::game_information_forwarder::GameInformationForwarder;
 use super::http::{HttpRequest, MAX_BODY_BYTES, MAX_RESPONSE_BYTES, read_request, write_response};
 use super::journal;
 use super::metrics::RuntimeMetrics;
@@ -39,6 +41,7 @@ use super::runtime_v4_expert_forwarder::RuntimeV4ExpertForwarder;
 use super::runtime_v4_expert_rest_action::RuntimeV4ExpertRestActionRoute;
 use super::runtime_v4_expert_rest_action_forwarder::RuntimeV4ExpertRestActionForwarder;
 use super::seeded_run_forwarder::HttpSeededRunForwarder;
+use super::{game_information, game_information_forwarder, game_information_payload};
 
 const DEFAULT_LISTEN_ADDRESS: &str = "127.0.0.1:15525";
 const DEFAULT_MOD_ADDRESS: &str = "127.0.0.1:15526";
@@ -64,6 +67,9 @@ pub(crate) struct RuntimeService {
     runtime_v4_expert: RuntimeV4ExpertForwarder,
     runtime_v4_expert_rest_action: RuntimeV4ExpertRestActionForwarder,
     runtime_map: RuntimeMapForwarder,
+    game_information: GameInformationForwarder,
+    game_information_exchange_timeout: Duration,
+    game_information_cursor_bindings: BTreeMap<String, Value>,
     save_profile: service_save_profile::SaveProfileRuntime,
     save_profile_active_run: bool,
     seeded_run: SeededRunLedger<HttpSeededRunForwarder>,
@@ -107,6 +113,8 @@ struct RuntimeConfig {
     workflow_authority: Option<RuntimeV2Authority>,
     coop_native_peer_token: Option<String>,
     coop_native_peer_id: Option<String>,
+    game_information_content_manifest_id: String,
+    game_information_run_id: String,
     save_profile_enabled: bool,
 }
 
@@ -152,6 +160,8 @@ mod coop;
 mod coop_native_return;
 #[path = "service_coop_native.rs"]
 mod coop_native_service;
+#[path = "service_game_information.rs"]
+mod game_information_service;
 #[path = "service_host_lease.rs"]
 mod host_lease;
 #[path = "service_host_lease_helpers.rs"]
@@ -237,6 +247,14 @@ mod receipt_query_tests;
 #[cfg(test)]
 #[path = "service_map_tests.rs"]
 mod map_tests;
+
+#[cfg(test)]
+#[path = "service_game_information_tests.rs"]
+mod game_information_tests;
+
+#[cfg(test)]
+#[path = "service_game_information_additional_tests.rs"]
+mod game_information_additional_tests;
 
 #[cfg(test)]
 #[path = "service_v4_expert_rest_action_tests.rs"]
