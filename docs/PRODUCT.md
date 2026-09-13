@@ -26,8 +26,9 @@ The accepted gateway scope is:
 - independent gateway API compatibility and release metadata.
 
 These are scope decisions for the public product boundary. The package implements the control-plane
-core, an approved opaque launch-profile catalog, durable lifecycle operation records, and
-deterministic process-port fixtures. The profile lifecycle component is a gateway-local
+core, an approved opaque launch-profile catalog, durable lifecycle operation records with bounded
+no-eviction retention and authoritative per-instance ownership reservations, and deterministic
+process-port fixtures. The profile lifecycle component is a gateway-local
 source/component contract; the separately documented attached runtime adapter remains a fixed
 single-instance route/identity oracle and is not wired to native process launch.
 
@@ -47,7 +48,8 @@ format, lint, build, and deterministic fake-instance tests for allocation, readi
 inspection/crash, expiry, wrong instance, stale epoch, cleanup, shutdown, bounded forwarding, and
 transport failure. The profile lifecycle fixtures additionally cover approved profile resolution,
 durable intent/replay, identity-verified attach, partial-launch reconciliation, stop/restart
-fencing, descendant scope, epoch rotation, and capacity. The POC and Runtime-v2 tests verify copied
+fencing, descendant scope, epoch rotation, profile user-data namespace isolation, ambiguous-launch
+capacity reservation, and single-writer disk-store fencing. The POC and Runtime-v2 tests verify copied
 protocol artifacts; the v2 fake lane
 also covers exactly-once application, retained-receipt reconciliation, duplicate replay, conflict,
 stale fencing, cancellation, persistence checkpoint failure, bounded capacity, and restart recovery;

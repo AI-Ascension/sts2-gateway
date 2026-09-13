@@ -65,9 +65,14 @@ Compile time:  gateway -> owner-local gateway contracts
 The initialized package keeps lease/fence policy local and testable without I/O. Its `Clock`,
 `ProcessPort`, `ReadinessPort`, `TransportPort`, `LeaseDecisionPort`, and
 `RuntimeV2ForwardingPort` are explicit seams. Profile-approved process lifecycle uses the
-`ApprovedLaunchProfiles` catalog, `ProcessLifecycle`, and a `LifecycleRecordStore`; the SQLite
-implementation commits each operation transition before invoking the process port. The attached
-runtime owns its bounded optional journal adapter and its process-lifetime exclusive journal lock
+`ApprovedLaunchProfiles` catalog, `ProcessLifecycle`, and a `LifecycleRecordStore`; the store keeps
+one authoritative per-instance ownership row, including identity-less reservations and a
+gateway-issued sequence, independently of request history. A user-data namespace is reserved by
+at most one active instance, and ambiguous launch faults retain an `Unknown` reservation until
+read-only recovery proves what happened. Its SQLite implementation commits each operation
+transition before invoking the process port and holds an exclusive coordinator lock for the
+store lifetime. The attached runtime owns its bounded
+optional journal adapter and its process-lifetime exclusive journal lock
 at the process boundary; it is not wired to the profile lifecycle component. The
 POC and Runtime-v2 checks verify checked-in copies of their protocol artifacts as inert data; no
 protocol implementation path dependency is present. See
@@ -120,6 +125,10 @@ unreturned allocation record and restores capacity without reusing its consumed 
 identity. It does not guess a handle to kill. Once a start has succeeded, cleanup responsibility stays
 with the gateway: failed forced expiry cleanup revokes the lease, retains the process handle in
 `failed`, and makes `reconcile` return `ProcessStop` for an explicit authorized cleanup retry.
+The profile-approved lifecycle path is stricter where an adapter reports a launch fault after a
+child may have been created: only explicit pre-start rejection is terminal `Failed`; all other
+launch faults become `Unknown` while the durable ownership reservation remains in force and
+read-only recovery may attach the exact identity.
 
 ## Trust and failure boundaries
 
@@ -147,6 +156,10 @@ Allocation, admission, shutdown, cleanup, and state transitions are owned by the
 The profile lifecycle component supplies the approved process operation record and reconciliation
 path behind those seams; concrete OS process, signal, readiness, and host adapters remain reviewed
 deployment inputs.
+
+Lifecycle operation history has an explicit no-eviction `max_records` budget. A fresh operation is
+rejected before a process-port effect when the budget is exhausted, while exact retained duplicates
+remain replayable; startup fails closed if persisted history already exceeds the configured budget.
 
 Each seam needs a named consumer, resource limit, shutdown path, deterministic fake, and evidence
 level. The package has deterministic fakes for its current tests; they are not runtime adapters.

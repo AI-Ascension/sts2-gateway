@@ -172,7 +172,7 @@ where
         }
         operation.set_state(LifecycleOperationState::Stopped, None, None);
         self.persist_update(operation.clone())?;
-        self.clear_owned(operation.instance_id())?;
+        self.clear_owned_for(&operation)?;
         Ok(LifecycleResponse::new(
             &operation,
             crate::LifecycleState::Stopped,

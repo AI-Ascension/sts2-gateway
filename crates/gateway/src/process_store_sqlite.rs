@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: MIT
 
-use std::path::Path;
+use std::fs::{File, OpenOptions};
+use std::io::ErrorKind;
+use std::path::{Path, PathBuf};
 
+use fs2::FileExt;
 use rusqlite::{Connection, Error as SqlError, ErrorCode, OptionalExtension};
 
 use crate::InstanceId;
@@ -14,20 +17,34 @@ use super::{
 /// SQLite-backed operation records. Each mutation is committed before the process port is called.
 pub struct SqliteLifecycleStore {
     connection: Connection,
+    /// Held for the lifetime of the store so only one lifecycle coordinator
+    /// can admit effects against a given on-disk journal. SQLite's row-level
+    /// conflict handling alone cannot fence coordinators that cache records
+    /// and ownership in memory.
+    _coordinator_lock: Option<File>,
 }
 
 impl SqliteLifecycleStore {
     pub fn open(path: impl AsRef<Path>) -> Result<Self, LifecycleStoreError> {
+        let path = path.as_ref();
         let connection = Connection::open(path).map_err(|_| LifecycleStoreError::Database)?;
-        Self::from_connection(connection)
+        if path == Path::new(":memory:") {
+            return Self::from_connection(connection, None);
+        }
+        let lock_path = Self::lock_path(path);
+        let lock = Self::acquire_lock(&lock_path)?;
+        Self::from_connection(connection, Some(lock))
     }
 
     pub fn open_in_memory() -> Result<Self, LifecycleStoreError> {
         let connection = Connection::open_in_memory().map_err(|_| LifecycleStoreError::Database)?;
-        Self::from_connection(connection)
+        Self::from_connection(connection, None)
     }
 
-    fn from_connection(connection: Connection) -> Result<Self, LifecycleStoreError> {
+    fn from_connection(
+        connection: Connection,
+        coordinator_lock: Option<File>,
+    ) -> Result<Self, LifecycleStoreError> {
         connection
             .execute_batch(
                 "PRAGMA journal_mode = WAL;
@@ -44,7 +61,37 @@ impl SqliteLifecycleStore {
                  );",
             )
             .map_err(|_| LifecycleStoreError::Database)?;
-        Ok(Self { connection })
+        Ok(Self {
+            connection,
+            _coordinator_lock: coordinator_lock,
+        })
+    }
+
+    fn lock_path(path: &Path) -> PathBuf {
+        // `open` has already created an absent database file, so canonicalize
+        // now and ensure aliases (for example a symlink and its target) share
+        // one lock file.
+        let canonical = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+        let mut lock_path = canonical.into_os_string();
+        lock_path.push(".lifecycle.lock");
+        PathBuf::from(lock_path)
+    }
+
+    fn acquire_lock(path: &Path) -> Result<File, LifecycleStoreError> {
+        let lock = OpenOptions::new()
+            .create(true)
+            .truncate(false)
+            .read(true)
+            .write(true)
+            .open(path)
+            .map_err(|_| LifecycleStoreError::Database)?;
+        match lock.try_lock_exclusive() {
+            Ok(()) => Ok(lock),
+            Err(error) if error.kind() == ErrorKind::WouldBlock => {
+                Err(LifecycleStoreError::Conflict)
+            }
+            Err(_) => Err(LifecycleStoreError::Database),
+        }
     }
 
     fn encode(operation: &LifecycleOperation) -> Result<Vec<u8>, LifecycleStoreError> {

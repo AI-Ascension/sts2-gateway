@@ -95,7 +95,10 @@ pub trait ProcessPort {
     /// A legacy port cannot prove the exact identity or cleanup a partially transferred launch
     /// through this result type. Its default therefore rejects the profile-aware path before
     /// invoking `start`; adapters that can establish and clean up an identity-bearing launch
-    /// must override this method.
+    /// must override this method. An adapter may report an ambiguous fault after creating a
+    /// child (for example when cleanup itself fails); `ProcessLifecycle` treats such a fault as
+    /// `Unknown` and retains its durable reservation, then uses `recover_owned` as a read-only
+    /// attachment opportunity.
     fn start_with_profile(
         &mut self,
         _specification: LaunchSpec,

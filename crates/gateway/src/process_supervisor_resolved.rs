@@ -66,6 +66,9 @@ impl<P: ProcessPort> ProcessSupervisor<P> {
         if self.owned.len() >= self.config.max_owned_processes() {
             return Err(ProcessSupervisorError::CapacityExceeded);
         }
+        if self.namespace_is_reserved_by_other(instance_id, profile.user_data()) {
+            return Err(ProcessSupervisorError::UserDataNamespaceBusy);
+        }
         let launch = self
             .process
             .start_with_profile(specification, profile)
@@ -166,6 +169,9 @@ impl<P: ProcessPort> ProcessSupervisor<P> {
         if expected.instance_id() != instance_id || !expected.matches_profile(instance_id, profile)
         {
             return Err(ProcessSupervisorError::IdentityMismatch);
+        }
+        if self.namespace_is_reserved_by_other(instance_id, profile.user_data()) {
+            return Err(ProcessSupervisorError::UserDataNamespaceBusy);
         }
         let actual = self
             .process

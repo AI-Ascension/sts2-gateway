@@ -90,10 +90,16 @@ outcomes for reconciliation. Attach requires an identity from an earlier gateway
 stop/restart verify process birth/image/instance identity and descendant scope. Launch acknowledges
 `Starting`, not gameplay readiness. Existing constructors and methods remain available, but the
 new identity-bearing profile path rejects legacy ports before starting a process. In addition,
-the public lifecycle and fault enums gained variants; Rust callers with exhaustive `match`
-expressions must add arms (wildcard or non-exhaustive matches remain source-compatible). Treat
-this as an additive source/component change for wildcard-matching consumers and a source-breaking
-migration for exhaustive enum consumers, rather than a blanket minor compatibility claim.
+the public lifecycle and fault enums gained variants, and the lifecycle record now includes a
+gateway-issued ordering sequence while caller operation IDs remain idempotency keys; Rust callers
+with exhaustive `match` expressions must add arms (wildcard or non-exhaustive matches remain
+source-compatible). Treat this as an additive
+source/component change for wildcard-matching consumers and a source-breaking migration for
+exhaustive enum consumers, rather than a blanket minor compatibility claim.
+Active instances cannot reuse the same approved user-data namespace; ambiguous launch faults remain
+`Unknown` with a durable reservation until read-only recovery proves the outcome. The SQLite
+lifecycle store fences competing coordinators with an exclusive process-lifetime lock. These
+guarantees are source/component behavior only.
 Native launch, host readiness, harness workflow mapping, and disposable-process acceptance remain
 `unverified`.
 

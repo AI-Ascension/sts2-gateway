@@ -6,6 +6,7 @@ use crate::process_store::{LifecycleOperation, LifecycleOperationState, Lifecycl
 use crate::{InstanceId, LaunchProfileId, LifecycleError, OperationId, ProcessIdentity};
 
 use super::ProcessLifecycle;
+use super::process_lifecycle_order::{operation_order, owner_order, ownership_sequence};
 
 impl<C, P, S, F> ProcessLifecycle<C, P, S, F>
 where
@@ -81,7 +82,7 @@ where
                 instance_id,
                 (
                     operation.operation_id(),
-                    operation.sequence().max(operation.operation_id().value()),
+                    ownership_sequence(&operation),
                     profile_id,
                     operation.process().cloned(),
                 ),
@@ -112,10 +113,13 @@ where
         operation: &LifecycleOperation,
         profile_id: LaunchProfileId,
     ) -> Result<(), LifecycleError> {
+        if !self.operation_can_update_owner(operation) {
+            return Ok(());
+        }
         self.persist_ownership(LifecycleOwnership::new(
             operation.instance_id(),
             operation.operation_id(),
-            operation.sequence().max(operation.operation_id().value()),
+            ownership_sequence(operation),
             profile_id,
             operation.process().cloned(),
         ))
@@ -127,20 +131,27 @@ where
         profile_id: LaunchProfileId,
         identity: ProcessIdentity,
     ) -> Result<(), LifecycleError> {
+        if !self.operation_can_update_owner(operation) {
+            return Ok(());
+        }
         self.persist_ownership(LifecycleOwnership::new(
             operation.instance_id(),
             operation.operation_id(),
-            operation.sequence().max(operation.operation_id().value()),
+            ownership_sequence(operation),
             profile_id,
             Some(identity),
         ))
     }
 
-    pub(crate) fn set_owner_process(
+    pub(crate) fn set_owner_process_for_operation(
         &mut self,
-        instance_id: InstanceId,
+        operation: &LifecycleOperation,
         process: Option<ProcessIdentity>,
     ) -> Result<(), LifecycleError> {
+        if !self.operation_can_update_owner(operation) {
+            return Ok(());
+        }
+        let instance_id = operation.instance_id();
         let Some(current) = self.ownership.get(&instance_id).cloned() else {
             return Ok(());
         };
@@ -151,6 +162,16 @@ where
             current.profile_id(),
             process,
         ))
+    }
+
+    pub(crate) fn clear_owned_for(
+        &mut self,
+        operation: &LifecycleOperation,
+    ) -> Result<(), LifecycleError> {
+        if !self.operation_can_update_owner(operation) {
+            return Ok(());
+        }
+        self.clear_owned(operation.instance_id())
     }
 
     pub(crate) fn clear_owned(&mut self, instance_id: InstanceId) -> Result<(), LifecycleError> {
@@ -173,13 +194,13 @@ where
         instance_id: InstanceId,
         excluded_operation: Option<OperationId>,
     ) -> Option<LifecycleOperation> {
-        if let Some(operation) = self.authoritative_operation(instance_id)
-            && Some(operation.operation_id()) != excluded_operation
-            && operation.process().is_some()
-            && operation.state().is_active()
-            && self.lease_matches(&operation)
-        {
-            return Some(operation);
+        if self.ownership.contains_key(&instance_id) {
+            let operation = self.authoritative_operation(instance_id)?;
+            return (Some(operation.operation_id()) != excluded_operation
+                && operation.process().is_some()
+                && operation.state().is_active()
+                && self.lease_matches(&operation))
+            .then_some(operation);
         }
         let latest = self.latest_authoritative_record(instance_id)?;
         if Some(latest.operation_id()) != excluded_operation {
@@ -270,6 +291,12 @@ where
             .is_some_and(|lease| lease.proof() == operation.lease())
     }
 
+    fn operation_can_update_owner(&self, operation: &LifecycleOperation) -> bool {
+        self.ownership
+            .get(&operation.instance_id())
+            .is_none_or(|owner| operation_order(operation) >= owner_order(owner))
+    }
+
     fn persist_ownership(&mut self, ownership: LifecycleOwnership) -> Result<(), LifecycleError> {
         self.store.set_ownership(ownership.clone())?;
         self.next_sequence = self.next_sequence.max(ownership.sequence());
@@ -281,21 +308,4 @@ where
         self.ownership.insert(ownership.instance_id(), ownership);
         Ok(())
     }
-
-}
-
-fn operation_order(operation: &LifecycleOperation) -> (u8, u64, u64) {
-    if operation.sequence() == 0 {
-        (0, operation.operation_id().value(), 0)
-    } else {
-        (1, operation.sequence(), operation.operation_id().value())
-    }
-}
-
-fn owner_order(owner: &LifecycleOwnership) -> (u8, u64, u64) {
-    (
-        u8::from(owner.sequence() != 0),
-        owner.sequence().max(owner.operation_id().value()),
-        owner.operation_id().value(),
-    )
 }

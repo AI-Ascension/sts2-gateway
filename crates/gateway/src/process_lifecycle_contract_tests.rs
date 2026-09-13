@@ -1,15 +1,38 @@
 // SPDX-License-Identifier: MIT
 
 use super::{
-    AuthorityEpoch, DeterministicLeaseDecision, FakeClock, FakeProcess, InMemoryLifecycleStore,
-    InstanceId, LaunchProfileId, LifecycleOperationState, LifecycleRequest,
-    ProcessDescendantIdentity, ProcessFault, ProcessLifecycle, ProcessLifecycleConfig, StopMode,
-    new_lifecycle, profiles,
+    AuthorityEpoch, FakeProcess, InMemoryLifecycleStore, InstanceId, LaunchProfileId,
+    LifecycleOperationState, LifecycleRequest, ProcessDescendantIdentity, ProcessFault, StopMode,
+    new_lifecycle,
 };
 use crate::{
-    LifecycleError, LifecycleFailure, LifecycleOperation, LifecycleRecordStore, LifecycleState,
-    LifecycleStoreError, OperationId,
+    LifecycleError, LifecycleOperation, LifecycleRecordStore, LifecycleStoreError, OperationId,
 };
+
+impl super::FakeProcess {
+    fn set_identity_fault(&mut self, fault: Option<ProcessFault>) {
+        self.identity_fault = fault;
+    }
+
+    fn set_descendants_after_stop(&mut self, descendants: Vec<ProcessDescendantIdentity>) {
+        self.descendants_after_stop = descendants;
+    }
+
+    fn set_recover_fault(&mut self, fault: Option<ProcessFault>) {
+        self.recover_fault = fault;
+    }
+
+    fn crash(
+        &mut self,
+        process: super::ProcessHandle,
+        descendants: Vec<ProcessDescendantIdentity>,
+    ) {
+        if let Some(entry) = self.entries.get_mut(&process) {
+            entry.state = super::ProcessState::Exited { code: Some(17) };
+            entry.descendants = descendants;
+        }
+    }
+}
 
 #[test]
 fn inspection_failure_keeps_identity_reserved_until_cleanup_is_observed() -> Result<(), String> {
@@ -246,45 +269,17 @@ fn crashed_parent_with_surviving_descendant_stays_reserved_until_gone() -> Resul
 }
 
 #[test]
-fn record_budget_rejects_before_a_new_process_effect() -> Result<(), String> {
-    let mut lifecycle = ProcessLifecycle::new(
-        ProcessLifecycleConfig::new_with_record_budget(1, 2),
-        profiles()?,
-        FakeClock::default(),
-        FakeProcess::default(),
-        InMemoryLifecycleStore::new(),
-        DeterministicLeaseDecision,
-    )
-    .map_err(|error| error.to_string())?;
-    lifecycle
-        .bind_lease(super::lease())
-        .map_err(|error| error.to_string())?;
-    lifecycle
-        .apply(super::launch_request(1))
-        .map_err(|error| error.to_string())?;
-    lifecycle
-        .apply(LifecycleRequest::stop(
-            OperationId::new(2),
-            super::lease().proof(),
-            AuthorityEpoch::new(1),
-            StopMode::Force,
-        ))
-        .map_err(|error| error.to_string())?;
-    assert_eq!(
-        lifecycle.apply(super::launch_request(3)),
-        Err(LifecycleError::CapacityExceeded)
-    );
-    assert_eq!(lifecycle.process().starts(), 1);
-    assert_eq!(lifecycle.process().stop_modes(), vec![StopMode::Force]);
-    Ok(())
-}
-
-#[test]
 fn caller_operation_ids_do_not_replace_the_server_ordered_owner() -> Result<(), String> {
     let mut lifecycle = new_lifecycle(FakeProcess::default(), InMemoryLifecycleStore::new())?;
     lifecycle
         .apply(super::launch_request(5))
         .map_err(|error| error.to_string())?;
+    assert_eq!(
+        lifecycle
+            .operation(super::InstanceId::new(7), OperationId::new(5))
+            .map(|operation| operation.sequence()),
+        Some(1)
+    );
     let request = LifecycleRequest::restart(
         OperationId::new(4),
         super::lease().proof(),
@@ -299,6 +294,12 @@ fn caller_operation_ids_do_not_replace_the_server_ordered_owner() -> Result<(), 
         lifecycle
             .operation(super::InstanceId::new(7), OperationId::new(4))
             .is_some_and(|operation| operation.state() == LifecycleOperationState::Rejected)
+    );
+    assert_eq!(
+        lifecycle
+            .operation(super::InstanceId::new(7), OperationId::new(4))
+            .map(|operation| operation.sequence()),
+        Some(2)
     );
     assert_eq!(
         lifecycle.apply(super::launch_request(3)),
@@ -353,39 +354,5 @@ fn unknown_restart_retries_read_only_recovery_until_identity_is_found() -> Resul
     assert_eq!(second.operation_state(), LifecycleOperationState::Started);
     assert_eq!(second.process(), started.process());
     assert_eq!(restarted.process().starts(), 1);
-    Ok(())
-}
-
-#[test]
-fn recovery_inspection_fault_retains_the_intent_for_a_later_reconcile() -> Result<(), String> {
-    let request = super::launch_request(8);
-    let mut store = InMemoryLifecycleStore::new();
-    store
-        .insert(LifecycleOperation::new(
-            request.operation_id(),
-            request.instance_id(),
-            request.lease(),
-            request.authority_epoch(),
-            request.action().clone(),
-        ))
-        .map_err(|error| format!("{error:?}"))?;
-    let mut process = FakeProcess::default();
-    process.set_recover_enabled(true);
-    process.set_recover_fault(Some(ProcessFault::Unavailable));
-    let mut lifecycle = new_lifecycle(process, store)?;
-
-    let response = lifecycle
-        .reconcile(
-            super::lease().proof(),
-            super::AuthorityEpoch::new(1),
-            request.operation_id(),
-        )
-        .map_err(|error| error.to_string())?;
-    assert_eq!(response.state(), LifecycleState::Unknown);
-    assert_eq!(response.operation_state(), LifecycleOperationState::Unknown);
-    assert_eq!(
-        response.failure(),
-        Some(LifecycleFailure::Process(ProcessFault::Unavailable))
-    );
     Ok(())
 }

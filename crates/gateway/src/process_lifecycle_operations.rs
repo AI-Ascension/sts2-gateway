@@ -94,7 +94,7 @@ where
         action: &LifecycleAction,
     ) -> Result<(), LifecycleError> {
         match action {
-            LifecycleAction::LaunchNew { .. } => {
+            LifecycleAction::LaunchNew { profile_id } => {
                 if self.ownership.contains_key(&instance_id)
                     || self.active_operation(instance_id).is_some()
                 {
@@ -103,6 +103,7 @@ where
                 if self.occupied_count() >= self.config().max_processes() {
                     return Err(LifecycleError::CapacityExceeded);
                 }
+                self.ensure_profile_namespace_available(instance_id, *profile_id)?;
             }
             LifecycleAction::AttachExisting { identity } => {
                 let Some(previous) = self.latest_authorized(instance_id) else {
@@ -118,28 +119,32 @@ where
                     return Err(LifecycleError::InstanceBusy);
                 }
             }
-            LifecycleAction::Stop { .. } | LifecycleAction::Restart { .. } => {
+            LifecycleAction::Stop { .. } => {
                 let Some(previous) = self.latest_authorized(instance_id) else {
                     return Err(LifecycleError::InstanceNotFound);
                 };
-                let allowed = match action {
-                    LifecycleAction::Stop { .. } => matches!(
-                        previous.state(),
-                        LifecycleOperationState::Started
-                            | LifecycleOperationState::Attached
-                            | LifecycleOperationState::Blocked
-                    ),
-                    LifecycleAction::Restart { .. } => matches!(
-                        previous.state(),
-                        LifecycleOperationState::Started
-                            | LifecycleOperationState::Attached
-                            | LifecycleOperationState::Blocked
-                    ),
-                    _ => false,
-                };
-                if !allowed {
+                if !matches!(
+                    previous.state(),
+                    LifecycleOperationState::Started
+                        | LifecycleOperationState::Attached
+                        | LifecycleOperationState::Blocked
+                ) {
                     return Err(LifecycleError::InstanceBusy);
                 }
+            }
+            LifecycleAction::Restart { profile_id } => {
+                let Some(previous) = self.latest_authorized(instance_id) else {
+                    return Err(LifecycleError::InstanceNotFound);
+                };
+                if !matches!(
+                    previous.state(),
+                    LifecycleOperationState::Started
+                        | LifecycleOperationState::Attached
+                        | LifecycleOperationState::Blocked
+                ) {
+                    return Err(LifecycleError::InstanceBusy);
+                }
+                self.ensure_profile_namespace_available(instance_id, *profile_id)?;
             }
         }
         Ok(())

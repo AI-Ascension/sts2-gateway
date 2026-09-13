@@ -169,10 +169,7 @@ where
                                 )
                         })
                         .max_by_key(|candidate| {
-                            (
-                                candidate.sequence(),
-                                candidate.operation_id().value(),
-                            )
+                            (candidate.sequence(), candidate.operation_id().value())
                         })
                         .and_then(|candidate| match candidate.action() {
                             LifecycleAction::LaunchNew { profile_id }

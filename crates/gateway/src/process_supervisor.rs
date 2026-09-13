@@ -44,6 +44,7 @@ pub enum ProcessSupervisorError {
     NotOwned,
     IdentityMismatch,
     ForeignDescendant,
+    UserDataNamespaceBusy,
     Process(ProcessFault),
 }
 
@@ -139,6 +140,14 @@ impl<P: ProcessPort> ProcessSupervisor<P> {
         if self.owned.contains_key(&identity.instance_id()) {
             return Err(ProcessSupervisorError::AlreadyOwned);
         }
+        if self.namespace_is_reserved_by_other(
+            identity.instance_id(),
+            identity
+                .user_data()
+                .ok_or(ProcessSupervisorError::IdentityMismatch)?,
+        ) {
+            return Err(ProcessSupervisorError::UserDataNamespaceBusy);
+        }
         self.identities.insert(identity.instance_id(), identity);
         Ok(())
     }
@@ -202,6 +211,31 @@ impl<P: ProcessPort> ProcessSupervisor<P> {
 
     pub fn config(&self) -> ProcessSupervisorConfig {
         self.config
+    }
+
+    /// Returns whether a user-data namespace is already held by another
+    /// instance. Legacy owned handles have no namespace identity, so they are
+    /// treated as conflicting: the supervisor cannot prove that a new
+    /// profile launch would be isolated from them.
+    pub(crate) fn namespace_is_reserved_by_other(
+        &self,
+        instance_id: InstanceId,
+        namespace: crate::UserDataConfig,
+    ) -> bool {
+        if self.identities.iter().any(|(owned_instance, identity)| {
+            *owned_instance != instance_id && identity.user_data() == Some(namespace)
+        }) {
+            return true;
+        }
+        self.owned.keys().any(|owned_instance| {
+            if *owned_instance == instance_id {
+                return false;
+            }
+            self.identities
+                .get(owned_instance)
+                .and_then(ProcessIdentity::user_data)
+                .is_none()
+        })
     }
 }
 

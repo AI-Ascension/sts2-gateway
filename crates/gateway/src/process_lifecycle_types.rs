@@ -43,6 +43,10 @@ impl ProcessLifecycleConfig {
         }
     }
 
+    pub const fn with_record_budget(max_processes: usize, max_records: usize) -> Self {
+        Self::new_with_record_budget(max_processes, max_records)
+    }
+
     pub const fn try_new(max_processes: usize) -> Result<Self, LifecycleError> {
         Self::try_new_with_record_budget(max_processes, Self::DEFAULT_MAX_RECORDS)
     }
@@ -55,6 +59,13 @@ impl ProcessLifecycleConfig {
             return Err(LifecycleError::CapacityExceeded);
         }
         Ok(Self::new_with_record_budget(max_processes, max_records))
+    }
+
+    pub const fn try_with_record_budget(
+        max_processes: usize,
+        max_records: usize,
+    ) -> Result<Self, LifecycleError> {
+        Self::try_new_with_record_budget(max_processes, max_records)
     }
 
     pub const fn max_processes(self) -> usize {
@@ -74,6 +85,10 @@ pub enum LifecycleError {
     AuthorityExhausted,
     CapacityExceeded,
     InstanceBusy,
+    /// The profile's user-data namespace is already reserved by another
+    /// active instance. Callers must allocate a distinct server-owned
+    /// namespace before launching concurrently.
+    UserDataNamespaceBusy,
     InstanceNotFound,
     OperationConflict,
     OperationNotFound,
@@ -95,6 +110,7 @@ impl fmt::Display for LifecycleError {
             Self::AuthorityExhausted => "lifecycle authority epoch is exhausted",
             Self::CapacityExceeded => "lifecycle process capacity is exhausted",
             Self::InstanceBusy => "lifecycle instance already has an active operation",
+            Self::UserDataNamespaceBusy => "launch profile user-data namespace is already reserved",
             Self::InstanceNotFound => "lifecycle instance was not found",
             Self::OperationConflict => "lifecycle operation conflicts with a retained record",
             Self::OperationNotFound => "lifecycle operation was not found",

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 
-use crate::process_store::{LifecycleFailure, LifecycleOperation, LifecycleOperationState};
+use crate::process_store::{
+    LifecycleAction, LifecycleFailure, LifecycleOperation, LifecycleOperationState,
+};
 use crate::{LifecycleError, LifecycleResponse, ProcessFault};
 
 use super::ProcessLifecycle;
@@ -19,15 +21,51 @@ where
     ) -> Result<LifecycleResponse, LifecycleError> {
         if operation.process().is_none() {
             let error = LifecycleError::Process(fault);
-            let instance_id = operation.instance_id();
+            // `StartRejected` and `ProfileRequired` are explicit pre-start
+            // outcomes. Every other launch fault may have happened after a
+            // child was created (for example while inspecting or cleaning
+            // it), so retaining a terminal `Failed` row would release the
+            // instance for a duplicate launch.
+            if !matches!(
+                fault,
+                ProcessFault::StartRejected
+                    | ProcessFault::ProfileRequired
+                    | ProcessFault::ProfileNotApproved
+            ) {
+                let profile = match operation.action() {
+                    LifecycleAction::LaunchNew { profile_id }
+                    | LifecycleAction::Restart { profile_id } => {
+                        self.profiles.resolve(*profile_id).ok()
+                    }
+                    LifecycleAction::AttachExisting { .. } | LifecycleAction::Stop { .. } => None,
+                };
+                let recovered = profile.and_then(|profile| {
+                    self.process
+                        .recover_owned(operation.instance_id(), profile)
+                        .ok()
+                        .flatten()
+                        .filter(|identity| {
+                            identity.matches_profile(operation.instance_id(), profile)
+                        })
+                });
+                let mut unknown = operation;
+                unknown.set_state(
+                    LifecycleOperationState::Unknown,
+                    recovered.clone(),
+                    Some(LifecycleFailure::Process(fault)),
+                );
+                self.persist_update(unknown.clone())?;
+                self.set_owner_process_for_operation(&unknown, recovered)?;
+                return Err(error);
+            }
             let mut failed = operation;
             failed.set_state(
                 LifecycleOperationState::Failed,
                 None,
                 Some(LifecycleFailure::Process(fault)),
             );
-            self.persist_update(failed)?;
-            self.clear_owned(instance_id)?;
+            self.persist_update(failed.clone())?;
+            self.clear_owned_for(&failed)?;
             return Err(error);
         }
         self.block_operation_with_process(operation, fault)
@@ -75,7 +113,7 @@ where
         operation.set_state(state, process, Some(failure));
         self.persist_update(operation.clone())?;
         if clear_owner {
-            self.clear_owned(operation.instance_id())?;
+            self.clear_owned_for(&operation)?;
         }
         Err(error)
     }
@@ -91,7 +129,7 @@ where
         // Preserve an identity-bearing cleanup obligation even if durable
         // persistence is temporarily unavailable. Capacity must remain held
         // until a later reconciliation can prove the tree is gone.
-        self.set_owner_process(operation.instance_id(), operation.process().cloned())?;
+        self.set_owner_process_for_operation(&operation, operation.process().cloned())?;
         self.persist_update(operation)?;
         Err(error)
     }

@@ -68,10 +68,16 @@ unapproved IDs and cleans an identity mismatch; lifecycle tests prove duplicate 
 authenticated stale-epoch and unowned-attach rejection, exact PID/birth/image/instance checks,
 reconnect and crash reconciliation, durable intent recovery without a second launch, bounded
 capacity, stop failure/timeout and foreign-descendant blocking, restart epoch rotation, closed
-request serialization, and SQLite record replay. A launch response is `Starting` until a separate
-readiness adapter reports ready. These are confirmed gateway source/component outcomes from
-synthetic ports and stores; they do not launch an OS process, exercise game readiness, or establish
-harness/provider/native compatibility.
+request serialization, and SQLite record replay. Additional review regressions cover recovery
+errors and identity-less replacement reservations, rejected-request ownership preservation despite
+caller-selected IDs, transient inspection and surviving descendants, identity-bearing blocked
+cleanup retry, ambiguous launch failures that remain `Unknown` and capacity-reserving,
+profile user-data namespace reuse rejection, exclusive disk-journal coordinator ownership,
+independent SQLite reopen/recovery, repeated read-only recovery, and record-budget exhaustion
+before a process effect.
+A launch response is `Starting` until a separate readiness adapter reports ready. These are
+confirmed gateway source/component outcomes from synthetic ports and stores; they do not launch an
+OS process, exercise game readiness, or establish harness/provider/native compatibility.
 
 The process-supervisor fixture proves that restart replaces ownership only after the old handle
 is force-stopped, while its identity-bearing resolved methods reject drift and foreign descendants.

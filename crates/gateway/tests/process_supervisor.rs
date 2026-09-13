@@ -272,3 +272,25 @@ fn resolved_supervisor_retains_a_mismatched_launch_when_cleanup_fails() -> Resul
     assert!(supervisor.is_owned(instance));
     Ok(())
 }
+
+#[test]
+fn resolved_supervisor_rejects_reusing_a_user_data_namespace() -> Result<(), String> {
+    let profile = resolved_profile()?;
+    let config = ProcessSupervisorConfig::try_new(2).map_err(|error| format!("{error:?}"))?;
+    let mut supervisor = ProcessSupervisor::new(config, ResolvedProcessPort::default());
+    supervisor
+        .start_resolved(
+            LaunchSpec::for_profile(InstanceId::new(12), profile.id()),
+            profile,
+        )
+        .map_err(|error| format!("{error:?}"))?;
+    assert_eq!(
+        supervisor.start_resolved(
+            LaunchSpec::for_profile(InstanceId::new(13), profile.id()),
+            profile,
+        ),
+        Err(ProcessSupervisorError::UserDataNamespaceBusy)
+    );
+    assert_eq!(supervisor.owned_count(), 1);
+    Ok(())
+}

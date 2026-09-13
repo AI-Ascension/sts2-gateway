@@ -44,10 +44,6 @@ impl FakeProcess {
         self.stop_fault = fault;
     }
 
-    fn set_identity_fault(&mut self, fault: Option<ProcessFault>) {
-        self.identity_fault = fault;
-    }
-
     fn set_wrong_identity(&mut self, value: bool) {
         self.wrong_identity = value;
     }
@@ -56,23 +52,8 @@ impl FakeProcess {
         self.retain_after_stop = value;
     }
 
-    fn set_descendants_after_stop(&mut self, descendants: Vec<ProcessDescendantIdentity>) {
-        self.descendants_after_stop = descendants;
-    }
-
     fn set_recover_enabled(&mut self, value: bool) {
         self.recover_enabled = value;
-    }
-
-    fn set_recover_fault(&mut self, fault: Option<ProcessFault>) {
-        self.recover_fault = fault;
-    }
-
-    fn crash(&mut self, process: ProcessHandle, descendants: Vec<ProcessDescendantIdentity>) {
-        if let Some(entry) = self.entries.get_mut(&process) {
-            entry.state = ProcessState::Exited { code: Some(17) };
-            entry.descendants = descendants;
-        }
     }
 
     fn set_descendants(
@@ -232,15 +213,19 @@ impl super::Clock for FakeClock {
     }
 }
 
-fn lease() -> Lease {
+fn lease_for(instance: u64) -> Lease {
     Lease::new(
-        InstanceId::new(7),
+        InstanceId::new(instance),
         CallerId::new(11),
         SessionId::new(13),
         super::LeaseId::new(17),
         LeaseEpoch::new(1),
         Tick::from_millis(10_000),
     )
+}
+
+fn lease() -> Lease {
+    lease_for(7)
 }
 
 fn profile(id: u64, image: u64) -> Result<LaunchProfile, String> {
@@ -292,6 +277,15 @@ fn launch_request(operation: u64) -> LifecycleRequest {
         lease().proof(),
         AuthorityEpoch::new(1),
         LaunchProfileId::new(1),
+    )
+}
+
+fn launch_request_for(operation: u64, instance: u64, profile_id: u64) -> LifecycleRequest {
+    LifecycleRequest::launch_new(
+        super::OperationId::new(operation),
+        lease_for(instance).proof(),
+        AuthorityEpoch::new(1),
+        LaunchProfileId::new(profile_id),
     )
 }
 
@@ -375,31 +369,6 @@ fn duplicate_launch_replays_the_record_without_a_second_start() -> Result<(), St
 }
 
 #[test]
-fn launch_failure_is_retained_without_leaking_capacity() -> Result<(), String> {
-    let mut process = FakeProcess::default();
-    process.set_start_fault(Some(ProcessFault::Unavailable));
-    let mut lifecycle = new_lifecycle(process, InMemoryLifecycleStore::new())?;
-    assert_eq!(
-        lifecycle.apply(launch_request(1)),
-        Err(super::LifecycleError::Process(ProcessFault::Unavailable))
-    );
-    let operation = lifecycle
-        .operation(InstanceId::new(7), super::OperationId::new(1))
-        .ok_or_else(|| "missing retained operation".to_owned())?;
-    assert_eq!(operation.state(), LifecycleOperationState::Failed);
-    assert_eq!(
-        operation.failure(),
-        Some(super::LifecycleFailure::Process(ProcessFault::Unavailable))
-    );
-    lifecycle.process_mut().set_start_fault(None);
-    lifecycle
-        .apply(launch_request(2))
-        .map_err(|error| error.to_string())?;
-    assert_eq!(lifecycle.process().starts(), 1);
-    Ok(())
-}
-
-#[test]
 fn attach_requires_a_prior_gateway_identity_and_reuses_it_after_reconnect() -> Result<(), String> {
     let mut lifecycle = new_lifecycle(FakeProcess::default(), InMemoryLifecycleStore::new())?;
     let started = lifecycle
@@ -429,25 +398,11 @@ fn attach_requires_a_prior_gateway_identity_and_reuses_it_after_reconnect() -> R
     Ok(())
 }
 
-#[test]
-fn wrong_identity_is_cleaned_and_never_becomes_owned() -> Result<(), String> {
-    let mut process = FakeProcess::default();
-    process.set_wrong_identity(true);
-    let mut lifecycle = new_lifecycle(process, InMemoryLifecycleStore::new())?;
-    assert_eq!(
-        lifecycle.apply(launch_request(1)),
-        Err(super::LifecycleError::IdentityMismatch)
-    );
-    let operation = lifecycle
-        .operation(InstanceId::new(7), super::OperationId::new(1))
-        .ok_or_else(|| "missing retained operation".to_owned())?;
-    assert_eq!(operation.state(), LifecycleOperationState::Rejected);
-    assert_eq!(lifecycle.process().stop_modes(), vec![StopMode::Force]);
-    Ok(())
-}
-
 #[path = "process_lifecycle_recovery_tests.rs"]
 mod recovery_tests;
 
 #[path = "process_lifecycle_contract_tests.rs"]
 mod contract_tests;
+
+#[path = "process_lifecycle_review_tests.rs"]
+mod review_tests;

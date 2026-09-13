@@ -17,8 +17,10 @@ mod process_lifecycle;
 mod process_lifecycle_actions;
 #[path = "process_lifecycle_failures.rs"]
 mod process_lifecycle_failures;
+mod process_lifecycle_namespace;
 #[path = "process_lifecycle_operations.rs"]
 mod process_lifecycle_operations;
+mod process_lifecycle_order;
 #[path = "process_lifecycle_ownership.rs"]
 mod process_lifecycle_ownership;
 #[path = "process_lifecycle_recovery.rs"]

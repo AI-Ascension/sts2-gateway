@@ -46,9 +46,9 @@ where
             failed.set_state(state, Some(identity.clone()), Some(failure));
             self.persist_update(failed.clone())?;
             if confirmed_cleanup {
-                self.clear_owned(failed.instance_id())?;
+                self.clear_owned_for(&failed)?;
             } else if !matches!(failure, LifecycleFailure::IdentityMismatch) {
-                self.set_owner_process(failed.instance_id(), Some(identity))?;
+                self.set_owner_process_for_operation(&failed, Some(identity))?;
             }
             return Err(crate::process_lifecycle_failures::failure_error(failure));
         }
@@ -269,7 +269,7 @@ where
                 }
                 operation.set_state(LifecycleOperationState::Stopped, None, None);
                 self.persist_update(operation.clone())?;
-                self.clear_owned(operation.instance_id())?;
+                self.clear_owned_for(&operation)?;
                 Ok(LifecycleResponse::new(
                     &operation,
                     crate::LifecycleState::Stopped,
