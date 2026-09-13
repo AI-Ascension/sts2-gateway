@@ -1,0 +1,49 @@
+{
+  "case_id": "CT-GAME-INFORMATION-QUERY-V1-001",
+  "contract": "sts2.protocol/game-information-query-v1",
+  "profile": "game-information-query-v1",
+  "schema": "schemas/game-information-query-v1.schema.json",
+  "consumers": [
+    "sts2-game-mod",
+    "sts2-gateway",
+    "sts2-mcp-server",
+    "sts2-harness"
+  ],
+  "valid_vectors": [
+    "GIQ-VALID-STATIC-TWO-PAGE",
+    "GIQ-VALID-LIVE-DETAIL-PINNED",
+    "GIQ-VALID-UTF8-BOUNDS",
+    "GIQ-VALID-SOURCE-PROVENANCE",
+    "GIQ-VALID-EMPTY-VS-UNAVAILABLE",
+    "GIQ-VALID-ZERO-VS-MISSING"
+  ],
+  "invalid_vectors": [
+    "GIQ-INVALID-CROSS-LOCALE-CURSOR",
+    "GIQ-INVALID-CROSS-RUN-CURSOR",
+    "GIQ-INVALID-CROSS-EPOCH-CURSOR",
+    "GIQ-INVALID-CROSS-CONTENT-CURSOR",
+    "GIQ-INVALID-CROSS-SCOPE-CURSOR",
+    "GIQ-INVALID-MIXED-GENERATION",
+    "GIQ-INVALID-AMBIGUOUS-DISPLAY-NAME",
+    "GIQ-INVALID-UNKNOWN-ENUM-VERSION",
+    "GIQ-INVALID-INTEGER-BOUNDS",
+    "GIQ-INVALID-OVERSIZED",
+    "GIQ-INVALID-MISSING-VS-EMPTY",
+    "GIQ-INVALID-UNSUPPORTED-FIELD",
+    "GIQ-INVALID-MISSING-CAPABILITY",
+    "GIQ-INVALID-READ-ONLY-VIOLATION",
+    "GIQ-INVALID-DUPLICATE-KEY"
+  ],
+  "validators": [
+    {
+      "name": "rust-schema-witness",
+      "language": "rust",
+      "path": "crates/protocol/tests/game_information_query_v1_conformance.rs"
+    },
+    {
+      "name": "javascript-wire-witness",
+      "language": "javascript",
+      "path": "tools/game-information/validate.mjs"
+    }
+  ]
+}

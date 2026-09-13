@@ -97,6 +97,9 @@ impl RuntimeService {
                 .restore_state(state)
                 .map_err(|error| format!("Runtime-v2 journal state is invalid: {error}"))?;
         }
+        let game_information_content_manifest_id =
+            config.game_information_content_manifest_id.clone();
+        let game_information_run_id = config.game_information_run_id.clone();
 
         let coop_native_peer_binding = config
             .coop_native_peer_token
@@ -131,6 +134,14 @@ impl RuntimeService {
                 MAX_RESPONSE_BYTES,
             ),
             runtime_map: RuntimeMapForwarder::new(MAX_MAP_RESPONSE_BYTES),
+            game_information: GameInformationForwarder::new(
+                super::game_information_forwarder::MAX_REQUEST_BYTES,
+                super::game_information_forwarder::MAX_RESPONSE_BYTES,
+                &game_information_content_manifest_id,
+                &game_information_run_id,
+            ),
+            game_information_exchange_timeout: Duration::from_secs(5),
+            game_information_cursor_bindings: BTreeMap::new(),
             seeded_run,
             metrics: RuntimeMetrics::default(),
             coop_reports,

@@ -48,6 +48,11 @@ impl RuntimeService {
         {
             return self.runtime_map_request(request, route);
         }
+        if let Some(route) =
+            GameInformationRoute::parse(&request.method, &request.path, &self.config.instance_id)
+        {
+            return self.game_information_request(request, route);
+        }
         if request.method == "POST"
             && request.path == self.seeded_run_start_path()
             && request.content_type_is_json()

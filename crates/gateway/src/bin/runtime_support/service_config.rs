@@ -10,6 +10,9 @@ pub(super) use runtime_v2::build_runtime_v2;
 #[path = "service_config_coop_native.rs"]
 mod coop_native;
 use coop_native::peer_binding_from_environment;
+#[path = "service_config_identity.rs"]
+mod identity;
+pub(super) use identity::configured_mcp_session;
 
 pub(super) fn coop_reports_from_environment() -> Result<Option<CoopReports>, String> {
     match std::env::var("STS2_COOP_ROSTER") {
@@ -35,6 +38,9 @@ impl RuntimeConfig {
         let lease_epoch = env_or_default("STS2_LEASE_EPOCH", "1")?
             .parse::<u64>()
             .map_err(|_| String::from("STS2_LEASE_EPOCH must be an integer"))?;
+        let game_information_content_manifest_id =
+            env_or_default("STS2_GAME_INFORMATION_CONTENT_MANIFEST_ID", "content-1")?;
+        let game_information_run_id = env_or_default("STS2_GAME_INFORMATION_RUN_ID", "run-1")?;
         let operation_capacity = parse_operation_capacity(&env_or_default(
             "STS2_RUNTIME_V2_OPERATION_CAPACITY",
             DEFAULT_OPERATION_CAPACITY,
@@ -94,6 +100,11 @@ impl RuntimeConfig {
             ("STS2_SESSION_ID", &session_id),
             ("STS2_MCP_SESSION_ID", &mcp_session_id),
             ("STS2_LEASE_ID", &lease_id),
+            (
+                "STS2_GAME_INFORMATION_CONTENT_MANIFEST_ID",
+                &game_information_content_manifest_id,
+            ),
+            ("STS2_GAME_INFORMATION_RUN_ID", &game_information_run_id),
         ] {
             if !safe_identity(value) {
                 return Err(format!("{name} is empty, unsafe, or oversized"));
@@ -195,6 +206,8 @@ impl RuntimeConfig {
             workflow_authority,
             coop_native_peer_token,
             coop_native_peer_id,
+            game_information_content_manifest_id,
+            game_information_run_id,
         })
     }
 }
@@ -293,22 +306,4 @@ pub(super) fn parse_queue_capacity(value: &str) -> Result<usize, String> {
         ));
     }
     Ok(capacity)
-}
-
-pub(super) fn configured_mcp_session(
-    value: Result<String, std::env::VarError>,
-) -> Result<String, String> {
-    let session = match value {
-        Ok(value) => value,
-        Err(std::env::VarError::NotPresent) => String::from("mcp-session-1"),
-        Err(std::env::VarError::NotUnicode(_)) => {
-            return Err(String::from("STS2_MCP_SESSION_ID is not valid UTF-8"));
-        }
-    };
-    if !safe_identity(&session) {
-        return Err(String::from(
-            "STS2_MCP_SESSION_ID is empty, unsafe, or oversized",
-        ));
-    }
-    Ok(session)
 }

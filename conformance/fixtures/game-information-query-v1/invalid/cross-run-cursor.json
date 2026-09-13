@@ -1,0 +1,1 @@
+{"base_fixture":"artifacts/game-information-query-v1/golden/live-detail-request.json","expected_error":"stale_cursor","id":"GIQ-INVALID-CROSS-RUN-CURSOR","mutations":[{"path":"/query/cursor","value":"cursor:live:1"},{"path":"/query/binding/instance_ref/run_id","value":"run-2"},{"path":"/query/binding/snapshot_ref/instance_ref/run_id","value":"run-2"}],"schema_valid":true}

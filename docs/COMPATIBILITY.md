@@ -340,6 +340,26 @@ coordinates and disconnected visible components are preserved. The consumer reje
 protocol revisions, wrong schema digests, foreign or stale generations, malformed graphs, invalid
 action-option identity, and responses over 256 KiB; it does not retry or synthesize a map snapshot.
 
+## Game-information query visibility row
+
+The additive `game-information-query-v1` gateway consumer is pinned to protocol source commit
+`924acc650e5b6d57ecb9f602abe65caa3b025f53` at schema digest
+`e5ba81b0520687cf59db6a94aea3b38606e86300f6eb2b0e858f55704e62f76c`.
+
+| Surface | Producer pin | Current evidence | Result |
+| --- | --- | --- | --- |
+| `game-information-query-v1` artifact and consumer pin | protocol branch head `924acc650e5b6d57ecb9f602abe65caa3b025f53`, schema `e5ba81b0520687cf59db6a94aea3b38606e86300f6eb2b0e858f55704e62f76c` | copied README, manifest, schema, conformance, synthetic fixtures, consumer record, goldens, and checksum verification | Source-derived artifact-copy integrity; protocol producer and host compatibility unverified |
+| Fixed game-information routes | six operation-keyed gateway routes to `/api/v1/game-information/{capabilities,list,search,get,detail,availability}` | real dispatcher with synthetic loopback producer, exact identity headers/paths, unknown-route zero-forward, scope/lease/epoch, response/page/item/text/cursor bounds, typed errors, timeout and continuation tests | Gateway source/component transport confirmed; native producer, snapshot freshness, MCP #51/#52, harness, deployment, and release unverified |
+
+Static queries are restricted to public scope and the configured content authority. Live queries
+are restricted to the admitted instance, configured run, lease epoch, and immutable snapshot/
+parent-generation fence. Requests are capped at 16 KiB; responses at 256 KiB; pages at 32 items
+and 65,536 bytes; text at 4,096 bytes; cursors at 512 bytes; and the shared FIFO queue at
+1–64 entries with a two-second connect and five-second exchange deadline. No response cache is
+implemented. The bounded continuation registry compares the complete normalized query and does
+not provide cross-instance, cross-content, cross-locale, cross-run, cross-epoch, or cross-scope
+fallback. See [ADR 0024](decisions/0024-game-information-query-routing.md).
+
 ## Proposed retained receipt query
 
 The proposed `coop-receipt-query-v1` profile adds one read-only route:

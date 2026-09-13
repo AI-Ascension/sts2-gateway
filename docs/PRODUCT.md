@@ -16,6 +16,8 @@ The accepted gateway scope is:
 - lease issuance/renewal/revocation, lease epochs, stale-operation fencing, and idempotency rules;
 - the bounded Runtime-v2 operation ledger, fixed `end_turn` forwarding seam, retained receipts, and
   explicit accepted/settled/rejected/unknown/cancelled outcomes;
+- the bounded `game-information-query-v1` read transport for fixed capabilities, list, search,
+  get, detail, and availability routes;
 - fixed candidate Runtime-v4 expert rest-action transport and reconciliation routes with bounded
   selector-admission validation;
 - caller authentication and authorization for control and fixed data routes;
@@ -80,6 +82,19 @@ attached binary has no verified host-capable mod adapter and therefore makes no 
 claim. Source/build, controlled component-network, and exact-host v1 forwarding evidence are confirmed
 independently; process supervision, general lifecycle, v2 settlement, and broader host/platform
 compatibility remain `unverified`.
+
+## Game-information query transport
+
+The additive `game-information-query-v1` transport exposes fixed authenticated
+`/v1/instances/{instance_id}/game-information/{operation}` routes for capabilities, list, search,
+get, detail, and availability. Static reads bind to the configured content authority; live reads
+bind to the instance, run, lease epoch, and snapshot scope. Request/response/page/text/cursor
+bounds and the existing FIFO admission/timeout controls apply, with exact producer paths and
+typed producer errors preserved. This is gateway source/component transport evidence pinned to
+protocol source `924acc650e5b6d57ecb9f602abe65caa3b025f53` and schema digest
+`e5ba81b0520687cf59db6a94aea3b38606e86300f6eb2b0e858f55704e62f76c`; native producer,
+snapshot freshness, MCP consumers (#51/#52), harness, deployment, and release remain
+unverified. See [ADR 0024](decisions/0024-game-information-query-routing.md).
 
 ## Candidate Runtime-v4 rest actions
 

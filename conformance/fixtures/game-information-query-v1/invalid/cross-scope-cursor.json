@@ -1,0 +1,1 @@
+{"base_fixture":"artifacts/game-information-query-v1/golden/static-page-2-request.json","expected_error":"stale_cursor","id":"GIQ-INVALID-CROSS-SCOPE-CURSOR","mutations":[{"path":"/query/binding/visibility_scope","value":"owner"}],"schema_valid":true}

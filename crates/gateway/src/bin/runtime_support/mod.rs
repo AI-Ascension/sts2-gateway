@@ -7,6 +7,10 @@ mod coop_reports;
 #[cfg(test)]
 mod dependency_semantics_tests;
 mod forwarder;
+mod game_information;
+mod game_information_forwarder;
+mod game_information_payload;
+mod game_information_payload_response;
 mod host_lease_control;
 mod host_lease_control_crypto;
 mod host_lease_control_frames;

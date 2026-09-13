@@ -82,6 +82,9 @@ pub(super) fn required_scope(request: &HttpRequest, instance_id: &str) -> AuthSc
     if RuntimeMapRoute::parse(&request.method, &request.path, instance_id).is_some() {
         return AuthScope::Read;
     }
+    if GameInformationRoute::parse(&request.method, &request.path, instance_id).is_some() {
+        return AuthScope::Read;
+    }
     let seeded_start_path = format!("/v2/instances/{instance_id}/seeded-run");
     let seeded_operation_prefix = format!("/v2/instances/{instance_id}/seeded-operations/");
     if request.method == "POST" && request.path == seeded_start_path {

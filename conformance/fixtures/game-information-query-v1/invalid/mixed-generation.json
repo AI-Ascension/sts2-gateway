@@ -1,0 +1,1 @@
+{"base_fixture":"artifacts/game-information-query-v1/golden/live-detail-response.json","expected_error":"mixed_generation","id":"GIQ-INVALID-MIXED-GENERATION","mutations":[{"path":"/result/result_generation","value":43}],"schema_valid":true}

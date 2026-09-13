@@ -1,0 +1,75 @@
+{
+  "contract": "sts2.protocol/game-information-query-v1",
+  "protocol_version": "game-information-query-v1",
+  "profile": "game-information-query-v1",
+  "protocol_source_commit": "924acc650e5b6d57ecb9f602abe65caa3b025f53",
+  "schema_digest": "e5ba81b0520687cf59db6a94aea3b38606e86300f6eb2b0e858f55704e62f76c",
+  "provenance": {
+    "schema_source": "schemas/game-information-query-v1.schema.json",
+    "generator": "hand-authored",
+    "license": "MIT"
+  },
+  "status": "component_serialized_conformance",
+  "source": {
+    "name": "sts2-protocol",
+    "role": "neutral game-information contract",
+    "repository": "AI-Ascension/sts2-protocol",
+    "commit": "924acc650e5b6d57ecb9f602abe65caa3b025f53",
+    "result": "pass",
+    "live_status": "unverified"
+  },
+  "consumers": [
+    {
+      "name": "sts2-gateway",
+      "role": "authenticated fixed route and producer forwarder",
+      "repository": "AI-Ascension/sts2-gateway",
+      "branch": "codex/issue-52-game-information-routing",
+      "result": "pass",
+      "verification_scope": "synthetic HTTP route, identity/lease fencing, bounded query and response validation",
+      "live_status": "unverified"
+    }
+  ],
+  "routes": [
+    {
+      "operation": "capabilities",
+      "method": "GET",
+      "gateway_path": "/v1/instances/{instance_id}/game-information/capabilities",
+      "producer_path": "/api/v1/game-information/capabilities"
+    },
+    {
+      "operation": "list",
+      "method": "POST",
+      "gateway_path": "/v1/instances/{instance_id}/game-information/list",
+      "producer_path": "/api/v1/game-information/list"
+    },
+    {
+      "operation": "search",
+      "method": "POST",
+      "gateway_path": "/v1/instances/{instance_id}/game-information/search",
+      "producer_path": "/api/v1/game-information/search"
+    },
+    {
+      "operation": "get",
+      "method": "POST",
+      "gateway_path": "/v1/instances/{instance_id}/game-information/get",
+      "producer_path": "/api/v1/game-information/get"
+    },
+    {
+      "operation": "detail",
+      "method": "POST",
+      "gateway_path": "/v1/instances/{instance_id}/game-information/detail",
+      "producer_path": "/api/v1/game-information/detail"
+    },
+    {
+      "operation": "availability",
+      "method": "POST",
+      "gateway_path": "/v1/instances/{instance_id}/game-information/availability",
+      "producer_path": "/api/v1/game-information/availability"
+    }
+  ],
+  "evidence": {
+    "source": "gateway synthetic component tests",
+    "native_status": "unverified",
+    "caching": "not_implemented"
+  }
+}

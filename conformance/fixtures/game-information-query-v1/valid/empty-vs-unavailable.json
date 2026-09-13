@@ -1,0 +1,1 @@
+{"fields":[{"availability":"available","name":"tags","source":{"kind":"content_manifest","ref":"content-1"},"value":[]},{"availability":"unavailable","name":"description","source":{"kind":"game_mod","ref":"instance-1"},"value":null}],"id":"GIQ-VALID-EMPTY-VS-UNAVAILABLE"}

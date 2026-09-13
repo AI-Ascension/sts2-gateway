@@ -5,6 +5,17 @@ host compatibility and release publication.
 
 ## [Unreleased]
 
+- Add the authenticated, bounded `game-information-query-v1` read transport for capabilities,
+  list, search, get, detail, and availability. Fixed instance-scoped routes forward only their
+  operation-specific loopback producer paths after caller/session/lease/epoch and static
+  content/live snapshot fencing; request, response, page, item, queue, and timeout budgets are
+  enforced, typed producer errors are preserved, and no response cache or cross-instance fallback
+  exists. The gateway pins protocol source commit
+  `924acc650e5b6d57ecb9f602abe65caa3b025f53` at schema digest
+  `e5ba81b0520687cf59db6a94aea3b38606e86300f6eb2b0e858f55704e62f76c`. Synthetic gateway
+  transport evidence is confirmed; native producer, MCP (#51/#52), harness, deployment, and
+  release compatibility remain unverified. See [ADR 0024](docs/decisions/0024-game-information-query-routing.md).
+
 - Add an authorized, bounded public checkpoint-reference read route with closed response
   validation and explicit unavailable results when no producer exists. Native capture remains
   unverified.

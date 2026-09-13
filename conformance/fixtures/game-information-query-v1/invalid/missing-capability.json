@@ -1,0 +1,1 @@
+{"base_fixture":"artifacts/game-information-query-v1/golden/error-stale-cursor.json","expected_error":"missing_capability","id":"GIQ-INVALID-MISSING-CAPABILITY","mutations":[{"path":"/error/code","value":"missing_capability"},{"path":"/error/reason","value":"live detail is not advertised by the selected profile"}],"schema_valid":true}
