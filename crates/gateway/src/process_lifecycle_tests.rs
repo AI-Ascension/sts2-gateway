@@ -426,5 +426,8 @@ mod contract_tests;
 #[path = "process_lifecycle_review_tests.rs"]
 mod review_tests;
 
+#[path = "process_lifecycle_retained_cleanup_tests.rs"]
+mod retained_cleanup_tests;
+
 #[path = "process_lifecycle_disk_tests.rs"]
 mod disk_tests;

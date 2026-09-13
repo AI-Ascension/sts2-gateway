@@ -206,6 +206,27 @@ where
             return Err(LifecycleError::IdentityMismatch);
         }
 
+        // The parent is intentionally allowed to fail the approved-profile
+        // check here: this path exists to clean up an exact identity retained
+        // by the adapter after a partial launch. Descendants still have to be
+        // inside the operation's approved scope before a stop can have any
+        // effect. Checking this observation first prevents a running retained
+        // parent from being force-stopped while an unrelated child survives.
+        let profile = self.profile_for_operation(&operation)?;
+        let descendants = match self.process.descendants(identity.process()) {
+            Ok(descendants) => descendants,
+            Err(fault) => {
+                return self.block_cleanup(operation, LifecycleFailure::Process(fault));
+            }
+        };
+        if descendants.len() > profile.policy().max_descendants()
+            || descendants
+                .iter()
+                .any(|descendant| !descendant.matches_profile(operation.instance_id(), profile))
+        {
+            return self.block_cleanup(operation, LifecycleFailure::ForeignDescendant);
+        }
+
         match self.process.inspect(identity.process()) {
             Ok(ProcessState::Exited { .. }) => {
                 self.finish_failed_launch_cleanup(operation, identity)
