@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 
-use super::test_support::{authenticated_request, test_service};
+use super::test_support::{
+    authenticated_request, game_information_capabilities_request, serve_http_sequence, test_service,
+};
 use super::*;
 use serde_json::Value;
 use std::io::ErrorKind;
@@ -48,7 +50,7 @@ fn query_request(path: &str, body: &[u8]) -> HttpRequest {
 }
 
 fn capabilities_request() -> HttpRequest {
-    authenticated_request("/v1/instances/instance-1/game-information/capabilities")
+    game_information_capabilities_request()
 }
 
 fn replace(body: &[u8], from: &str, to: &str) -> Result<Vec<u8>, String> {
@@ -84,10 +86,18 @@ fn static_list_and_live_detail_use_the_exact_fixed_producer_paths() -> Result<()
         .local_addr()
         .map_err(|error| error.to_string())?
         .to_string();
-    let first = serve_once(listener, STATIC_RESPONSE.to_vec());
+    let first = serve_http_sequence(
+        listener,
+        vec![
+            (200, CAPABILITIES_RESPONSE.to_vec()),
+            (200, STATIC_RESPONSE.to_vec()),
+        ],
+    );
     let mut service = service_with_address(address)?;
+    let (status, _) = service.handle_request(&capabilities_request());
+    assert_eq!(status, 200);
     let request = query_request(
-        "/v1/instances/instance-1/game-information/list",
+        "/v1/instances/instance-1/game-information/query",
         STATIC_REQUEST,
     );
     let (status, body) = service.handle_request(&request);
@@ -95,7 +105,10 @@ fn static_list_and_live_detail_use_the_exact_fixed_producer_paths() -> Result<()
     assert_eq!(body, STATIC_RESPONSE);
     let forwarded = first
         .join()
-        .map_err(|_| String::from("static producer panicked"))??;
+        .map_err(|_| String::from("static producer panicked"))??
+        .into_iter()
+        .nth(1)
+        .ok_or_else(|| String::from("missing static request"))?;
     assert_eq!(forwarded.method, "POST");
     assert_eq!(forwarded.path, "/api/v1/game-information/list");
     assert_eq!(forwarded.body, STATIC_REQUEST);
@@ -119,9 +132,21 @@ fn static_list_and_live_detail_use_the_exact_fixed_producer_paths() -> Result<()
         .local_addr()
         .map_err(|error| error.to_string())?
         .to_string();
-    let second = serve_once(listener, LIVE_RESPONSE.to_vec());
+    let second = serve_http_sequence(
+        listener,
+        vec![
+            (200, CAPABILITIES_RESPONSE.to_vec()),
+            (200, LIVE_RESPONSE.to_vec()),
+        ],
+    );
     service.config.mod_address = address;
     service.config.lease_epoch = 7;
+    let mut capabilities = capabilities_request();
+    capabilities
+        .headers
+        .insert(String::from("x-sts2-lease-epoch"), String::from("7"));
+    let (status, _) = service.handle_request(&capabilities);
+    assert_eq!(status, 200);
     let mut request = query_request(
         "/v1/instances/instance-1/game-information/detail",
         LIVE_REQUEST,
@@ -134,7 +159,10 @@ fn static_list_and_live_detail_use_the_exact_fixed_producer_paths() -> Result<()
     assert_eq!(body, LIVE_RESPONSE);
     let forwarded = second
         .join()
-        .map_err(|_| String::from("live producer panicked"))??;
+        .map_err(|_| String::from("live producer panicked"))??
+        .into_iter()
+        .nth(1)
+        .ok_or_else(|| String::from("missing live request"))?;
     assert_eq!(forwarded.method, "POST");
     assert_eq!(forwarded.path, "/api/v1/game-information/detail");
     assert_eq!(forwarded.body, LIVE_REQUEST);

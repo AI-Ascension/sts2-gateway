@@ -195,6 +195,7 @@ fn valid_token(token: &str) -> bool {
 
 fn map_read_error(error: ReadError) -> RecoveryControlTransportFault {
     match error {
+        ReadError::Cancelled => RecoveryControlTransportFault::DisconnectedAfterWrite,
         ReadError::Timeout => RecoveryControlTransportFault::TimeoutAfterWrite,
         ReadError::Malformed | ReadError::Oversized => {
             RecoveryControlTransportFault::MalformedResponse

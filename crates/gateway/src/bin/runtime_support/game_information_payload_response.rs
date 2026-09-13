@@ -59,19 +59,15 @@ pub(super) fn validate_capabilities(value: &Value) -> bool {
     let Some(capabilities) = value.get("capabilities").and_then(Value::as_object) else {
         return false;
     };
-    let all_queries_advertised = capabilities
+    let any_query_advertised = capabilities
         .get("query_kinds")
         .and_then(Value::as_array)
-        .is_some_and(|kinds| {
-            ["availability", "detail", "get", "list", "search"]
-                .iter()
-                .all(|kind| kinds.iter().any(|value| value.as_str() == Some(*kind)))
-        });
+        .is_some_and(|kinds| !kinds.is_empty());
     let Some(limits) = capabilities.get("limits").and_then(Value::as_object) else {
         return false;
     };
     capabilities.get("profile").and_then(Value::as_str) == Some("game-information-query-v1")
-        && all_queries_advertised
+        && any_query_advertised
         && limits_within_gateway_budget(limits)
         && capabilities
             .get("max_message_bytes")

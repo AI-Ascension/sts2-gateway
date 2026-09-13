@@ -47,6 +47,7 @@ fn routes_are_exact_and_keyed_by_the_operation() {
     let instance = "instance-1";
     for (method, suffix, expected) in [
         ("GET", "capabilities", GameInformationRoute::Capabilities),
+        ("POST", "query", GameInformationRoute::Query),
         ("POST", "list", GameInformationRoute::List),
         ("POST", "search", GameInformationRoute::Search),
         ("POST", "get", GameInformationRoute::Get),
@@ -75,6 +76,14 @@ fn routes_are_exact_and_keyed_by_the_operation() {
         ),
         None
     );
+    assert_eq!(
+        GameInformationRoute::from_query_kind("list"),
+        Some(GameInformationRoute::List)
+    );
+    assert_eq!(
+        GameInformationRoute::from_query_kind("not-allowlisted"),
+        None
+    );
 }
 
 #[test]
@@ -94,6 +103,20 @@ fn static_and_live_goldens_validate_with_their_complete_fences() -> Result<(), S
         )
         .map_err(|error| format!("static response rejected: {error:?}"))?;
     assert!(!static_response.producer_error);
+
+    let canonical_request = forwarder
+        .validate_request(GameInformationRoute::Query, STATIC_REQUEST, &static_headers)
+        .map_err(|error| format!("canonical request rejected: {error:?}"))?;
+    let canonical_response = forwarder
+        .validate_response(
+            GameInformationRoute::Query,
+            Some(&canonical_request),
+            &static_headers,
+            200,
+            STATIC_RESPONSE,
+        )
+        .map_err(|error| format!("canonical response rejected: {error:?}"))?;
+    assert!(!canonical_response.producer_error);
 
     let live_headers = headers("corr-live-detail", "instance-1", "7");
     let live_request = forwarder

@@ -2,7 +2,10 @@
 
 use super::super::game_information_forwarder::GameInformationForwarder;
 use super::super::game_information_payload::MAX_MESSAGE_BYTES;
-use super::test_support::{authenticated_request, test_service};
+use super::test_support::{
+    authenticated_request, game_information_capabilities_request,
+    game_information_capabilities_request_for, serve_http_sequence, test_service,
+};
 use super::*;
 use serde_json::Value;
 use std::io::ErrorKind;
@@ -29,6 +32,10 @@ const STATIC_PAGE_TWO_RESPONSE: &[u8] = include_bytes!(concat!(
 const LIVE_REQUEST: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../protocol-artifact/game-information-query-v1/golden/live-detail-request.json"
+));
+const CAPABILITIES_RESPONSE: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../protocol-artifact/game-information-query-v1/golden/capabilities-response.json"
 ));
 
 fn query_request(path: &str, body: &[u8]) -> HttpRequest {
@@ -69,18 +76,6 @@ fn service_with_address(address: String) -> Result<RuntimeService, String> {
     Ok(service)
 }
 
-fn serve_once(
-    listener: TcpListener,
-    response: Vec<u8>,
-) -> thread::JoinHandle<Result<HttpRequest, String>> {
-    thread::spawn(move || {
-        let (mut stream, _) = listener.accept().map_err(|error| error.to_string())?;
-        let request = read_request(&mut stream).map_err(|error| format!("{error:?}"))?;
-        write_response(&mut stream, 200, &response).map_err(|error| error.to_string())?;
-        Ok(request)
-    })
-}
-
 #[test]
 fn typed_producer_errors_are_preserved_and_oversized_output_is_bounded() -> Result<(), String> {
     let error = include_bytes!(concat!(
@@ -93,15 +88,13 @@ fn typed_producer_errors_are_preserved_and_oversized_output_is_bounded() -> Resu
         .local_addr()
         .map_err(|error| error.to_string())?
         .to_string();
-    let worker = thread::spawn({
-        let error = error.to_vec();
-        move || -> Result<(), String> {
-            let (mut stream, _) = listener.accept().map_err(|error| error.to_string())?;
-            let _ = read_request(&mut stream).map_err(|error| format!("{error:?}"))?;
-            write_response(&mut stream, 409, &error).map_err(|error| error.to_string())
-        }
-    });
+    let worker = serve_http_sequence(
+        listener,
+        vec![(200, CAPABILITIES_RESPONSE.to_vec()), (409, error.to_vec())],
+    );
     let mut service = service_with_address(address)?;
+    let (status, _) = service.handle_request(&game_information_capabilities_request());
+    assert_eq!(status, 200);
     let request = query_request(
         "/v1/instances/instance-1/game-information/list",
         &request_body,
@@ -118,13 +111,16 @@ fn typed_producer_errors_are_preserved_and_oversized_output_is_bounded() -> Resu
         .local_addr()
         .map_err(|error| error.to_string())?
         .to_string();
-    let worker = thread::spawn(move || -> Result<(), String> {
-        let (mut stream, _) = listener.accept().map_err(|error| error.to_string())?;
-        let _ = read_request(&mut stream).map_err(|error| format!("{error:?}"))?;
-        write_response(&mut stream, 200, &vec![b' '; MAX_MESSAGE_BYTES + 1])
-            .map_err(|error| error.to_string())
-    });
+    let worker = serve_http_sequence(
+        listener,
+        vec![
+            (200, CAPABILITIES_RESPONSE.to_vec()),
+            (200, vec![b' '; MAX_MESSAGE_BYTES + 1]),
+        ],
+    );
     service.config.mod_address = address;
+    let (status, _) = service.handle_request(&game_information_capabilities_request());
+    assert_eq!(status, 200);
     let request = query_request(
         "/v1/instances/instance-1/game-information/list",
         STATIC_REQUEST,
@@ -147,8 +143,16 @@ fn cursor_continuations_are_bound_to_the_complete_query_and_release_after_timeou
         .local_addr()
         .map_err(|error| error.to_string())?
         .to_string();
-    let worker = serve_once(listener, STATIC_RESPONSE.to_vec());
+    let worker = serve_http_sequence(
+        listener,
+        vec![
+            (200, CAPABILITIES_RESPONSE.to_vec()),
+            (200, STATIC_RESPONSE.to_vec()),
+        ],
+    );
     let mut service = service_with_address(address)?;
+    let (status, _) = service.handle_request(&game_information_capabilities_request());
+    assert_eq!(status, 200);
     let first = query_request(
         "/v1/instances/instance-1/game-information/list",
         STATIC_REQUEST,
@@ -163,8 +167,16 @@ fn cursor_continuations_are_bound_to_the_complete_query_and_release_after_timeou
         .local_addr()
         .map_err(|error| error.to_string())?
         .to_string();
-    let page_two_worker = serve_once(listener, STATIC_PAGE_TWO_RESPONSE.to_vec());
+    let page_two_worker = serve_http_sequence(
+        listener,
+        vec![
+            (200, CAPABILITIES_RESPONSE.to_vec()),
+            (200, STATIC_PAGE_TWO_RESPONSE.to_vec()),
+        ],
+    );
     service.config.mod_address = address;
+    let (status, _) = service.handle_request(&game_information_capabilities_request());
+    assert_eq!(status, 200);
     let page_two = query_request(
         "/v1/instances/instance-1/game-information/list",
         STATIC_PAGE_TWO_REQUEST,
@@ -174,7 +186,10 @@ fn cursor_continuations_are_bound_to_the_complete_query_and_release_after_timeou
     assert_eq!(body, STATIC_PAGE_TWO_RESPONSE);
     let forwarded = page_two_worker
         .join()
-        .map_err(|_| String::from("page-two producer panicked"))??;
+        .map_err(|_| String::from("page-two producer panicked"))??
+        .into_iter()
+        .nth(1)
+        .ok_or_else(|| String::from("missing page-two request"))?;
     assert_eq!(forwarded.path, "/api/v1/game-information/list");
     assert_eq!(forwarded.body, STATIC_PAGE_TWO_REQUEST);
 
@@ -208,10 +223,16 @@ fn cursor_continuations_are_bound_to_the_complete_query_and_release_after_timeou
     let worker = thread::spawn(move || -> Result<(), String> {
         let (mut stream, _) = listener.accept().map_err(|error| error.to_string())?;
         let _ = read_request(&mut stream).map_err(|error| format!("{error:?}"))?;
+        write_response(&mut stream, 200, CAPABILITIES_RESPONSE)
+            .map_err(|error| error.to_string())?;
+        let (mut stream, _) = listener.accept().map_err(|error| error.to_string())?;
+        let _ = read_request(&mut stream).map_err(|error| format!("{error:?}"))?;
         thread::sleep(Duration::from_millis(500));
         Ok(())
     });
     service.config.mod_address = address;
+    let (status, _) = service.handle_request(&game_information_capabilities_request());
+    assert_eq!(status, 200);
     service.game_information_exchange_timeout = Duration::from_millis(100);
     let started = Instant::now();
     let request = query_request(
@@ -254,8 +275,16 @@ fn content_and_instance_authorities_do_not_share_cursor_state() -> Result<(), St
         .local_addr()
         .map_err(|error| error.to_string())?
         .to_string();
-    let producer = serve_once(listener, STATIC_RESPONSE.to_vec());
+    let producer = serve_http_sequence(
+        listener,
+        vec![
+            (200, CAPABILITIES_RESPONSE.to_vec()),
+            (200, STATIC_RESPONSE.to_vec()),
+        ],
+    );
     service_one.config.mod_address = address;
+    let (status, _) = service_one.handle_request(&game_information_capabilities_request());
+    assert_eq!(status, 200);
     let first = query_request(
         "/v1/instances/instance-1/game-information/list",
         STATIC_REQUEST,
@@ -300,8 +329,17 @@ fn content_and_instance_authorities_do_not_share_cursor_state() -> Result<(), St
         .local_addr()
         .map_err(|error| error.to_string())?
         .to_string();
-    let producer = serve_once(listener, content_two_response.clone());
+    let producer = serve_http_sequence(
+        listener,
+        vec![
+            (200, CAPABILITIES_RESPONSE.to_vec()),
+            (200, content_two_response.clone()),
+        ],
+    );
     service_two.config.mod_address = address;
+    let (status, _) =
+        service_two.handle_request(&game_information_capabilities_request_for("instance-2"));
+    assert_eq!(status, 200);
     let mut isolated = query_request(
         "/v1/instances/instance-2/game-information/list",
         &content_two_request,
@@ -315,7 +353,10 @@ fn content_and_instance_authorities_do_not_share_cursor_state() -> Result<(), St
     assert_eq!(body, content_two_response);
     let forwarded = producer
         .join()
-        .map_err(|_| String::from("second producer panicked"))??;
+        .map_err(|_| String::from("second producer panicked"))??
+        .into_iter()
+        .nth(1)
+        .ok_or_else(|| String::from("missing second request"))?;
     assert_eq!(
         forwarded
             .headers

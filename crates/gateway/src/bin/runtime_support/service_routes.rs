@@ -4,7 +4,17 @@ use super::super::save_profile::RuntimeSaveProfileRoute;
 use super::*;
 
 impl RuntimeService {
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(super) fn handle_request(&mut self, request: &HttpRequest) -> (u16, Vec<u8>) {
+        let cancellation = RequestCancellation::new();
+        self.handle_request_with_cancellation(request, &cancellation)
+    }
+
+    pub(super) fn handle_request_with_cancellation(
+        &mut self,
+        request: &HttpRequest,
+        cancellation: &RequestCancellation,
+    ) -> (u16, Vec<u8>) {
         if let Some(rejection) = request_rejection(
             request,
             &self.config.auth_policy,
@@ -52,7 +62,7 @@ impl RuntimeService {
         if let Some(route) =
             GameInformationRoute::parse(&request.method, &request.path, &self.config.instance_id)
         {
-            return self.game_information_request(request, route);
+            return self.game_information_request(request, route, cancellation);
         }
         if let Some(route) =
             RuntimeSaveProfileRoute::parse(&request.method, &request.path, &self.config.instance_id)

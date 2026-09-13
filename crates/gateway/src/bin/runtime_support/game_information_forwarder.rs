@@ -29,6 +29,52 @@ pub(crate) struct GameInformationForwarder {
     run_id: String,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct GameInformationProducerAuthority {
+    pub(crate) producer_address: String,
+    pub(crate) instance_id: String,
+    pub(crate) caller_id: String,
+    pub(crate) session_id: String,
+    pub(crate) lease_id: String,
+    pub(crate) lease_epoch: u64,
+    pub(crate) content_manifest_id: String,
+    pub(crate) run_id: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct GameInformationCapabilities {
+    pub(crate) query_kinds: Vec<String>,
+    pub(crate) entity_kinds: Vec<String>,
+    pub(crate) projections: Vec<String>,
+    pub(crate) detail_levels: Vec<String>,
+    pub(crate) fields: Vec<String>,
+    pub(crate) limits: GameInformationLimits,
+    pub(crate) max_message_bytes: usize,
+    pub(crate) max_cursor_bytes: usize,
+    pub(crate) supports_live: bool,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct GameInformationLimits {
+    pub(crate) page_items: u64,
+    pub(crate) item_bytes: u64,
+    pub(crate) page_bytes: u64,
+    pub(crate) text_bytes: u64,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct BoundGameInformationCapabilities {
+    pub(crate) authority: GameInformationProducerAuthority,
+    pub(crate) capabilities: GameInformationCapabilities,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum GameInformationCapabilityAdmission {
+    Allowed,
+    Unsupported,
+    Limit,
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum GameInformationRequestError {
     Required,
@@ -157,6 +203,53 @@ impl GameInformationForwarder {
                 producer_error: false,
             })
             .ok_or(GameInformationResponseError::Invalid)
+    }
+
+    pub(crate) fn parse_capabilities(value: &Value) -> Option<GameInformationCapabilities> {
+        let capabilities = value.get("capabilities")?.as_object()?;
+        let strings = |name: &str| {
+            capabilities
+                .get(name)?
+                .as_array()?
+                .iter()
+                .map(Value::as_str)
+                .collect::<Option<Vec<_>>>()
+                .map(|values| values.into_iter().map(str::to_owned).collect::<Vec<_>>())
+        };
+        let query_kinds = strings("query_kinds")?;
+        let entity_kinds = strings("entity_kinds")?;
+        let projections = strings("projections")?;
+        let detail_levels = strings("detail_levels")?;
+        let fields = strings("fields")?;
+        let limits = capabilities.get("limits")?.as_object()?;
+        let limits = GameInformationLimits {
+            page_items: limits.get("page_items")?.as_u64()?,
+            item_bytes: limits.get("item_bytes")?.as_u64()?,
+            page_bytes: limits.get("page_bytes")?.as_u64()?,
+            text_bytes: limits.get("text_bytes")?.as_u64()?,
+        };
+        Some(GameInformationCapabilities {
+            query_kinds,
+            entity_kinds,
+            projections,
+            detail_levels,
+            fields,
+            limits,
+            max_message_bytes: capabilities
+                .get("max_message_bytes")?
+                .as_u64()?
+                .try_into()
+                .ok()?,
+            max_cursor_bytes: capabilities
+                .get("max_cursor_bytes")?
+                .as_u64()?
+                .try_into()
+                .ok()?,
+            supports_live: capabilities
+                .get("snapshot_policy")?
+                .get("supports_live")?
+                .as_bool()?,
+        })
     }
 }
 

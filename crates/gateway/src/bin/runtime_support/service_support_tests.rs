@@ -117,6 +117,7 @@ pub(super) fn test_service() -> Result<RuntimeService, String> {
             &game_information_content_manifest_id,
             &game_information_run_id,
         ),
+        game_information_capabilities: None,
         game_information_exchange_timeout: Duration::from_secs(5),
         game_information_cursor_bindings: BTreeMap::new(),
         save_profile,
@@ -193,6 +194,41 @@ pub(super) fn authenticated_request(path: &str) -> HttpRequest {
         headers,
         body: Vec::new(),
     }
+}
+
+pub(super) fn game_information_capabilities_request() -> HttpRequest {
+    game_information_capabilities_request_for("instance-1")
+}
+
+pub(super) fn game_information_capabilities_request_for(instance_id: &str) -> HttpRequest {
+    let mut request =
+        authenticated_request(&format!("/v1/instances/{instance_id}/game-information/capabilities"));
+    request
+        .headers
+        .insert(String::from("x-sts2-instance-id"), instance_id.to_owned());
+    request.headers.insert(
+        String::from("x-sts2-correlation-id"),
+        String::from("corr-capabilities"),
+    );
+    request
+}
+
+pub(super) fn serve_http_sequence(
+    listener: TcpListener,
+    responses: Vec<(u16, Vec<u8>)>,
+) -> thread::JoinHandle<Result<Vec<HttpRequest>, String>> {
+    thread::spawn(move || {
+        let mut requests = Vec::with_capacity(responses.len());
+        for (status, body) in responses {
+            let (mut stream, _) = listener.accept().map_err(|error| error.to_string())?;
+            let request = super::read_request(&mut stream)
+                .map_err(|error| format!("{error:?}"))?;
+            super::write_response(&mut stream, status, &body)
+                .map_err(|error| error.to_string())?;
+            requests.push(request);
+        }
+        Ok(requests)
+    })
 }
 
 #[path = "service_recovery_v3_duplicate_tests.rs"]

@@ -279,6 +279,7 @@ fn parse_user_data(
 
 fn map_read_error(error: ReadError) -> SaveProfileTransportFault {
     match error {
+        ReadError::Cancelled => SaveProfileTransportFault::DisconnectedAfterWrite,
         ReadError::Timeout => SaveProfileTransportFault::TimeoutAfterWrite,
         ReadError::Malformed | ReadError::Oversized => SaveProfileTransportFault::MalformedResponse,
         ReadError::Unavailable => SaveProfileTransportFault::DisconnectedAfterWrite,

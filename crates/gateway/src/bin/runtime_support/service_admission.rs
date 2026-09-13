@@ -3,23 +3,114 @@
 use super::*;
 
 impl RuntimeService {
-    pub(super) fn handle_queued_request(
-        &mut self,
-        mut stream: TcpStream,
-        request: HttpRequest,
-    ) -> Result<(), String> {
-        let (status, body) = self.handle_request(&request);
-        write_response(&mut stream, status, &body).map_err(|error| error.to_string())
+    pub(super) fn handle_queued_request(&mut self, queued: QueuedRequest) -> Result<(), String> {
+        let QueuedRequest {
+            mut stream,
+            request,
+            cancellation,
+            cancellation_watcher,
+        } = queued;
+        let result = if cancellation.is_cancelled() {
+            Ok(())
+        } else {
+            let (status, body) = self.handle_request_with_cancellation(&request, &cancellation);
+            if cancellation.is_cancelled() {
+                Ok(())
+            } else {
+                write_response(&mut stream, status, &body).map_err(|error| error.to_string())
+            }
+        };
+        finish_cancellation(cancellation, cancellation_watcher);
+        result
     }
 
-    pub(super) fn cancel_queued_request(&self, mut stream: TcpStream) -> Result<(), String> {
-        write_response(
-            &mut stream,
-            503,
-            &json_error("runtime_v2_shutdown_admission_closed"),
-        )
-        .map_err(|error| error.to_string())
+    pub(super) fn cancel_queued_request(&self, queued: QueuedRequest) -> Result<(), String> {
+        let QueuedRequest {
+            mut stream,
+            cancellation,
+            cancellation_watcher,
+            ..
+        } = queued;
+        let result = if cancellation.is_cancelled() {
+            Ok(())
+        } else {
+            write_response(
+                &mut stream,
+                503,
+                &json_error("runtime_v2_shutdown_admission_closed"),
+            )
+            .map_err(|error| error.to_string())
+        };
+        finish_cancellation(cancellation, cancellation_watcher);
+        result
     }
+}
+
+const CALLER_DISCONNECT_POLL: Duration = Duration::from_millis(25);
+
+fn spawn_caller_watcher(
+    stream: &TcpStream,
+    cancellation: &RequestCancellation,
+) -> thread::JoinHandle<()> {
+    let cancellation = cancellation.clone();
+    let Ok(caller) = stream.try_clone() else {
+        cancellation.cancel();
+        return thread::spawn(|| {});
+    };
+    thread::spawn(move || {
+        if caller
+            .set_read_timeout(Some(CALLER_DISCONNECT_POLL))
+            .is_err()
+        {
+            cancellation.cancel();
+            return;
+        }
+        let mut byte = [0_u8; 1];
+        while !cancellation.is_complete() {
+            match caller.peek(&mut byte) {
+                Ok(0) => {
+                    cancellation.cancel();
+                    return;
+                }
+                Ok(_) => thread::sleep(CALLER_DISCONNECT_POLL),
+                Err(error)
+                    if matches!(
+                        error.kind(),
+                        std::io::ErrorKind::TimedOut | std::io::ErrorKind::WouldBlock
+                    ) => {}
+                Err(_) => {
+                    cancellation.cancel();
+                    return;
+                }
+            }
+        }
+    })
+}
+
+fn finish_cancellation(
+    cancellation: RequestCancellation,
+    cancellation_watcher: Option<thread::JoinHandle<()>>,
+) {
+    cancellation.complete();
+    if let Some(watcher) = cancellation_watcher {
+        let _ = watcher.join();
+    }
+}
+
+fn reject_queued_request(queued: QueuedRequest, status: u16, body: &[u8]) -> Result<(), String> {
+    let QueuedRequest {
+        mut stream,
+        cancellation,
+        cancellation_watcher,
+        ..
+    } = queued;
+    let result = if cancellation.is_cancelled() {
+        Ok(())
+    } else {
+        write_response(&mut stream, status, body).map_err(|error| error.to_string())
+    };
+    finish_cancellation(cancellation, cancellation_watcher);
+    result
 }
 pub(super) fn run_worker(
     mut service: RuntimeService,
@@ -30,7 +121,7 @@ pub(super) fn run_worker(
     while let Ok(queued) = receiver.recv() {
         let service_started = Instant::now();
         service.metrics.work_started();
-        let result = service.handle_queued_request(queued.stream, queued.request);
+        let result = service.handle_queued_request(queued);
         service.metrics.work_completed(service_started.elapsed());
         if let Err(error) = result {
             eprintln!("gateway queued request failed: {error}");
@@ -43,7 +134,7 @@ pub(super) fn run_worker(
             wake_listener(listener_address);
             while let Ok(queued) = receiver.recv() {
                 service.metrics.work_cancelled_on_shutdown();
-                if let Err(error) = service.cancel_queued_request(queued.stream) {
+                if let Err(error) = service.cancel_queued_request(queued) {
                     eprintln!("gateway shutdown cancellation failed: {error}");
                 }
             }
@@ -99,11 +190,24 @@ pub(super) fn accept_requests(
             let _ = write_response(&mut stream, status, &body);
             continue;
         }
-        let queued = QueuedRequest { stream, request };
+        let cancellation = RequestCancellation::new();
+        // Only game-information exchanges need caller cancellation propagated to
+        // the producer.  Avoid one long-lived watcher thread for every unrelated
+        // gateway route while retaining disconnect cancellation for this bounded
+        // read surface.
+        let cancellation_watcher =
+            GameInformationRoute::parse(&request.method, &request.path, &instance_id)
+                .is_some()
+                .then(|| spawn_caller_watcher(&stream, &cancellation));
+        let queued = QueuedRequest {
+            stream,
+            request,
+            cancellation,
+            cancellation_watcher,
+        };
         if !admission_open.load(Ordering::Acquire) {
-            let mut stream = queued.stream;
-            let _ = write_response(
-                &mut stream,
+            let _ = reject_queued_request(
+                queued,
                 503,
                 &json_error("runtime_v2_shutdown_admission_closed"),
             );
@@ -117,18 +221,13 @@ pub(super) fn accept_requests(
             Err(TrySendError::Full(queued)) => {
                 metrics.queue_admission_reverted();
                 metrics.queue_rejected();
-                let mut stream = queued.stream;
-                let _ = write_response(
-                    &mut stream,
-                    429,
-                    &json_overload("runtime_v2_queue_capacity"),
-                );
+                let _ =
+                    reject_queued_request(queued, 429, &json_overload("runtime_v2_queue_capacity"));
             }
             Err(TrySendError::Disconnected(queued)) => {
                 metrics.queue_admission_reverted();
-                let mut stream = queued.stream;
-                let _ = write_response(
-                    &mut stream,
+                let _ = reject_queued_request(
+                    queued,
                     503,
                     &json_error("runtime_v2_shutdown_admission_closed"),
                 );

@@ -48,6 +48,7 @@ pub(super) fn json_overload(code: &str) -> Vec<u8> {
 
 pub(super) fn read_error_status(error: ReadError) -> u16 {
     match error {
+        ReadError::Cancelled => 499,
         ReadError::Timeout => 504,
         ReadError::Malformed | ReadError::Oversized => 502,
         ReadError::Unavailable => 503,

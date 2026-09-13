@@ -332,11 +332,12 @@ require separate evidence.
 
 ## Game-information query visibility
 
-ADR 0024 adds the additive, read-only `game-information-query-v1` transport for capabilities,
-list, search, get, detail, and availability. The gateway owns six fixed operation-keyed
-instance routes, read authentication, the caller/session/lease/epoch fence, and forwarding only
-the corresponding loopback producer path. It rejects caller-supplied paths, URLs, methods,
-redirects, reflection, and cross-instance or cross-profile fallback.
+ADR 0024 adds the additive, read-only `game-information-query-v1` transport for capabilities and
+the canonical envelope query route (with operation-specific compatibility aliases for list,
+search, get, detail, and availability). The gateway owns the fixed instance routes, read
+authentication, the caller/session/lease/epoch fence, and forwarding only the producer path
+derived from the allowlisted envelope `query_kind`. It rejects caller-supplied paths, URLs,
+methods, redirects, reflection, and cross-instance or cross-profile fallback.
 
 The copied protocol artifact is pinned at source commit
 `34f68b182c09472c3a0573ff478e17e6ed53c91f` and schema digest
@@ -344,9 +345,11 @@ The copied protocol artifact is pinned at source commit
 to the configured content authority; live requests and returned items are bound to the admitted
 instance, run, lease epoch, snapshot, and state generation. The gateway enforces 16 KiB request,
 256 KiB response, 4,096-byte item, 32-item/65,536-byte page, 4,096-byte text, 512-byte cursor, shared
-1–64-entry FIFO queue, two-second connect, and five-second exchange budgets. It preserves
-validated typed producer errors and has no response cache; its bounded cursor registry retains
-complete normalized query bindings only. Native extraction, snapshot freshness, MCP tool
+1–64-entry FIFO queue, two-second connect, and five-second exchange budgets. A successful
+capabilities response is required and bound to the producer authority before queries; advertised
+operations, modes, fields, and limits are enforced before forwarding. Caller disconnect cancels
+queued or in-flight producer work. It preserves validated typed producer errors and has no response
+cache; its bounded cursor registry retains complete normalized query bindings only. Native extraction, snapshot freshness, MCP tool
 registration, harness use, and host compatibility remain unverified.
 
 ## Runtime-v4 expert rest-action candidate

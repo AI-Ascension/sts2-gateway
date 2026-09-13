@@ -372,7 +372,7 @@ The additive `game-information-query-v1` gateway consumer is pinned to protocol 
 | Surface | Producer pin | Current evidence | Result |
 | --- | --- | --- | --- |
 | `game-information-query-v1` artifact and consumer pin | protocol branch head `34f68b182c09472c3a0573ff478e17e6ed53c91f`, schema `376845b0c86b4afcd2c79ffba753eb7e7e416f5410da26b4dae970cfee2221d9` | copied README, manifest, schema, conformance, synthetic fixtures, consumer record, goldens, and checksum verification | Source-derived artifact-copy integrity; protocol producer and host compatibility unverified |
-| Fixed game-information routes | six operation-keyed gateway routes to `/api/v1/game-information/{capabilities,list,search,get,detail,availability}` | real dispatcher with synthetic loopback producer, exact identity headers/paths, unknown-route zero-forward, scope/lease/epoch, response/page/item/text/cursor bounds, typed errors, timeout and continuation tests | Gateway source/component transport confirmed; native producer, snapshot freshness, MCP #51/#52, harness, deployment, and release unverified |
+| Fixed game-information routes | bodyless capabilities plus canonical `POST /v1/instances/{id}/game-information/query`, deriving one of the five fixed `/api/v1/game-information/{query_kind}` producer paths; operation-specific gateway aliases remain additive | real dispatcher with synthetic loopback producer, exact identity headers/paths, canonical/alias mapping, unknown-route zero-forward, capability readiness and negotiated operation/mode/limit admission, scope/lease/epoch, response/page/item/text/cursor bounds, typed errors, timeout, caller-disconnect cancellation, and continuation tests | Gateway source/component transport confirmed; native producer, snapshot freshness, MCP #51/#52, harness, deployment, and release unverified |
 
 Static queries are restricted to public scope and the configured content authority. Live queries
 are restricted to the admitted instance, configured run, lease epoch, and immutable snapshot/
@@ -380,9 +380,12 @@ parent-generation fence. Requests are capped at 16 KiB; responses at 256 KiB; it
 bytes; pages at 32 items and 65,536 bytes; text at 4,096 bytes; cursors at 512 bytes; and the
 shared FIFO queue at
 1–64 entries with a two-second connect and five-second exchange deadline. No response cache is
-implemented. The bounded continuation registry compares the complete normalized query and does
-not provide cross-instance, cross-content, cross-locale, cross-run, cross-epoch, or cross-scope
-fallback. See [ADR 0024](decisions/0024-game-information-query-routing.md).
+implemented. A query requires a successful capabilities response bound to the current producer
+authority; advertised operations, modes, fields, and negotiated limits are enforced before
+forwarding, and caller disconnect cancels owned producer work. The bounded continuation registry
+compares the complete normalized query and does not provide cross-instance, cross-content,
+cross-locale, cross-run, cross-epoch, or cross-scope fallback. See
+[ADR 0024](decisions/0024-game-information-query-routing.md).
 
 ## Proposed retained receipt query
 

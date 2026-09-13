@@ -188,6 +188,7 @@ fn matches_request(request: &RuntimeV2Message, response: &RuntimeV2Message) -> b
 
 fn map_read_error(error: ReadError) -> RuntimeV2TransportFault {
     match error {
+        ReadError::Cancelled => RuntimeV2TransportFault::DisconnectedAfterWrite,
         ReadError::Timeout => RuntimeV2TransportFault::TimeoutAfterWrite,
         ReadError::Malformed | ReadError::Oversized => RuntimeV2TransportFault::MalformedResponse,
         ReadError::Unavailable => RuntimeV2TransportFault::DisconnectedAfterWrite,

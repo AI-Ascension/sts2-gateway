@@ -25,7 +25,9 @@ use super::coop_native_forwarder::CoopNativeForwarder;
 use super::coop_reports::CoopReports;
 use super::forwarder::HttpRuntimeV2Forwarder;
 use super::game_information::GameInformationRoute;
-use super::game_information_forwarder::GameInformationForwarder;
+use super::game_information_forwarder::{
+    BoundGameInformationCapabilities, GameInformationForwarder,
+};
 use super::http::{HttpRequest, MAX_BODY_BYTES, MAX_RESPONSE_BYTES, read_request, write_response};
 use super::journal;
 use super::metrics::RuntimeMetrics;
@@ -68,6 +70,7 @@ pub(crate) struct RuntimeService {
     runtime_v4_expert_rest_action: RuntimeV4ExpertRestActionForwarder,
     runtime_map: RuntimeMapForwarder,
     game_information: GameInformationForwarder,
+    game_information_capabilities: Option<BoundGameInformationCapabilities>,
     game_information_exchange_timeout: Duration,
     game_information_cursor_bindings: BTreeMap<String, Value>,
     save_profile: service_save_profile::SaveProfileRuntime,
@@ -142,6 +145,45 @@ struct CoopNativePendingOperation {
 struct QueuedRequest {
     stream: TcpStream,
     request: HttpRequest,
+    cancellation: RequestCancellation,
+    cancellation_watcher: Option<thread::JoinHandle<()>>,
+}
+
+#[derive(Clone)]
+struct RequestCancellation {
+    state: Arc<RequestCancellationState>,
+}
+
+struct RequestCancellationState {
+    cancelled: AtomicBool,
+    completed: AtomicBool,
+}
+
+impl RequestCancellation {
+    fn new() -> Self {
+        Self {
+            state: Arc::new(RequestCancellationState {
+                cancelled: AtomicBool::new(false),
+                completed: AtomicBool::new(false),
+            }),
+        }
+    }
+
+    fn is_cancelled(&self) -> bool {
+        self.state.cancelled.load(Ordering::Acquire)
+    }
+
+    fn cancel(&self) {
+        self.state.cancelled.store(true, Ordering::Release);
+    }
+
+    fn complete(&self) {
+        self.state.completed.store(true, Ordering::Release);
+    }
+
+    fn is_complete(&self) -> bool {
+        self.state.completed.load(Ordering::Acquire)
+    }
 }
 
 #[path = "service_admission.rs"]
@@ -255,6 +297,10 @@ mod game_information_tests;
 #[cfg(test)]
 #[path = "service_game_information_additional_tests.rs"]
 mod game_information_additional_tests;
+
+#[cfg(test)]
+#[path = "service_game_information_capability_tests.rs"]
+mod game_information_capability_tests;
 
 #[cfg(test)]
 #[path = "service_v4_expert_rest_action_tests.rs"]
