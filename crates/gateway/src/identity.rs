@@ -2,9 +2,11 @@
 
 use std::fmt;
 
+use serde::{Deserialize, Serialize};
+
 macro_rules! identifier {
     ($name:ident, $description:literal) => {
-        #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+        #[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
         pub struct $name(u64);
 
         impl $name {
@@ -33,7 +35,7 @@ identifier!(InstanceId, "instance");
 identifier!(LeaseId, "lease");
 identifier!(OperationId, "operation");
 
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct Tick(u64);
 
 impl Tick {
@@ -52,7 +54,7 @@ impl Tick {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct LeaseEpoch(u64);
 
 impl LeaseEpoch {
@@ -67,7 +69,8 @@ impl LeaseEpoch {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct Lease {
     instance_id: InstanceId,
     caller_id: CallerId,
@@ -136,13 +139,35 @@ impl Lease {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct LeaseProof {
     instance_id: InstanceId,
     caller_id: CallerId,
     session_id: SessionId,
     lease_id: LeaseId,
     epoch: LeaseEpoch,
+}
+
+/// Epoch owned by the lifecycle coordinator and rotated on process replacement.
+///
+/// This is deliberately distinct from the lease epoch: a lease can remain valid while a
+/// replacement process invalidates grants issued to the previous process.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
+pub struct AuthorityEpoch(u64);
+
+impl AuthorityEpoch {
+    pub const fn new(value: u64) -> Self {
+        Self(value)
+    }
+
+    pub const fn value(self) -> u64 {
+        self.0
+    }
+
+    pub fn next(self) -> Option<Self> {
+        self.0.checked_add(1).map(Self)
+    }
 }
 
 impl LeaseProof {
@@ -184,7 +209,7 @@ impl LeaseProof {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum FenceFailure {
     Missing,
     WrongInstance,

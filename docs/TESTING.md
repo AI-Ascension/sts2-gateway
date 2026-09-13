@@ -63,9 +63,20 @@ header fails at the lease fence before downstream forwarding.
 The control-plane fakes do not represent real processes or game hosts. Ephemeral TCP tests exercise
 actual socket framing, timeouts, and forwarding only against synthetic peers.
 
+Issue #50 adds focused process-lifecycle fixtures. The profile adapter tests reject missing and
+unapproved IDs and cleans an identity mismatch; lifecycle tests prove duplicate launch replay,
+authenticated stale-epoch and unowned-attach rejection, exact PID/birth/image/instance checks,
+reconnect and crash reconciliation, durable intent recovery without a second launch, bounded
+capacity, stop failure/timeout and foreign-descendant blocking, restart epoch rotation, closed
+request serialization, and SQLite record replay. A launch response is `Starting` until a separate
+readiness adapter reports ready. These are confirmed gateway source/component outcomes from
+synthetic ports and stores; they do not launch an OS process, exercise game readiness, or establish
+harness/provider/native compatibility.
+
 The process-supervisor fixture proves that restart replaces ownership only after the old handle
-is force-stopped. Live restart/recovery remains unverified. HTTP tests additionally cover absolute
-deadlines, stalled writes, header bounds, and ambiguous framing.
+is force-stopped, while its identity-bearing resolved methods reject drift and foreign descendants.
+Live restart/recovery remains unverified. HTTP tests additionally cover absolute deadlines, stalled
+writes, header bounds, and ambiguous framing.
 
 Late retained settlement is checked after a newer authoritative observation: the historical receipt
 remains replayable, but cannot rewind admission generation. Both accepted and unknown operations

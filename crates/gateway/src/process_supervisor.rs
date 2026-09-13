@@ -2,7 +2,10 @@
 
 use std::collections::BTreeMap;
 
-use crate::{InstanceId, ProcessFault, ProcessHandle, ProcessPort, ProcessState, StopMode};
+use crate::{
+    InstanceId, LaunchProfileId, LaunchSpec, ProcessFault, ProcessHandle, ProcessIdentity,
+    ProcessPort, ProcessState, StopMode,
+};
 
 /// Bounds the number of processes owned by one gateway supervisor.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -39,6 +42,8 @@ pub enum ProcessSupervisorError {
     CapacityExceeded,
     AlreadyOwned,
     NotOwned,
+    IdentityMismatch,
+    ForeignDescendant,
     Process(ProcessFault),
 }
 
@@ -52,6 +57,7 @@ pub struct ProcessSupervisor<P> {
     config: ProcessSupervisorConfig,
     process: P,
     owned: BTreeMap<InstanceId, ProcessHandle>,
+    identities: BTreeMap<InstanceId, ProcessIdentity>,
 }
 
 impl<P: ProcessPort> ProcessSupervisor<P> {
@@ -60,6 +66,7 @@ impl<P: ProcessPort> ProcessSupervisor<P> {
             config,
             process,
             owned: BTreeMap::new(),
+            identities: BTreeMap::new(),
         }
     }
 
@@ -67,6 +74,22 @@ impl<P: ProcessPort> ProcessSupervisor<P> {
         &mut self,
         instance_id: InstanceId,
     ) -> Result<ProcessHandle, ProcessSupervisorError> {
+        self.start_spec(LaunchSpec::new(instance_id))
+    }
+
+    pub fn start_with_profile(
+        &mut self,
+        instance_id: InstanceId,
+        profile_id: LaunchProfileId,
+    ) -> Result<ProcessHandle, ProcessSupervisorError> {
+        self.start_spec(LaunchSpec::for_profile(instance_id, profile_id))
+    }
+
+    pub fn start_spec(
+        &mut self,
+        specification: LaunchSpec,
+    ) -> Result<ProcessHandle, ProcessSupervisorError> {
+        let instance_id = specification.instance_id();
         if self.owned.contains_key(&instance_id) {
             return Err(ProcessSupervisorError::AlreadyOwned);
         }
@@ -75,8 +98,9 @@ impl<P: ProcessPort> ProcessSupervisor<P> {
         }
         let handle = self
             .process
-            .start(crate::LaunchSpec::new(instance_id))
+            .start(specification)
             .map_err(ProcessSupervisorError::Process)?;
+        self.identities.remove(&instance_id);
         self.owned.insert(instance_id, handle);
         Ok(handle)
     }
@@ -95,6 +119,30 @@ impl<P: ProcessPort> ProcessSupervisor<P> {
             .map_err(ProcessSupervisorError::Process)
     }
 
+    /// Records an identity restored from a durable gateway operation.
+    ///
+    /// The identity is required before `attach_authorized`; a caller cannot adopt a process by
+    /// supplying an identity that the supervisor has never authorized.
+    pub fn authorize_identity(
+        &mut self,
+        identity: ProcessIdentity,
+    ) -> Result<(), ProcessSupervisorError> {
+        if identity.instance_id().value() == 0
+            || identity.process().value() == 0
+            || identity.pid() == 0
+            || identity.birth_id() == 0
+            || identity.executable().is_none()
+            || identity.user_data().is_none()
+        {
+            return Err(ProcessSupervisorError::IdentityMismatch);
+        }
+        if self.owned.contains_key(&identity.instance_id()) {
+            return Err(ProcessSupervisorError::AlreadyOwned);
+        }
+        self.identities.insert(identity.instance_id(), identity);
+        Ok(())
+    }
+
     pub fn stop(
         &mut self,
         instance_id: InstanceId,
@@ -108,6 +156,7 @@ impl<P: ProcessPort> ProcessSupervisor<P> {
         self.process
             .stop(handle, mode)
             .map_err(ProcessSupervisorError::Process)?;
+        self.identities.remove(&instance_id);
         self.owned.remove(&instance_id);
         Ok(())
     }
@@ -128,11 +177,13 @@ impl<P: ProcessPort> ProcessSupervisor<P> {
         self.process
             .stop(old_handle, StopMode::Force)
             .map_err(ProcessSupervisorError::Process)?;
+        self.identities.remove(&instance_id);
         self.owned.remove(&instance_id);
         let new_handle = self
             .process
             .start(crate::LaunchSpec::new(instance_id))
             .map_err(ProcessSupervisorError::Process)?;
+        self.identities.remove(&instance_id);
         self.owned.insert(instance_id, new_handle);
         Ok(new_handle)
     }
@@ -154,76 +205,5 @@ impl<P: ProcessPort> ProcessSupervisor<P> {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use std::collections::BTreeMap;
-
-    use super::{ProcessSupervisor, ProcessSupervisorConfig, ProcessSupervisorError};
-    use crate::{
-        InstanceId, LaunchSpec, ProcessFault, ProcessHandle, ProcessPort, ProcessState, StopMode,
-    };
-
-    #[derive(Default)]
-    struct FakeProcess {
-        next: u64,
-        states: BTreeMap<u64, ProcessState>,
-    }
-
-    impl ProcessPort for FakeProcess {
-        fn start(&mut self, _specification: LaunchSpec) -> Result<ProcessHandle, ProcessFault> {
-            self.next = self.next.saturating_add(1);
-            let handle = ProcessHandle::new(self.next);
-            self.states.insert(handle.value(), ProcessState::Running);
-            Ok(handle)
-        }
-
-        fn inspect(&mut self, process: ProcessHandle) -> Result<ProcessState, ProcessFault> {
-            self.states
-                .get(&process.value())
-                .copied()
-                .ok_or(ProcessFault::InspectionFailed)
-        }
-
-        fn stop(&mut self, process: ProcessHandle, _mode: StopMode) -> Result<(), ProcessFault> {
-            self.states.remove(&process.value());
-            Ok(())
-        }
-    }
-
-    #[test]
-    fn owns_bounded_handles_and_releases_only_after_stop() -> Result<(), String> {
-        let config = ProcessSupervisorConfig::try_new(1).map_err(|error| format!("{error:?}"))?;
-        let mut supervisor = ProcessSupervisor::new(config, FakeProcess::default());
-        let first = supervisor
-            .start(InstanceId::new(1))
-            .map_err(|error| format!("{error:?}"))?;
-        assert_eq!(supervisor.process_handle(InstanceId::new(1)), Some(first));
-        assert_eq!(
-            supervisor.start(InstanceId::new(2)),
-            Err(ProcessSupervisorError::CapacityExceeded)
-        );
-        supervisor
-            .stop(InstanceId::new(1), StopMode::Graceful)
-            .map_err(|error| format!("{error:?}"))?;
-        assert_eq!(supervisor.owned_count(), 0);
-        Ok(())
-    }
-
-    #[test]
-    fn restart_stops_the_old_handle_before_replacing_ownership() -> Result<(), String> {
-        let config = ProcessSupervisorConfig::try_new(1).map_err(|error| format!("{error:?}"))?;
-        let mut supervisor = ProcessSupervisor::new(config, FakeProcess::default());
-        let instance = InstanceId::new(1);
-        let old_handle = supervisor
-            .start(instance)
-            .map_err(|error| format!("{error:?}"))?;
-        let new_handle = supervisor
-            .restart(instance)
-            .map_err(|error| format!("{error:?}"))?;
-
-        assert_ne!(old_handle, new_handle);
-        assert_eq!(supervisor.process_handle(instance), Some(new_handle));
-        assert_eq!(supervisor.inspect(instance), Ok(ProcessState::Running));
-        Ok(())
-    }
-}
+#[path = "process_supervisor_resolved.rs"]
+mod process_supervisor_resolved;

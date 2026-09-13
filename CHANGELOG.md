@@ -5,6 +5,14 @@ host compatibility and release publication.
 
 ## [Unreleased]
 
+- Add the gateway-owned profile lifecycle contract for issue #50. An opaque approved
+  `LaunchProfileId` resolves to bounded executable/install/image identity, isolated user-data
+  namespace, and process policy; authenticated launch, identity-checked attach, stop, restart,
+  durable intent/replay, and explicit `Blocked`/`Unknown` cleanup outcomes are covered by
+  deterministic process-port fixtures and an SQLite record seam. This is source/component
+  evidence only: native process launch, host readiness, harness workflow mapping, and deployment
+  compatibility remain unverified behind the `sts2-harness` prerequisites.
+
 - Add an authorized, bounded public checkpoint-reference read route with closed response
   validation and explicit unavailable results when no producer exists. Native capture remains
   unverified.
