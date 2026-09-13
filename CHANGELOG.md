@@ -5,6 +5,14 @@ host compatibility and release publication.
 
 ## [Unreleased]
 
+- Add the proposed gateway-local save-profile component from
+  [ADR 0024](docs/decisions/0024-save-profile-provisioning-and-fencing.md): fixed fenced
+  list/current/select/create-disposable/lookup routes, fresh opaque user-data allocation with
+  provenance and traversal/symlink/overwrite refusal, retained operation intent, and explicit
+  timeout/disconnect/unknown reconciliation. Deterministic source/component tests pass; game-mod
+  contract acceptance, issue #50 launch-profile wiring, production persistence, native save
+  behavior, and cross-restart durability remain unverified.
+
 - Add an authorized, bounded public checkpoint-reference read route with closed response
   validation and explicit unavailable results when no producer exists. Native capture remains
   unverified.

@@ -135,6 +135,15 @@ envelope validation, ledger calls, error mapping, and fixed TCP forwarding are e
 synthetic peers. This is not a live host adapter test; host mutation and settlement remain unverified
 and require a separately authorized downstream contract and disposable host environment.
 
+The save-profile component tests use bounded in-memory provisioning and ledger ports plus an
+ephemeral synthetic loopback peer. They cover fresh opaque identities, portable descriptors without
+paths, unknown/foreign contents, traversal and symlink escape, overwrite refusal, fixed
+list/current/select/create-disposable/lookup mapping, closed mutation bodies, active-run and stale
+lease rejection before forwarding, duplicate selection, caller disconnect, timeout-after-write,
+unknown-to-created reconciliation, and retained operator guidance. They do not prove game-mod
+readback, production filesystem durability, issue #50 launch-profile wiring, native save
+compatibility, or cross-restart persistence.
+
 The authorized exact-host lane now confirms the managed mod listener, downstream forwarding,
 lease fencing, a Godot main-thread callback, the bounded STS2 host effect, and reversible disposable
 profile cleanup. Process supervision/restart, concurrency isolation, and gameplay mutation remain

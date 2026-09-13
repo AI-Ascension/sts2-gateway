@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 
+use super::super::save_profile::RuntimeSaveProfileRoute;
 use super::*;
 
 impl RuntimeService {
@@ -47,6 +48,11 @@ impl RuntimeService {
             RuntimeMapRoute::parse(&request.method, &request.path, &self.config.instance_id)
         {
             return self.runtime_map_request(request, route);
+        }
+        if let Some(route) =
+            RuntimeSaveProfileRoute::parse(&request.method, &request.path, &self.config.instance_id)
+        {
+            return self.save_profile_request(request, route);
         }
         if request.method == "POST"
             && request.path == self.seeded_run_start_path()

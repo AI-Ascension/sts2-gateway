@@ -15,6 +15,7 @@ mod protocol_artifact;
 mod recovery;
 mod runtime_v2;
 mod runtime_v2_artifact;
+mod save_profile;
 mod seeded_run;
 
 use std::fmt;
@@ -75,6 +76,20 @@ pub use runtime_v2_artifact::{
     RUNTIME_V2_PROTOCOL_VERSION, RUNTIME_V2_SCHEMA_DIGEST, RUNTIME_V2_SCHEMA_SOURCE,
     RuntimeV2ArtifactError, RuntimeV2ArtifactFile, RuntimeV2ArtifactFiles,
     runtime_v2_artifact_files, verify_runtime_v2_artifact, verify_runtime_v2_artifact_files,
+};
+pub use save_profile::{
+    InMemorySaveProfileRecordStore, InMemoryUserDataPort, InMemoryUserDataRecordStore,
+    LAUNCH_PROFILE_CONTRACT, LAUNCH_PROFILE_ID, LaunchProfileBinding, LaunchProfileBindingError,
+    LaunchProfileBindingPort, ProfileBaseline, RecoveryGuidance, SAVE_PROFILE_CONTRACT,
+    SAVE_PROFILE_MAX_BODY_BYTES, SAVE_PROFILE_MAX_IDENTITY_BYTES, SAVE_PROFILE_MAX_OPERATION_BYTES,
+    SaveProfileAuthority, SaveProfileContext, SaveProfileFenceError, SaveProfileForwardRequest,
+    SaveProfileForwardResponse, SaveProfileForwardingPort, SaveProfileId, SaveProfileIdError,
+    SaveProfileLedger, SaveProfileLedgerError, SaveProfileOperation, SaveProfileOperationRecord,
+    SaveProfileRecordStore, SaveProfileResult, SaveProfileRoute, SaveProfileStatus,
+    SaveProfileTransportFault, UserDataCreateOutcome, UserDataCreateRequest, UserDataDescriptor,
+    UserDataIdentity, UserDataInspection, UserDataPort, UserDataPortError, UserDataProvenance,
+    UserDataProvisioner, UserDataProvisioningError, UserDataProvisioningOutcome,
+    UserDataProvisioningRecord, UserDataProvisioningStatus, UserDataRecordStore,
 };
 pub use seeded_run::{
     SEEDED_RUN_ARTIFACT, SEEDED_RUN_EFFECT_KIND, SEEDED_RUN_GENERATOR, SEEDED_RUN_MAX_ACTS,

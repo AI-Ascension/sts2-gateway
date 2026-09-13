@@ -1,0 +1,43 @@
+// SPDX-License-Identifier: MIT
+
+//! Gateway-owned save-profile transport and isolated user-data provisioning.
+//!
+//! The game-mod remains the authority for save-slot meaning and host-thread selection.
+//! This module owns only opaque identity, launch-profile binding, bounded fencing, durable
+//! operation intent and the fixed forwarding seam.  It deliberately contains no host paths,
+//! shell commands, URLs supplied by callers, or save contents.
+
+mod guidance;
+mod ledger;
+mod ledger_response;
+mod ledger_types;
+mod ledger_validation;
+mod provisioning;
+mod provisioning_types;
+mod provisioning_validation;
+mod route;
+mod types;
+
+pub use guidance::RecoveryGuidance;
+pub use ledger::SaveProfileLedger;
+pub use ledger_types::{
+    InMemorySaveProfileRecordStore, SaveProfileForwardRequest, SaveProfileForwardResponse,
+    SaveProfileForwardingPort, SaveProfileLedgerError, SaveProfileOperation,
+    SaveProfileOperationRecord, SaveProfileRecordStore, SaveProfileResult, SaveProfileStatus,
+    SaveProfileTransportFault,
+};
+pub use provisioning::UserDataProvisioner;
+pub use provisioning_types::{
+    InMemoryUserDataPort, InMemoryUserDataRecordStore, UserDataCreateOutcome,
+    UserDataCreateRequest, UserDataInspection, UserDataPort, UserDataPortError,
+    UserDataProvisioningError, UserDataProvisioningOutcome, UserDataProvisioningRecord,
+    UserDataProvisioningStatus, UserDataRecordStore,
+};
+pub use route::SaveProfileRoute;
+pub use types::{
+    LAUNCH_PROFILE_CONTRACT, LAUNCH_PROFILE_ID, LaunchProfileBinding, LaunchProfileBindingError,
+    LaunchProfileBindingPort, ProfileBaseline, SAVE_PROFILE_CONTRACT, SAVE_PROFILE_MAX_BODY_BYTES,
+    SAVE_PROFILE_MAX_IDENTITY_BYTES, SAVE_PROFILE_MAX_OPERATION_BYTES, SaveProfileAuthority,
+    SaveProfileContext, SaveProfileFenceError, SaveProfileId, SaveProfileIdError,
+    UserDataDescriptor, UserDataIdentity, UserDataProvenance,
+};

@@ -20,6 +20,8 @@ The accepted gateway scope is:
   selector-admission validation;
 - caller authentication and authorization for control and fixed data routes;
 - fixed method/path/header/body allowlists and target revalidation;
+- isolated opaque automation user-data provisioning, save-profile route fencing, retained
+  operation intent, and explicit uncertainty reconciliation;
 - per-instance isolation, bounded queues/payloads, backpressure, and sanitized diagnostics; and
 - independent gateway API compatibility and release metadata.
 
@@ -80,6 +82,18 @@ attached binary has no verified host-capable mod adapter and therefore makes no 
 claim. Source/build, controlled component-network, and exact-host v1 forwarding evidence are confirmed
 independently; process supervision, general lifecycle, v2 settlement, and broader host/platform
 compatibility remain `unverified`.
+
+## Save-profile component
+
+The proposed save-profile surface is gateway transport and isolation control, not save authority.
+The attached runtime accepts only fixed list/current/select/create-disposable and operation-lookup
+paths, with explicit read or mutate scopes and the complete caller/session/instance/lease/epoch
+fence. It allocates a fresh opaque user-data identity, records provenance, rejects unknown or
+foreign contents, traversal, symlink escape, and implicit adoption, and retains accepted or
+uncertain work for lookup without blind retries. The game-mod owns profile meaning and authoritative
+baselines. This slice uses deterministic in-memory stores and synthetic loopback peers; launch
+profile issue #50 integration, production persistence, game-mod contract acceptance, and native
+save compatibility are `unverified`.
 
 ## Candidate Runtime-v4 rest actions
 
