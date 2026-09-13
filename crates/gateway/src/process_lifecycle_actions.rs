@@ -40,16 +40,24 @@ where
     ) -> Result<LifecycleResponse, LifecycleError> {
         let identity = launch.identity().clone();
         if !identity.matches_profile(operation.instance_id(), profile) {
-            operation.set_state(LifecycleOperationState::Starting, Some(identity), None);
+            operation.set_state(
+                LifecycleOperationState::Starting,
+                Some(identity),
+                Some(LifecycleFailure::IdentityMismatch),
+            );
             return self.finish_start_failure(operation, LifecycleFailure::IdentityMismatch);
         }
         if let Err(failure) = self.verify_started_identity(&identity, profile) {
-            operation.set_state(LifecycleOperationState::Starting, Some(identity), None);
+            operation.set_state(
+                LifecycleOperationState::Starting,
+                Some(identity),
+                Some(failure),
+            );
             return self.finish_start_failure(operation, failure);
         }
         operation.set_state(state, Some(identity.clone()), None);
         self.persist_update(operation.clone())?;
-        self.set_owned(operation.instance_id(), identity);
+        self.set_owned(&operation, profile.id(), identity)?;
         Ok(LifecycleResponse::new(
             &operation,
             crate::LifecycleState::Starting,
@@ -58,15 +66,31 @@ where
 
     fn finish_start_failure(
         &mut self,
-        operation: LifecycleOperation,
+        mut operation: LifecycleOperation,
         failure: LifecycleFailure,
     ) -> Result<LifecycleResponse, LifecycleError> {
         let Some(identity) = operation.process().cloned() else {
             return self.block_operation(operation, failure);
         };
+        operation.set_state(
+            LifecycleOperationState::Starting,
+            Some(identity.clone()),
+            Some(failure),
+        );
         match self.process.stop(identity.process(), StopMode::Force) {
-            Ok(()) => self.block_operation(operation, failure),
             Err(fault) => self.block_cleanup(operation, LifecycleFailure::Process(fault)),
+            Ok(()) => {
+                let descendants = match self.process.descendants(identity.process()) {
+                    Ok(descendants) => descendants,
+                    Err(fault) => {
+                        return self.block_cleanup(operation, LifecycleFailure::Process(fault));
+                    }
+                };
+                if !descendants.is_empty() {
+                    return self.block_cleanup(operation, LifecycleFailure::ForeignDescendant);
+                }
+                self.block_operation(operation, failure)
+            }
         }
     }
 
@@ -87,16 +111,17 @@ where
             return self.block_operation(operation, LifecycleFailure::IdentityMismatch);
         }
         let profile = self.profile_for_operation(&previous)?;
-        if let Err(error) = self.verify_process(&identity, profile) {
-            return self.block_cleanup_lifecycle_error(operation, error);
-        }
         operation.set_state(
             LifecycleOperationState::Attached,
             Some(identity.clone()),
             None,
         );
         self.persist_update(operation.clone())?;
-        self.set_owned(operation.instance_id(), identity);
+        if let Err(error) = self.verify_process(&identity, profile) {
+            return self.block_cleanup_lifecycle_error(operation, error);
+        }
+        self.set_owned(&operation, profile.id(), identity)?;
+        self.persist_update(operation.clone())?;
         Ok(LifecycleResponse::new(
             &operation,
             crate::LifecycleState::Starting,
@@ -117,15 +142,15 @@ where
             return self.block_operation(operation, LifecycleFailure::IdentityMismatch);
         };
         let profile = self.profile_for_operation(&previous)?;
-        if let Err(error) = self.verify_process(&identity, profile) {
-            return self.block_cleanup_lifecycle_error(operation, error);
-        }
         operation.set_state(
             LifecycleOperationState::Stopping,
             Some(identity.clone()),
             None,
         );
         self.persist_update(operation.clone())?;
+        if let Err(error) = self.verify_process(&identity, profile) {
+            return self.block_cleanup_lifecycle_error(operation, error);
+        }
         self.finish_stop(operation, identity, mode)
     }
 
@@ -147,7 +172,7 @@ where
         }
         operation.set_state(LifecycleOperationState::Stopped, None, None);
         self.persist_update(operation.clone())?;
-        self.clear_owned(operation.instance_id());
+        self.clear_owned(operation.instance_id())?;
         Ok(LifecycleResponse::new(
             &operation,
             crate::LifecycleState::Stopped,
@@ -169,6 +194,12 @@ where
         };
         let profile = self.profiles.resolve(profile_id)?;
         let previous_profile = self.profile_for_operation(&previous)?;
+        operation.set_state(
+            LifecycleOperationState::Restarting,
+            Some(identity.clone()),
+            None,
+        );
+        self.persist_update(operation.clone())?;
         if profile != previous_profile {
             return self.block_operation(operation, LifecycleFailure::IdentityMismatch);
         }

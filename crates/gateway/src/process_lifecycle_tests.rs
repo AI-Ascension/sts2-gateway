@@ -28,7 +28,9 @@ struct FakeProcess {
     stop_fault: Option<ProcessFault>,
     wrong_identity: bool,
     retain_after_stop: bool,
+    descendants_after_stop: Vec<ProcessDescendantIdentity>,
     recover_enabled: bool,
+    recover_fault: Option<ProcessFault>,
     starts: usize,
     stops: Vec<(ProcessHandle, StopMode)>,
 }
@@ -42,6 +44,10 @@ impl FakeProcess {
         self.stop_fault = fault;
     }
 
+    fn set_identity_fault(&mut self, fault: Option<ProcessFault>) {
+        self.identity_fault = fault;
+    }
+
     fn set_wrong_identity(&mut self, value: bool) {
         self.wrong_identity = value;
     }
@@ -50,8 +56,23 @@ impl FakeProcess {
         self.retain_after_stop = value;
     }
 
+    fn set_descendants_after_stop(&mut self, descendants: Vec<ProcessDescendantIdentity>) {
+        self.descendants_after_stop = descendants;
+    }
+
     fn set_recover_enabled(&mut self, value: bool) {
         self.recover_enabled = value;
+    }
+
+    fn set_recover_fault(&mut self, fault: Option<ProcessFault>) {
+        self.recover_fault = fault;
+    }
+
+    fn crash(&mut self, process: ProcessHandle, descendants: Vec<ProcessDescendantIdentity>) {
+        if let Some(entry) = self.entries.get_mut(&process) {
+            entry.state = ProcessState::Exited { code: Some(17) };
+            entry.descendants = descendants;
+        }
     }
 
     fn set_descendants(
@@ -94,10 +115,12 @@ impl ProcessPort for FakeProcess {
         }
         self.stops.push((process, mode));
         if self.retain_after_stop {
+            let descendants = self.descendants_after_stop.clone();
             let Some(entry) = self.entries.get_mut(&process) else {
                 return Err(ProcessFault::InspectionFailed);
             };
             entry.state = ProcessState::Exited { code: None };
+            entry.descendants = descendants;
         } else {
             self.entries.remove(&process);
         }
@@ -176,6 +199,9 @@ impl ProcessPort for FakeProcess {
         instance_id: InstanceId,
         profile: LaunchProfile,
     ) -> Result<Option<ProcessIdentity>, ProcessFault> {
+        if let Some(fault) = self.recover_fault {
+            return Err(fault);
+        }
         if !self.recover_enabled {
             return Ok(None);
         }
@@ -307,6 +333,29 @@ fn approved_adapter_requires_a_server_profile_and_rejects_unapproved_ids() -> Re
 }
 
 #[test]
+fn approved_adapter_reports_cleanup_failure_for_a_mismatched_launch() -> Result<(), String> {
+    let profiles = profiles()?;
+    let mut adapter = ApprovedLaunchProfileAdapter::new(profiles, FakeProcess::default());
+    adapter.process_mut().set_wrong_identity(true);
+    adapter
+        .process_mut()
+        .set_stop_fault(Some(ProcessFault::StopFailed));
+    assert_eq!(
+        adapter.start(LaunchSpec::for_profile(
+            InstanceId::new(7),
+            LaunchProfileId::new(1),
+        )),
+        Err(ProcessFault::StopFailed)
+    );
+    adapter.process_mut().set_stop_fault(None);
+    adapter
+        .stop(ProcessHandle::new(1), StopMode::Force)
+        .map_err(|error| format!("{error:?}"))?;
+    assert_eq!(adapter.process().starts(), 1);
+    Ok(())
+}
+
+#[test]
 fn duplicate_launch_replays_the_record_without_a_second_start() -> Result<(), String> {
     let mut lifecycle = new_lifecycle(FakeProcess::default(), InMemoryLifecycleStore::new())?;
     let request = launch_request(1);
@@ -399,3 +448,6 @@ fn wrong_identity_is_cleaned_and_never_becomes_owned() -> Result<(), String> {
 
 #[path = "process_lifecycle_recovery_tests.rs"]
 mod recovery_tests;
+
+#[path = "process_lifecycle_contract_tests.rs"]
+mod contract_tests;

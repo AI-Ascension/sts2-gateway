@@ -396,5 +396,19 @@ fn foreign_descendant_prevents_a_stop_before_the_port_stop_call() -> Result<(), 
             .map(|operation| operation.state()),
         Some(LifecycleOperationState::Blocked)
     );
+    assert!(
+        lifecycle
+            .operation(InstanceId::new(7), OperationId::new(2))
+            .and_then(|operation| operation.process())
+            .is_some()
+    );
+    lifecycle
+        .process_mut()
+        .set_descendants(identity.process(), Vec::new());
+    let stopped = lifecycle
+        .reconcile(lease().proof(), AuthorityEpoch::new(1), OperationId::new(2))
+        .map_err(|error| error.to_string())?;
+    assert_eq!(stopped.state(), LifecycleState::Stopped);
+    assert_eq!(stopped.operation_state(), LifecycleOperationState::Stopped);
     Ok(())
 }

@@ -1,14 +1,12 @@
 // SPDX-License-Identifier: MIT
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
 use crate::identity::{AuthorityEpoch, InstanceId, Lease, LeaseProof, OperationId};
 use crate::process_profile::ApprovedLaunchProfiles;
-use crate::process_store::{
-    LifecycleOperation, LifecycleOperationState, LifecycleRecordKey, LifecycleRecordStore,
-};
+use crate::process_store::{LifecycleOperation, LifecycleRecordKey, LifecycleRecordStore};
 use crate::{
-    Clock, LeaseDecisionPort, LifecycleError, LifecycleRequest, LifecycleResponse, ProcessIdentity,
+    Clock, LeaseDecisionPort, LifecycleError, LifecycleRequest, LifecycleResponse,
     ProcessLifecycleConfig, ProcessPort,
 };
 
@@ -23,7 +21,11 @@ pub struct ProcessLifecycle<C, P, S, F> {
     pub(crate) leases: BTreeMap<InstanceId, Lease>,
     pub(crate) authority: BTreeMap<InstanceId, AuthorityEpoch>,
     pub(crate) records: BTreeMap<LifecycleRecordKey, LifecycleOperation>,
-    pub(crate) owned: BTreeMap<InstanceId, ProcessIdentity>,
+    pub(crate) ownership: BTreeMap<InstanceId, crate::LifecycleOwnership>,
+    /// Compatibility mirror for callers that inspect the currently known
+    /// identity. The durable `ownership` map is authoritative.
+    pub(crate) owned: BTreeMap<InstanceId, crate::ProcessIdentity>,
+    pub(crate) next_sequence: u64,
 }
 
 impl<C, P, S, F> ProcessLifecycle<C, P, S, F>
@@ -41,7 +43,7 @@ where
         store: S,
         fence: F,
     ) -> Result<Self, LifecycleError> {
-        if config.max_processes() == 0 {
+        if config.max_processes() == 0 || config.max_records() == 0 {
             return Err(LifecycleError::CapacityExceeded);
         }
         if profiles.capacity() == 0 {
@@ -49,9 +51,14 @@ where
                 crate::LaunchProfileError::CapacityExceeded,
             ));
         }
+        if store.count()? > config.max_records() {
+            return Err(LifecycleError::CapacityExceeded);
+        }
         let persisted = store.list()?;
+        let persisted_ownership = store.list_ownership()?;
         let mut records = BTreeMap::new();
         let mut authority = BTreeMap::new();
+        let mut next_sequence = 0;
         for operation in persisted {
             let key = LifecycleRecordKey::new(operation.instance_id(), operation.operation_id());
             authority
@@ -62,28 +69,10 @@ where
                     }
                 })
                 .or_insert(operation.authority_epoch());
+            next_sequence = next_sequence.max(operation.sequence());
             records.insert(key, operation);
         }
-        let mut latest = BTreeMap::new();
-        for operation in records.values() {
-            latest
-                .entry(operation.instance_id())
-                .and_modify(|current: &mut LifecycleOperation| {
-                    if operation.operation_id() > current.operation_id() {
-                        *current = operation.clone();
-                    }
-                })
-                .or_insert_with(|| operation.clone());
-        }
-        let mut owned = BTreeMap::new();
-        for operation in latest.values() {
-            if operation.state().is_active()
-                && let Some(identity) = operation.process()
-            {
-                owned.insert(operation.instance_id(), identity.clone());
-            }
-        }
-        Ok(Self {
+        let mut lifecycle = Self {
             config,
             profiles,
             clock,
@@ -93,8 +82,15 @@ where
             leases: BTreeMap::new(),
             authority,
             records,
-            owned,
-        })
+            ownership: persisted_ownership
+                .into_iter()
+                .map(|owner| (owner.instance_id(), owner))
+                .collect(),
+            owned: BTreeMap::new(),
+            next_sequence,
+        };
+        lifecycle.bootstrap_ownership()?;
+        Ok(lifecycle)
     }
 
     pub fn bind_lease(&mut self, lease: Lease) -> Result<(), LifecycleError> {
@@ -194,6 +190,9 @@ where
         operation: LifecycleOperation,
     ) -> Result<(), LifecycleError> {
         let key = LifecycleRecordKey::new(operation.instance_id(), operation.operation_id());
+        if !self.records.contains_key(&key) && self.records.len() >= self.config.max_records() {
+            return Err(LifecycleError::CapacityExceeded);
+        }
         self.store.insert(operation.clone())?;
         self.records.insert(key, operation);
         Ok(())
@@ -217,81 +216,8 @@ where
         self.operation(instance_id, operation_id).cloned()
     }
 
-    pub(crate) fn latest_authorized(&self, instance_id: InstanceId) -> Option<LifecycleOperation> {
-        self.latest_authorized_excluding(instance_id, None)
-    }
-
-    pub(crate) fn latest_authorized_excluding(
-        &self,
-        instance_id: InstanceId,
-        excluded_operation: Option<OperationId>,
-    ) -> Option<LifecycleOperation> {
-        self.records
-            .values()
-            .filter(|operation| {
-                operation.instance_id() == instance_id
-                    && Some(operation.operation_id()) != excluded_operation
-                    && self
-                        .leases
-                        .get(&instance_id)
-                        .is_some_and(|lease| lease.proof() == operation.lease())
-            })
-            .max_by_key(|operation| operation.operation_id())
-            .and_then(|operation| {
-                (operation.process().is_some()
-                    && matches!(
-                        operation.state(),
-                        LifecycleOperationState::Started
-                            | LifecycleOperationState::Attached
-                            | LifecycleOperationState::Stopping
-                            | LifecycleOperationState::Restarting
-                            | LifecycleOperationState::Unknown
-                            | LifecycleOperationState::Blocked
-                    ))
-                .then(|| operation.clone())
-            })
-    }
-
-    pub(crate) fn active_operation(&self, instance_id: InstanceId) -> Option<LifecycleOperation> {
-        self.records
-            .values()
-            .filter(|operation| operation.instance_id() == instance_id)
-            .max_by_key(|operation| operation.operation_id())
-            .filter(|operation| operation.state().is_active())
-            .cloned()
-    }
-
     pub(crate) fn set_authority_epoch(&mut self, instance_id: InstanceId, epoch: AuthorityEpoch) {
         self.authority.insert(instance_id, epoch);
-    }
-
-    pub(crate) fn set_owned(&mut self, instance_id: InstanceId, identity: ProcessIdentity) {
-        self.owned.insert(instance_id, identity);
-    }
-
-    pub(crate) fn clear_owned(&mut self, instance_id: InstanceId) {
-        self.owned.remove(&instance_id);
-    }
-
-    pub(crate) fn occupied_count(&self) -> usize {
-        let mut instances = BTreeSet::new();
-        instances.extend(self.owned.keys().copied());
-        for instance_id in self
-            .records
-            .values()
-            .map(|operation| operation.instance_id())
-        {
-            if let Some(operation) = self
-                .records
-                .values()
-                .filter(|operation| operation.instance_id() == instance_id)
-                .max_by_key(|operation| operation.operation_id())
-                && operation.state().is_active()
-            {
-                instances.insert(instance_id);
-            }
-        }
-        instances.len()
     }
 
     pub(crate) fn config(&self) -> ProcessLifecycleConfig {

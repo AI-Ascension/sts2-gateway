@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: MIT
 
-use crate::process_store::{LifecycleAction, LifecycleFailure, LifecycleOperation};
+use crate::process_store::{
+    LifecycleAction, LifecycleFailure, LifecycleOperation, LifecycleOperationState,
+};
 use crate::{
-    LaunchProfile, LifecycleError, ProcessFault, ProcessIdentity, ProcessPort, ProcessState,
+    LaunchProfile, LaunchProfileId, LifecycleError, ProcessFault, ProcessIdentity, ProcessPort,
+    ProcessState,
 };
 
 use super::ProcessLifecycle;
@@ -66,6 +69,31 @@ where
         self.verify_descendants(expected, profile)
     }
 
+    /// Confirms that a previously owned handle is no longer running and has no
+    /// remaining descendants. An inspection error is deliberately not treated
+    /// as proof of absence: the adapter may be temporarily unable to observe
+    /// a still-running process.
+    pub(crate) fn confirm_exited_without_descendants(
+        &mut self,
+        expected: &ProcessIdentity,
+    ) -> bool {
+        let Ok(actual) = self.process.inspect_identity(expected.process()) else {
+            return false;
+        };
+        if actual != *expected {
+            return false;
+        }
+        if !matches!(
+            self.process.inspect(expected.process()),
+            Ok(ProcessState::Exited { .. })
+        ) {
+            return false;
+        }
+        self.process
+            .descendants(expected.process())
+            .is_ok_and(|descendants| descendants.is_empty())
+    }
+
     fn verify_descendants(
         &mut self,
         expected: &ProcessIdentity,
@@ -91,6 +119,9 @@ where
         &self,
         operation: &LifecycleOperation,
     ) -> Result<LaunchProfile, LifecycleError> {
+        if let Some(owner) = self.ownership.get(&operation.instance_id()) {
+            return Ok(self.profiles.resolve(owner.profile_id())?);
+        }
         match operation.action() {
             LifecycleAction::LaunchNew { profile_id } | LifecycleAction::Restart { profile_id } => {
                 Ok(self.profiles.resolve(*profile_id)?)
@@ -112,6 +143,44 @@ where
                     LifecycleAction::AttachExisting { .. } | LifecycleAction::Stop { .. } => None,
                 })
                 .ok_or(LifecycleError::InstanceNotFound),
+        }
+    }
+
+    pub(crate) fn profile_id_for_record(
+        &self,
+        operation: &LifecycleOperation,
+    ) -> Option<LaunchProfileId> {
+        match operation.action() {
+            LifecycleAction::LaunchNew { profile_id } | LifecycleAction::Restart { profile_id } => {
+                Some(*profile_id)
+            }
+            LifecycleAction::AttachExisting { .. } | LifecycleAction::Stop { .. } => {
+                operation.process().and_then(|identity| {
+                    self.records
+                        .values()
+                        .filter(|candidate| {
+                            candidate.instance_id() == operation.instance_id()
+                                && candidate.process() == Some(identity)
+                                && candidate.state() != LifecycleOperationState::Rejected
+                                && matches!(
+                                    candidate.action(),
+                                    LifecycleAction::LaunchNew { .. }
+                                        | LifecycleAction::Restart { .. }
+                                )
+                        })
+                        .max_by_key(|candidate| {
+                            (
+                                candidate.sequence(),
+                                candidate.operation_id().value(),
+                            )
+                        })
+                        .and_then(|candidate| match candidate.action() {
+                            LifecycleAction::LaunchNew { profile_id }
+                            | LifecycleAction::Restart { profile_id } => Some(*profile_id),
+                            _ => None,
+                        })
+                })
+            }
         }
     }
 }

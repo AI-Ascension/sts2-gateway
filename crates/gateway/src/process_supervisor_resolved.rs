@@ -8,6 +8,47 @@ use crate::{
 use super::{ProcessSupervisor, ProcessSupervisorError};
 
 impl<P: ProcessPort> ProcessSupervisor<P> {
+    /// Retains a launched identity while cleanup is unresolved. A launch
+    /// identity is the only handle the supervisor has after an identity or
+    /// descendant check fails, so dropping it would make a later cleanup
+    /// impossible and could permit a duplicate process.
+    fn retain_identity(&mut self, instance_id: InstanceId, identity: ProcessIdentity) {
+        self.identities.insert(instance_id, identity.clone());
+        self.owned.insert(instance_id, identity.process());
+    }
+
+    /// Cleans up a launch whose returned identity was not authorized. Cleanup
+    /// failures and surviving descendants retain the handle as owned; only an
+    /// observed, child-free stop releases the reservation.
+    fn reject_launched_identity(
+        &mut self,
+        instance_id: InstanceId,
+        identity: ProcessIdentity,
+    ) -> ProcessSupervisorError {
+        let process = identity.process();
+        match self.process.stop(process, StopMode::Force) {
+            Err(fault) => {
+                self.retain_identity(instance_id, identity);
+                ProcessSupervisorError::Process(fault)
+            }
+            Ok(()) => match self.process.descendants(process) {
+                Err(fault) => {
+                    self.retain_identity(instance_id, identity);
+                    ProcessSupervisorError::Process(fault)
+                }
+                Ok(descendants) if !descendants.is_empty() => {
+                    self.retain_identity(instance_id, identity);
+                    ProcessSupervisorError::ForeignDescendant
+                }
+                Ok(_) => {
+                    self.identities.remove(&instance_id);
+                    self.owned.remove(&instance_id);
+                    ProcessSupervisorError::IdentityMismatch
+                }
+            },
+        }
+    }
+
     pub fn start_resolved(
         &mut self,
         specification: LaunchSpec,
@@ -30,14 +71,10 @@ impl<P: ProcessPort> ProcessSupervisor<P> {
             .start_with_profile(specification, profile)
             .map_err(ProcessSupervisorError::Process)?;
         if !launch.identity().matches_profile(instance_id, profile) {
-            let _ = self
-                .process
-                .stop(launch.identity().process(), StopMode::Force);
-            return Err(ProcessSupervisorError::IdentityMismatch);
+            let identity = launch.identity().clone();
+            return Err(self.reject_launched_identity(instance_id, identity));
         }
-        self.identities
-            .insert(instance_id, launch.identity().clone());
-        self.owned.insert(instance_id, launch.identity().process());
+        self.retain_identity(instance_id, launch.identity().clone());
         Ok(launch.identity().clone())
     }
 
@@ -164,14 +201,11 @@ impl<P: ProcessPort> ProcessSupervisor<P> {
             .start_with_profile(specification, profile)
             .map_err(ProcessSupervisorError::Process)?;
         if !launch.identity().matches_profile(instance_id, profile) {
-            let _ = self
-                .process
-                .stop(launch.identity().process(), StopMode::Force);
-            return Err(ProcessSupervisorError::IdentityMismatch);
+            let identity = launch.identity().clone();
+            return Err(self.reject_launched_identity(instance_id, identity));
         }
         let identity = launch.identity().clone();
-        self.identities.insert(instance_id, identity.clone());
-        self.owned.insert(instance_id, identity.process());
+        self.retain_identity(instance_id, identity.clone());
         Ok(identity)
     }
 }

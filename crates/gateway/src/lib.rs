@@ -19,6 +19,8 @@ mod process_lifecycle_actions;
 mod process_lifecycle_failures;
 #[path = "process_lifecycle_operations.rs"]
 mod process_lifecycle_operations;
+#[path = "process_lifecycle_ownership.rs"]
+mod process_lifecycle_ownership;
 #[path = "process_lifecycle_recovery.rs"]
 mod process_lifecycle_recovery;
 #[path = "process_lifecycle_recovery_actions.rs"]
@@ -26,6 +28,7 @@ mod process_lifecycle_recovery_actions;
 mod process_lifecycle_types;
 #[path = "process_lifecycle_verification.rs"]
 mod process_lifecycle_verification;
+mod process_ownership;
 mod process_profile;
 mod process_store;
 mod process_supervisor;
@@ -65,6 +68,7 @@ pub use process_lifecycle::ProcessLifecycle;
 pub use process_lifecycle_types::{
     LifecycleError, LifecycleRequest, LifecycleResponse, ProcessLifecycleConfig,
 };
+pub use process_ownership::LifecycleOwnership;
 pub use process_profile::{
     ApprovedLaunchProfiles, ExecutableIdentity, LaunchProfile, LaunchProfileError, LaunchProfileId,
     MAX_PROFILE_DESCENDANTS, MAX_START_TIMEOUT_MILLIS, MAX_STOP_TIMEOUT_MILLIS, ProcessPolicy,

@@ -85,6 +85,11 @@ where
             }
             return Err(error);
         }
+        let profile_id = match operation.action() {
+            crate::LifecycleAction::Restart { profile_id } => *profile_id,
+            _ => return Err(LifecycleError::IdentityMismatch),
+        };
+        self.reserve_ownership(&operation, profile_id)?;
         Ok(operation)
     }
 
@@ -122,9 +127,11 @@ where
         if !descendants.is_empty() {
             return self.block_cleanup(operation, LifecycleFailure::ForeignDescendant);
         }
-        self.clear_owned(operation.instance_id());
         operation.set_state(LifecycleOperationState::Restarting, None, None);
         self.persist_update(operation.clone())?;
+        // Keep a durable identity-less reservation for the replacement until
+        // recovery or a successful start establishes its exact ownership.
+        self.reserve_ownership(&operation, profile.id())?;
         let specification = crate::LaunchSpec::for_profile(operation.instance_id(), profile.id());
         let launch = match self.process.start_with_profile(specification, profile) {
             Ok(launch) => launch,

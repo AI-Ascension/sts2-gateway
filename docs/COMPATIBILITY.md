@@ -82,16 +82,20 @@ identity in workflow state rejects restoration with `PersistedStateMismatch`, an
 receipt retention rejects reconciliation before any receipt read. No Runtime-v2 artifact, MCP route,
 protocol/mod file, or attached executable restart guarantee changes.
 
-Issue #50 adds another additive gateway-local surface. `ApprovedLaunchProfiles` admits only opaque
-profile IDs and resolves exact executable/install/image identity, isolated user-data namespace, and
-bounded process policy. `ProcessLifecycle` authenticates lease and authority epochs, persists
-operation intent before calling `ProcessPort`, and retains duplicate/lost-response outcomes for
-reconciliation. Attach requires an identity from an earlier gateway record; stop/restart verify
-process birth/image/instance identity and descendant scope. Launch acknowledges `Starting`, not
-gameplay readiness. Existing `ProcessPort`/`ProcessSupervisor` callers remain source-compatible;
-profile-aware callers must adopt the new identity-bearing methods. This is a **minor** additive
-source/component change with deterministic synthetic evidence. Native launch, host readiness,
-harness workflow mapping, and disposable-process acceptance remain `unverified`.
+Issue #50 adds another gateway-local lifecycle surface. `ApprovedLaunchProfiles` admits only
+opaque profile IDs and resolves exact executable/install/image identity, isolated user-data
+namespace, and bounded process policy. `ProcessLifecycle` authenticates lease and authority
+epochs, persists operation intent before calling `ProcessPort`, and retains duplicate/lost-response
+outcomes for reconciliation. Attach requires an identity from an earlier gateway record;
+stop/restart verify process birth/image/instance identity and descendant scope. Launch acknowledges
+`Starting`, not gameplay readiness. Existing constructors and methods remain available, but the
+new identity-bearing profile path rejects legacy ports before starting a process. In addition,
+the public lifecycle and fault enums gained variants; Rust callers with exhaustive `match`
+expressions must add arms (wildcard or non-exhaustive matches remain source-compatible). Treat
+this as an additive source/component change for wildcard-matching consumers and a source-breaking
+migration for exhaustive enum consumers, rather than a blanket minor compatibility claim.
+Native launch, host readiness, harness workflow mapping, and disposable-process acceptance remain
+`unverified`.
 
 - **Patch:** correction that preserves accepted identity, route, lease, error, and timing behavior.
 - **Minor:** additive bounded field or operation with an older-client behavior defined.

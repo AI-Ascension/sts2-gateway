@@ -61,12 +61,32 @@ impl<P> ApprovedLaunchProfileAdapter<P> {
         P: ProcessPort,
     {
         let launch = self.process.start_with_profile(specification, profile)?;
-        if launch
+        if !launch
             .identity()
             .matches_profile(specification.instance_id(), profile)
         {
-            self.bindings.insert(launch.identity().process(), profile);
+            // Keep the handle bound while cleanup is unresolved. Returning
+            // only `ProcessFault` cannot transfer the launch to the caller,
+            // so the adapter must retain enough local ownership to retry a
+            // failed stop instead of silently abandoning the process.
+            let identity = launch.identity().clone();
+            let process = identity.process();
+            self.bindings.insert(process, profile);
+            return match self.process.stop(process, StopMode::Force) {
+                Err(fault) => Err(fault),
+                Ok(()) => match self.process.descendants(process) {
+                    Err(fault) => Err(fault),
+                    Ok(descendants) if !descendants.is_empty() => {
+                        Err(ProcessFault::DescendantOutOfScope)
+                    }
+                    Ok(_) => {
+                        self.bindings.remove(&process);
+                        Err(ProcessFault::IdentityMismatch)
+                    }
+                },
+            };
         }
+        self.bindings.insert(launch.identity().process(), profile);
         Ok(launch)
     }
 

@@ -134,6 +134,8 @@ struct ResolvedProcessPort {
     next: u64,
     states: BTreeMap<ProcessHandle, ProcessState>,
     identities: BTreeMap<ProcessHandle, ProcessIdentity>,
+    wrong_image: bool,
+    fail_stop: bool,
 }
 
 impl ProcessPort for ResolvedProcessPort {
@@ -148,12 +150,17 @@ impl ProcessPort for ResolvedProcessPort {
     ) -> Result<ProcessLaunch, ProcessFault> {
         self.next = self.next.saturating_add(1);
         let process = ProcessHandle::new(self.next);
+        let executable = if self.wrong_image {
+            ExecutableIdentity::new(91, 92, 93)
+        } else {
+            profile.executable()
+        };
         let identity = ProcessIdentity::new(
             specification.instance_id(),
             process,
             process.value().saturating_add(10),
             process.value().saturating_add(20),
-            profile.executable(),
+            executable,
             profile.user_data(),
         );
         self.states.insert(process, ProcessState::Running);
@@ -186,6 +193,9 @@ impl ProcessPort for ResolvedProcessPort {
     }
 
     fn stop(&mut self, process: ProcessHandle, _mode: StopMode) -> Result<(), ProcessFault> {
+        if self.fail_stop {
+            return Err(ProcessFault::StopFailed);
+        }
         self.states
             .insert(process, ProcessState::Exited { code: None });
         Ok(())
@@ -218,5 +228,47 @@ fn resolved_supervisor_restarts_only_the_verified_profile_identity() -> Result<(
         supervisor.process_handle(instance),
         Some(replacement.process())
     );
+    Ok(())
+}
+
+#[test]
+fn legacy_profile_launch_rejects_before_start() -> Result<(), String> {
+    let instance = InstanceId::new(10);
+    let profile = resolved_profile()?;
+    let config = ProcessSupervisorConfig::try_new(1).map_err(|error| format!("{error:?}"))?;
+    let mut supervisor = ProcessSupervisor::new(config, FakeProcessPort::default());
+    assert_eq!(
+        supervisor.start_resolved(LaunchSpec::for_profile(instance, profile.id()), profile),
+        Err(ProcessSupervisorError::Process(
+            ProcessFault::ProfileRequired
+        ))
+    );
+    assert_eq!(supervisor.process_handle(instance), None);
+    assert_eq!(supervisor.owned_count(), 0);
+    Ok(())
+}
+
+#[test]
+fn resolved_supervisor_retains_a_mismatched_launch_when_cleanup_fails() -> Result<(), String> {
+    let instance = InstanceId::new(11);
+    let profile = resolved_profile()?;
+    let config = ProcessSupervisorConfig::try_new(1).map_err(|error| format!("{error:?}"))?;
+    let mut supervisor = ProcessSupervisor::new(
+        config,
+        ResolvedProcessPort {
+            wrong_image: true,
+            fail_stop: true,
+            ..ResolvedProcessPort::default()
+        },
+    );
+    assert_eq!(
+        supervisor.start_resolved(LaunchSpec::for_profile(instance, profile.id()), profile),
+        Err(ProcessSupervisorError::Process(ProcessFault::StopFailed))
+    );
+    assert_eq!(
+        supervisor.process_handle(instance),
+        Some(ProcessHandle::new(1))
+    );
+    assert!(supervisor.is_owned(instance));
     Ok(())
 }

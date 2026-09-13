@@ -13,22 +13,56 @@ use std::fmt;
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct ProcessLifecycleConfig {
     max_processes: usize,
+    #[serde(default = "default_max_records")]
+    max_records: usize,
+}
+
+const fn default_max_records() -> usize {
+    ProcessLifecycleConfig::DEFAULT_MAX_RECORDS
 }
 
 impl ProcessLifecycleConfig {
+    /// Default retained-operation budget used by the one-argument
+    /// constructor. Records are never silently evicted because eviction would
+    /// break idempotent replay.
+    pub const DEFAULT_MAX_RECORDS: usize = 1_024;
+
     pub const fn new(max_processes: usize) -> Self {
-        Self { max_processes }
+        Self {
+            max_processes,
+            max_records: Self::DEFAULT_MAX_RECORDS,
+        }
+    }
+
+    /// Creates a configuration with an explicit durable operation-record
+    /// budget. Exhaustion rejects new operations before process effects.
+    pub const fn new_with_record_budget(max_processes: usize, max_records: usize) -> Self {
+        Self {
+            max_processes,
+            max_records,
+        }
     }
 
     pub const fn try_new(max_processes: usize) -> Result<Self, LifecycleError> {
-        if max_processes == 0 {
+        Self::try_new_with_record_budget(max_processes, Self::DEFAULT_MAX_RECORDS)
+    }
+
+    pub const fn try_new_with_record_budget(
+        max_processes: usize,
+        max_records: usize,
+    ) -> Result<Self, LifecycleError> {
+        if max_processes == 0 || max_records == 0 {
             return Err(LifecycleError::CapacityExceeded);
         }
-        Ok(Self::new(max_processes))
+        Ok(Self::new_with_record_budget(max_processes, max_records))
     }
 
     pub const fn max_processes(self) -> usize {
         self.max_processes
+    }
+
+    pub const fn max_records(self) -> usize {
+        self.max_records
     }
 }
 

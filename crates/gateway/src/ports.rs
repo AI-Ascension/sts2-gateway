@@ -92,21 +92,16 @@ pub trait ProcessPort {
 
     /// Starts with a server-resolved profile and transfers an identity-bearing launch.
     ///
-    /// The default keeps legacy ports source-compatible while ensuring an identity inspection
-    /// failure does not transfer the newly created handle.
+    /// A legacy port cannot prove the exact identity or cleanup a partially transferred launch
+    /// through this result type. Its default therefore rejects the profile-aware path before
+    /// invoking `start`; adapters that can establish and clean up an identity-bearing launch
+    /// must override this method.
     fn start_with_profile(
         &mut self,
-        specification: LaunchSpec,
+        _specification: LaunchSpec,
         _profile: LaunchProfile,
     ) -> Result<ProcessLaunch, ProcessFault> {
-        let process = self.start(specification)?;
-        match self.inspect_identity(process) {
-            Ok(identity) => Ok(ProcessLaunch::new(identity)),
-            Err(fault) => {
-                let _ = self.stop(process, StopMode::Force);
-                Err(fault)
-            }
-        }
+        Err(ProcessFault::ProfileRequired)
     }
 
     /// Returns the exact identity currently associated with a handle.

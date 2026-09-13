@@ -48,14 +48,17 @@ the record and blocks replacement allocation.
 
 ## Compatibility and rejection/cancellation behavior
 
-This is an additive gateway-local source/component contract. Existing `ProcessPort::start`,
-`inspect`, `stop`, `ProcessSupervisor`, gateway routes, MCP framing, harness code, and protocol
-artifact bytes remain source-compatible. Profile-aware callers must use an approved profile and
-identity-bearing port implementation; legacy ports receive a non-matching identity and are
-rejected by the lifecycle coordinator. Unknown or duplicate profile IDs, malformed profile
-bounds, wrong image/install/user-data identity, foreign PID/birth identity, unowned attach,
-stale lease/authority epoch, capacity exhaustion, stop timeout/failure, and foreign descendants
-have typed fail-closed outcomes.
+This is an additive gateway-local source/component contract at the route and trait-method
+boundary. Existing `ProcessPort::start`, `inspect`, `stop`, `ProcessSupervisor`, gateway routes,
+MCP framing, harness code, and protocol artifact bytes remain available. The default
+identity-bearing profile method rejects legacy ports before invoking `start`; profile-aware
+callers must provide an implementation that proves launch identity and cleanup. Public lifecycle
+and fault enums also gained variants, so Rust consumers with exhaustive `match` expressions need
+new arms (wildcard or non-exhaustive matches remain source-compatible). Consequently this is
+minor/additive for wildcard-matching consumers but source-breaking for exhaustive enum consumers.
+Unknown or duplicate profile IDs, malformed profile bounds, wrong image/install/user-data
+identity, foreign PID/birth identity, unowned attach, stale lease/authority epoch, capacity
+exhaustion, stop timeout/failure, and foreign descendants have typed fail-closed outcomes.
 
 Caller timeout or disconnect does not cancel an accepted process mutation. The durable operation
 record is the reconciliation handle. Reconciliation is read/inspect-only until the adapter proves

@@ -26,24 +26,45 @@ where
         };
         let profile = self.profile_for_operation(&operation)?;
         if let Err(failure) = self.verify_started_identity(&identity, profile) {
-            let state = if matches!(
+            let inspection_failure = matches!(
                 failure,
                 LifecycleFailure::Process(ProcessFault::InspectionFailed)
-            ) {
-                self.clear_owned(operation.instance_id());
+            );
+            let confirmed_cleanup =
+                inspection_failure && self.confirm_exited_without_descendants(&identity);
+            let state = if confirmed_cleanup {
                 LifecycleOperationState::Failed
+            } else if inspection_failure {
+                // An inspection fault is not proof that the process disappeared.
+                // Keep the identity and capacity reservation until a later
+                // reconciliation can establish an exited, child-free process.
+                LifecycleOperationState::Unknown
             } else {
                 LifecycleOperationState::Blocked
             };
             let mut failed = operation;
-            failed.set_state(state, Some(identity), Some(failure));
+            failed.set_state(state, Some(identity.clone()), Some(failure));
             self.persist_update(failed.clone())?;
+            if confirmed_cleanup {
+                self.clear_owned(failed.instance_id())?;
+            } else if !matches!(failure, LifecycleFailure::IdentityMismatch) {
+                self.set_owner_process(failed.instance_id(), Some(identity))?;
+            }
             return Err(crate::process_lifecycle_failures::failure_error(failure));
         }
-        self.set_owned(operation.instance_id(), identity);
+        let mut recovered = operation;
+        if recovered.state() == LifecycleOperationState::Unknown {
+            let state = match recovered.action() {
+                LifecycleAction::AttachExisting { .. } => LifecycleOperationState::Attached,
+                _ => LifecycleOperationState::Started,
+            };
+            recovered.set_state(state, Some(identity.clone()), None);
+            self.persist_update(recovered.clone())?;
+        }
+        self.set_owned(&recovered, profile.id(), identity)?;
         Ok(LifecycleResponse::new(
-            &operation,
-            operation.state().lifecycle_state(),
+            &recovered,
+            recovered.state().lifecycle_state(),
         ))
     }
 
@@ -79,16 +100,7 @@ where
                         ))
                     }
                 }
-                LifecycleAction::Restart { .. } => {
-                    if operation.process().is_some() {
-                        self.reconcile_restart(operation)
-                    } else {
-                        Ok(LifecycleResponse::new(
-                            &operation,
-                            crate::LifecycleState::Unknown,
-                        ))
-                    }
-                }
+                LifecycleAction::Restart { .. } => self.reconcile_restart(operation),
             },
             LifecycleOperationState::Started | LifecycleOperationState::Attached => {
                 self.verify_record(operation)
@@ -123,11 +135,21 @@ where
         operation: LifecycleOperation,
     ) -> Result<LifecycleResponse, LifecycleError> {
         let profile = self.profile_for_operation(&operation)?;
+        if operation.process().is_some() {
+            return self.verify_record(operation);
+        }
+        let previous_process = operation.process().cloned();
         let recovered = self.process.recover_owned(operation.instance_id(), profile);
         let identity = match recovered {
             Ok(Some(identity)) => identity,
-            Ok(None) => return self.unknown(operation, None, None),
-            Err(fault) => return self.process_failure(operation, fault),
+            Ok(None) => return self.unknown(operation, previous_process, None),
+            Err(fault) => {
+                return self.unknown(
+                    operation,
+                    previous_process,
+                    Some(LifecycleFailure::Process(fault)),
+                );
+            }
         };
         let launch = ProcessLaunch::new(identity);
         self.finish_recovered(operation, launch, profile)
@@ -149,7 +171,7 @@ where
                 // explicit recovery observation, starting another process
                 // would be a blind mutation and could duplicate the instance.
                 Ok(None) => self.unknown(operation, None, None),
-                Err(fault) => self.process_failure(operation, fault),
+                Err(fault) => self.unknown(operation, None, Some(LifecycleFailure::Process(fault))),
             };
         }
         self.finish_restart(operation, profile)
@@ -163,9 +185,19 @@ where
     ) -> Result<LifecycleResponse, LifecycleError> {
         let identity = launch.identity().clone();
         if !identity.matches_profile(operation.instance_id(), profile) {
+            operation.set_state(
+                LifecycleOperationState::Starting,
+                Some(identity),
+                Some(LifecycleFailure::IdentityMismatch),
+            );
             return self.block_cleanup(operation, LifecycleFailure::IdentityMismatch);
         }
         if let Err(failure) = self.verify_started_identity(&identity, profile) {
+            operation.set_state(
+                LifecycleOperationState::Starting,
+                Some(identity),
+                Some(failure),
+            );
             return self.block_cleanup(operation, failure);
         }
         operation.set_state(
@@ -174,7 +206,7 @@ where
             None,
         );
         self.persist_update(operation.clone())?;
-        self.set_owned(operation.instance_id(), identity);
+        self.set_owned(&operation, profile.id(), identity)?;
         Ok(LifecycleResponse::new(
             &operation,
             crate::LifecycleState::Starting,
@@ -237,7 +269,7 @@ where
                 }
                 operation.set_state(LifecycleOperationState::Stopped, None, None);
                 self.persist_update(operation.clone())?;
-                self.clear_owned(operation.instance_id());
+                self.clear_owned(operation.instance_id())?;
                 Ok(LifecycleResponse::new(
                     &operation,
                     crate::LifecycleState::Stopped,

@@ -11,7 +11,9 @@ host compatibility and release publication.
   durable intent/replay, and explicit `Blocked`/`Unknown` cleanup outcomes are covered by
   deterministic process-port fixtures and an SQLite record seam. This is source/component
   evidence only: native process launch, host readiness, harness workflow mapping, and deployment
-  compatibility remain unverified behind the `sts2-harness` prerequisites.
+  compatibility remain unverified behind the `sts2-harness` prerequisites. Legacy ports reject
+  the profile-aware launch path before starting; consumers with exhaustive matches over the
+  expanded public lifecycle/fault enums must add arms.
 
 - Add an authorized, bounded public checkpoint-reference read route with closed response
   validation and explicit unavailable results when no producer exists. Native capture remains

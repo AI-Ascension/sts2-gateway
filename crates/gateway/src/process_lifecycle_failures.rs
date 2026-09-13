@@ -19,6 +19,7 @@ where
     ) -> Result<LifecycleResponse, LifecycleError> {
         if operation.process().is_none() {
             let error = LifecycleError::Process(fault);
+            let instance_id = operation.instance_id();
             let mut failed = operation;
             failed.set_state(
                 LifecycleOperationState::Failed,
@@ -26,6 +27,7 @@ where
                 Some(LifecycleFailure::Process(fault)),
             );
             self.persist_update(failed)?;
+            self.clear_owned(instance_id)?;
             return Err(error);
         }
         self.block_operation_with_process(operation, fault)
@@ -65,8 +67,16 @@ where
             LifecycleOperationState::Rejected
         };
         let process = operation.process().cloned();
+        let clear_owner = matches!(state, LifecycleOperationState::Rejected)
+            && self
+                .ownership
+                .get(&operation.instance_id())
+                .is_some_and(|owner| owner.operation_id() == operation.operation_id());
         operation.set_state(state, process, Some(failure));
-        self.persist_update(operation)?;
+        self.persist_update(operation.clone())?;
+        if clear_owner {
+            self.clear_owned(operation.instance_id())?;
+        }
         Err(error)
     }
 
@@ -78,6 +88,10 @@ where
         let error = failure_error(failure);
         let process = operation.process().cloned();
         operation.set_state(LifecycleOperationState::Blocked, process, Some(failure));
+        // Preserve an identity-bearing cleanup obligation even if durable
+        // persistence is temporarily unavailable. Capacity must remain held
+        // until a later reconciliation can prove the tree is gone.
+        self.set_owner_process(operation.instance_id(), operation.process().cloned())?;
         self.persist_update(operation)?;
         Err(error)
     }

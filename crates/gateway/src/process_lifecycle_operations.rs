@@ -33,14 +33,19 @@ where
         let action = request.action().clone();
         self.validate_action(request.instance_id(), &action)?;
         self.reserve_action(request.instance_id(), &action)?;
-        let operation = LifecycleOperation::new(
+        let sequence = self.issue_sequence()?;
+        let mut operation = LifecycleOperation::new(
             request.operation_id(),
             request.instance_id(),
             request.lease(),
             request.authority_epoch(),
             action,
         );
+        operation.set_sequence(sequence);
         self.persist_insert(operation.clone())?;
+        if let LifecycleAction::LaunchNew { profile_id } = operation.action() {
+            self.reserve_ownership(&operation, *profile_id)?;
+        }
         self.execute(operation)
     }
 
@@ -90,7 +95,9 @@ where
     ) -> Result<(), LifecycleError> {
         match action {
             LifecycleAction::LaunchNew { .. } => {
-                if self.active_operation(instance_id).is_some() {
+                if self.ownership.contains_key(&instance_id)
+                    || self.active_operation(instance_id).is_some()
+                {
                     return Err(LifecycleError::InstanceBusy);
                 }
                 if self.occupied_count() >= self.config().max_processes() {
