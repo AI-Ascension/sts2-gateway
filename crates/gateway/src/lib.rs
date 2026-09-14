@@ -131,10 +131,11 @@ pub use save_profile::{
     SaveProfileForwardingPort, SaveProfileId, SaveProfileIdError, SaveProfileLedger,
     SaveProfileLedgerError, SaveProfileOperation, SaveProfileOperationRecord,
     SaveProfileRecordStore, SaveProfileResult, SaveProfileRoute, SaveProfileStatus,
-    SaveProfileTransportFault, UserDataCreateOutcome, UserDataCreateRequest, UserDataDescriptor,
-    UserDataIdentity, UserDataInspection, UserDataPort, UserDataPortError, UserDataProvenance,
-    UserDataProvisioner, UserDataProvisioningError, UserDataProvisioningOutcome,
-    UserDataProvisioningRecord, UserDataProvisioningStatus, UserDataRecordStore,
+    SaveProfileTransportFault, SqliteUserDataRecordStore, UserDataCreateOutcome,
+    UserDataCreateRequest, UserDataDescriptor, UserDataIdentity, UserDataInspection, UserDataPort,
+    UserDataPortError, UserDataProvenance, UserDataProvisioner, UserDataProvisioningError,
+    UserDataProvisioningOutcome, UserDataProvisioningRecord, UserDataProvisioningStatus,
+    UserDataRecordStore,
 };
 pub use seeded_run::{
     SEEDED_RUN_ARTIFACT, SEEDED_RUN_EFFECT_KIND, SEEDED_RUN_GENERATOR, SEEDED_RUN_MAX_ACTS,

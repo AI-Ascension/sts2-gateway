@@ -218,7 +218,7 @@ pub enum LaunchProfileBindingError {
     UserData,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct SaveProfileContext {
     pub instance_id: String,
     pub caller_id: String,
