@@ -5,10 +5,13 @@
 //! The provisioner persists an intent record before it touches the allocation port, so a process
 //! restart must recover the same opaque identity from stable storage rather than an in-memory map.
 //! This adapter mirrors the lifecycle store: each mutation is committed before the caller proceeds,
-//! and only one process may own a given on-disk journal.
+//! and only one coordinator may own a given on-disk journal.
 
-use std::path::Path;
+use std::fs::{File, OpenOptions};
+use std::io::ErrorKind;
+use std::path::{Path, PathBuf};
 
+use fs2::FileExt;
 use rusqlite::{Connection, params};
 
 use super::provisioning_types::{
@@ -18,24 +21,36 @@ use super::provisioning_types::{
 /// SQLite-backed record store for [`UserDataProvisioningRecord`]s.
 pub struct SqliteUserDataRecordStore {
     connection: Connection,
+    /// Held for the lifetime of the store so only one coordinator can allocate against a given
+    /// on-disk journal. The provisioner caches `next_identity` in memory, so two live stores would
+    /// otherwise both reserve the same identity for different operations.
+    _journal_lock: Option<File>,
 }
 
 impl SqliteUserDataRecordStore {
     /// Open (or create) the durable store at `path`.
     pub fn open(path: impl AsRef<Path>) -> Result<Self, UserDataProvisioningError> {
-        let connection = Connection::open(path.as_ref())
-            .map_err(|_| UserDataProvisioningError::PersistenceFailed)?;
-        Self::from_connection(connection)
+        let path = path.as_ref();
+        let connection =
+            Connection::open(path).map_err(|_| UserDataProvisioningError::PersistenceFailed)?;
+        if path == Path::new(":memory:") {
+            return Self::from_connection(connection, None);
+        }
+        let lock = Self::acquire_lock(&Self::lock_path(path))?;
+        Self::from_connection(connection, Some(lock))
     }
 
     /// Open an ephemeral store used by component tests.
     pub fn open_in_memory() -> Result<Self, UserDataProvisioningError> {
         let connection = Connection::open_in_memory()
             .map_err(|_| UserDataProvisioningError::PersistenceFailed)?;
-        Self::from_connection(connection)
+        Self::from_connection(connection, None)
     }
 
-    fn from_connection(connection: Connection) -> Result<Self, UserDataProvisioningError> {
+    fn from_connection(
+        connection: Connection,
+        journal_lock: Option<File>,
+    ) -> Result<Self, UserDataProvisioningError> {
         connection
             .execute_batch(
                 "PRAGMA journal_mode = WAL;
@@ -48,7 +63,36 @@ impl SqliteUserDataRecordStore {
                  );",
             )
             .map_err(|_| UserDataProvisioningError::PersistenceFailed)?;
-        Ok(Self { connection })
+        Ok(Self {
+            connection,
+            _journal_lock: journal_lock,
+        })
+    }
+
+    fn lock_path(path: &Path) -> PathBuf {
+        // `open` has already created an absent database file, so canonicalize now and ensure
+        // aliases (for example a symlink and its target) share one lock file.
+        let canonical = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+        let mut lock_path = canonical.into_os_string();
+        lock_path.push(".save-profile.lock");
+        PathBuf::from(lock_path)
+    }
+
+    fn acquire_lock(path: &Path) -> Result<File, UserDataProvisioningError> {
+        let lock = OpenOptions::new()
+            .create(true)
+            .truncate(false)
+            .read(true)
+            .write(true)
+            .open(path)
+            .map_err(|_| UserDataProvisioningError::PersistenceFailed)?;
+        match lock.try_lock_exclusive() {
+            Ok(()) => Ok(lock),
+            Err(error) if error.kind() == ErrorKind::WouldBlock => {
+                Err(UserDataProvisioningError::OperationConflict)
+            }
+            Err(_) => Err(UserDataProvisioningError::PersistenceFailed),
+        }
     }
 
     fn encode(record: &UserDataProvisioningRecord) -> Result<Vec<u8>, UserDataProvisioningError> {

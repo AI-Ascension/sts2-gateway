@@ -70,7 +70,7 @@ fn temp_database() -> PathBuf {
 }
 
 fn remove_database(path: &Path) {
-    for suffix in ["", "-wal", "-shm"] {
+    for suffix in ["", "-wal", "-shm", ".save-profile.lock"] {
         let candidate = format!("{}{suffix}", path.display());
         let _ = std::fs::remove_file(candidate);
     }
@@ -146,5 +146,21 @@ fn durable_store_refuses_duplicate_and_missing_records() -> Result<(), String> {
     let listed = store.list().map_err(|error| format!("{error:?}"))?;
     assert_eq!(listed.len(), 1);
     assert_eq!(listed[0].operation_id, "op-1");
+    Ok(())
+}
+
+#[test]
+fn durable_store_refuses_a_competing_owner() -> Result<(), String> {
+    let path = temp_database();
+    let first = SqliteUserDataRecordStore::open(&path).map_err(|error| format!("{error:?}"))?;
+    match SqliteUserDataRecordStore::open(&path) {
+        Err(UserDataProvisioningError::OperationConflict) => {}
+        Err(other) => return Err(format!("expected competing-owner refusal, got {other:?}")),
+        Ok(_) => return Err(String::from("competing owner was not refused")),
+    }
+    drop(first);
+    SqliteUserDataRecordStore::open(&path)
+        .map_err(|error| format!("reopen after owner drop failed: {error:?}"))?;
+    remove_database(&path);
     Ok(())
 }
