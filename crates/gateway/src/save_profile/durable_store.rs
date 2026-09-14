@@ -31,6 +31,11 @@ impl SqliteUserDataRecordStore {
     /// Open (or create) the durable store at `path`.
     pub fn open(path: impl AsRef<Path>) -> Result<Self, UserDataProvisioningError> {
         let path = path.as_ref();
+        // An empty path makes SQLite open a transient database, which would silently accept
+        // provisioning intents that do not survive the connection.
+        if path.as_os_str().is_empty() {
+            return Err(UserDataProvisioningError::PersistenceFailed);
+        }
         // `Connection::open` enables SQLite URI handling, so a `file:...` spelling would resolve to
         // the same database while defeating the lock-file derivation below. Reject it so one
         // database has exactly one owner.

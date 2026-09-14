@@ -176,3 +176,13 @@ fn durable_store_rejects_sqlite_uri_aliases() -> Result<(), String> {
     }
     Ok(())
 }
+
+#[test]
+fn durable_store_rejects_an_empty_path() -> Result<(), String> {
+    match SqliteUserDataRecordStore::open("") {
+        Err(UserDataProvisioningError::PersistenceFailed) => {}
+        Err(other) => return Err(format!("expected empty-path rejection, got {other:?}")),
+        Ok(_) => return Err(String::from("empty path was not rejected")),
+    }
+    Ok(())
+}
