@@ -186,3 +186,26 @@ fn durable_store_rejects_an_empty_path() -> Result<(), String> {
     }
     Ok(())
 }
+
+#[test]
+fn durable_store_fences_a_stale_owner_after_lock_replacement() -> Result<(), String> {
+    let path = temp_database();
+    let mut first = SqliteUserDataRecordStore::open(&path).map_err(|error| format!("{error:?}"))?;
+    let canonical = path.canonicalize().unwrap_or_else(|_| path.clone());
+    let lock = format!("{}.save-profile.lock", canonical.display());
+    std::fs::remove_file(&lock).map_err(|error| format!("remove lock: {error}"))?;
+    let mut second =
+        SqliteUserDataRecordStore::open(&path).map_err(|error| format!("{error:?}"))?;
+    match first.insert(record(1, "op-1")?) {
+        Err(UserDataProvisioningError::OperationConflict) => {}
+        Err(other) => return Err(format!("expected stale-owner refusal, got {other:?}")),
+        Ok(_) => return Err(String::from("stale owner was not fenced")),
+    }
+    second
+        .insert(record(1, "op-2")?)
+        .map_err(|error| format!("{error:?}"))?;
+    drop(first);
+    drop(second);
+    remove_database(&path);
+    Ok(())
+}
