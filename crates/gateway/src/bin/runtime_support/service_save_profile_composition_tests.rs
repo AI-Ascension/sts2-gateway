@@ -177,7 +177,12 @@ fn error_code(body: &[u8]) -> Result<String, String> {
 fn unprovisioned_composition_refuses_mutations_before_any_forwarding() -> Result<(), String> {
     let mut service = test_service()?;
     let (listener, address) = closed_listener()?;
-    service.config.mod_address = address;
+    inject(
+        &mut service,
+        &address,
+        None,
+        SaveProfileDependencies::unavailable(),
+    )?;
     let select = mutation_request(
         "/v1/instances/instance-1/save-profile/select",
         "op-select",
