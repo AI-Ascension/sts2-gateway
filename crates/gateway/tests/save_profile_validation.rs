@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 
 use sts2_gateway::{
-    InMemorySaveProfileRecordStore, InMemoryUserDataPort, InMemoryUserDataRecordStore,
-    LAUNCH_PROFILE_ID, SaveProfileAuthority, SaveProfileContext, SaveProfileForwardRequest,
-    SaveProfileForwardingPort, SaveProfileLedger, SaveProfileOperation, SaveProfileRoute,
-    SaveProfileTransportFault,
+    InMemoryLaunchProfileBindingPort, InMemorySaveProfileRecordStore, InMemoryUserDataPort,
+    InMemoryUserDataRecordStore, LAUNCH_PROFILE_ID, SaveProfileAuthority, SaveProfileContext,
+    SaveProfileForwardRequest, SaveProfileForwardingPort, SaveProfileLedger, SaveProfileOperation,
+    SaveProfileRoute, SaveProfileTransportFault,
 };
 
 #[derive(Default)]
@@ -73,6 +73,7 @@ fn operation_ids_cannot_be_used_as_paths() -> Result<(), String> {
         4,
         InMemoryUserDataPort::default(),
         InMemoryUserDataRecordStore::default(),
+        InMemoryLaunchProfileBindingPort::default(),
     )
     .map_err(|error| format!("{error:?}"))?;
     assert_eq!(

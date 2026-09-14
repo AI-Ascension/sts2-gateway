@@ -3,13 +3,13 @@
 use std::collections::VecDeque;
 
 use sts2_gateway::{
-    InMemorySaveProfileRecordStore, InMemoryUserDataPort, InMemoryUserDataRecordStore,
-    LAUNCH_PROFILE_ID, LaunchProfileBinding, ProfileBaseline, SaveProfileAuthority,
-    SaveProfileContext, SaveProfileForwardRequest, SaveProfileForwardResponse,
-    SaveProfileForwardingPort, SaveProfileId, SaveProfileLedger, SaveProfileOperation,
-    SaveProfileRoute, SaveProfileStatus, SaveProfileTransportFault, UserDataDescriptor,
-    UserDataIdentity, UserDataInspection, UserDataProvenance, UserDataProvisioner,
-    UserDataProvisioningStatus,
+    InMemoryLaunchProfileBindingPort, InMemorySaveProfileRecordStore, InMemoryUserDataPort,
+    InMemoryUserDataRecordStore, LAUNCH_PROFILE_ID, LaunchProfileBinding, ProfileBaseline,
+    SaveProfileAuthority, SaveProfileContext, SaveProfileForwardRequest,
+    SaveProfileForwardResponse, SaveProfileForwardingPort, SaveProfileId, SaveProfileLedger,
+    SaveProfileOperation, SaveProfileRoute, SaveProfileStatus, SaveProfileTransportFault,
+    UserDataDescriptor, UserDataIdentity, UserDataInspection, UserDataProvenance,
+    UserDataProvisioner, UserDataProvisioningStatus,
 };
 
 const DIGEST: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
@@ -71,9 +71,13 @@ fn unknown_existing_contents_traversal_symlink_and_overwrite_are_refused() -> Re
     ] {
         let mut port = InMemoryUserDataPort::default();
         port.set_inspection(UserDataIdentity::new(1), inspection);
-        let mut provisioner =
-            UserDataProvisioner::new(4, port, InMemoryUserDataRecordStore::default())
-                .map_err(|error| format!("{error:?}"))?;
+        let mut provisioner = UserDataProvisioner::new(
+            4,
+            port,
+            InMemoryUserDataRecordStore::default(),
+            InMemoryLaunchProfileBindingPort::default(),
+        )
+        .map_err(|error| format!("{error:?}"))?;
         let result = provisioner
             .create_disposable(context("corr"), "op-1", LAUNCH_PROFILE_ID)
             .map_err(|error| format!("{error:?}"))?;
@@ -90,6 +94,7 @@ fn fresh_allocations_are_unique_and_portable_descriptors_have_no_paths() -> Resu
         4,
         InMemoryUserDataPort::default(),
         InMemoryUserDataRecordStore::default(),
+        InMemoryLaunchProfileBindingPort::default(),
     )
     .map_err(|error| format!("{error:?}"))?;
     let first = provisioner
@@ -116,8 +121,13 @@ fn timeout_reconciles_the_same_identity_without_a_second_create() -> Result<(), 
         UserDataIdentity::new(1),
         sts2_gateway::UserDataCreateOutcome::TimeoutAfterWrite,
     );
-    let mut provisioner = UserDataProvisioner::new(4, port, InMemoryUserDataRecordStore::default())
-        .map_err(|error| format!("{error:?}"))?;
+    let mut provisioner = UserDataProvisioner::new(
+        4,
+        port,
+        InMemoryUserDataRecordStore::default(),
+        InMemoryLaunchProfileBindingPort::default(),
+    )
+    .map_err(|error| format!("{error:?}"))?;
     let first = provisioner
         .create_disposable(context("corr"), "op-1", LAUNCH_PROFILE_ID)
         .map_err(|error| format!("{error:?}"))?;
@@ -339,13 +349,16 @@ fn fixed_routes_and_creation_return_authoritative_identity_and_baseline() -> Res
         "create-1",
         "corr-create",
     )?;
-    let user_data = descriptor(9, "create-1");
+    let reserved = match &request.operation {
+        SaveProfileOperation::CreateDisposable { user_data, .. } => user_data.clone(),
+        _ => return Err(String::from("expected a create-disposable operation")),
+    };
     let mut fake = FakeForwarder::default();
     fake.responses.push_back(Ok(settled(
         &request,
         None,
         Some(baseline("authoritative-baseline")),
-        Some(user_data.clone()),
+        Some(reserved.clone()),
     )));
     let mut ledger = SaveProfileLedger::new(
         8,
@@ -358,7 +371,7 @@ fn fixed_routes_and_creation_return_authoritative_identity_and_baseline() -> Res
         .submit(request, 0, false)
         .map_err(|error| format!("{error:?}"))?;
     assert_eq!(result.status, SaveProfileStatus::Settled);
-    assert_eq!(result.user_data, Some(user_data));
+    assert_eq!(result.user_data, Some(reserved));
     assert_eq!(result.baseline, Some(baseline("authoritative-baseline")));
     Ok(())
 }

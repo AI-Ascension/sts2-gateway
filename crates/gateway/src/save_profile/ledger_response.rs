@@ -3,10 +3,10 @@
 use super::guidance::RecoveryGuidance;
 use super::ledger_types::{
     SaveProfileForwardRequest, SaveProfileForwardResponse, SaveProfileLedgerError,
-    SaveProfileResult, SaveProfileStatus,
+    SaveProfileOperation, SaveProfileResult, SaveProfileStatus,
 };
 use super::ledger_validation::selected_id;
-use super::types::SAVE_PROFILE_MAX_BODY_BYTES;
+use super::types::{LAUNCH_PROFILE_CONTRACT, SAVE_PROFILE_MAX_BODY_BYTES};
 
 pub(super) fn validate_response(
     request: &SaveProfileForwardRequest,
@@ -42,7 +42,14 @@ pub(super) fn validate_response(
                 let Some(user_data) = response.user_data.as_ref() else {
                     return Err(SaveProfileLedgerError::ResponseInvalid);
                 };
+                let reserved = match &request.operation {
+                    SaveProfileOperation::CreateDisposable { user_data, .. } => user_data,
+                    _ => return Err(SaveProfileLedgerError::ResponseInvalid),
+                };
                 if response.baseline.is_none()
+                    || user_data.identity != reserved.identity
+                    || user_data.baseline.is_some()
+                    || user_data.provenance.contract != LAUNCH_PROFILE_CONTRACT
                     || user_data.provenance.owner != "gateway"
                     || user_data.provenance.instance_id != request.context.instance_id
                     || user_data.provenance.operation_id != request.operation_id

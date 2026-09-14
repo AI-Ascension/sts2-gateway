@@ -30,6 +30,9 @@ mod test_support;
 #[path = "service_save_profile_tests.rs"]
 mod save_profile_tests;
 
+#[path = "service_save_profile_composition_tests.rs"]
+mod save_profile_composition_tests;
+
 #[path = "service_coop_tests.rs"]
 mod coop_tests;
 

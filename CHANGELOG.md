@@ -5,6 +5,20 @@ host compatibility and release publication.
 
 ## [Unreleased]
 
+- Harden the merged save-profile runtime composition (#51). The attached runtime no longer
+  constructs in-memory provisioning or operation-intent substitutes: it injects no
+  isolated-allocation port, launch-profile binding port, durable intent store, or authoritative
+  active-run source, so every mutation fails closed before provisioning or forwarding with
+  `save_profile_active_run_unavailable`, `save_profile_persistence_unavailable`, or
+  `save_profile_provisioning_unavailable` while discovery reads keep forwarding through the fixed
+  loopback targets. Launch bindings are produced only by an injected `LaunchProfileBindingPort`,
+  creation receipts must echo the reserved allocation identity and the approved launch contract,
+  and a refused launch binding or refused allocation blocks the operation. Regression tests cover
+  the unprovisioned capability results, injected binding forwarding, receipt-identity binding,
+  distinct-operation duplicate selection, typed allocation-port refusals, and reopened-store
+  restart replay without a second dispatch. Real filesystem isolation, a production durable store,
+  issue #50 launch-profile wiring, and cross-restart durability remain unverified.
+
 - Add the gateway-owned profile lifecycle contract for issue #50. An opaque approved
   `LaunchProfileId` resolves to bounded executable/install/image identity, isolated user-data
   namespace, and process policy; authenticated launch, identity-checked attach, stop, restart,

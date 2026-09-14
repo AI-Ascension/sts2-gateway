@@ -105,10 +105,16 @@ in the game-mod host boundary.
 ```text
 crates/gateway/src/save_profile/                 gateway-local opaque identity, fencing, ledger, and ports
 crates/gateway/src/bin/runtime_support/save_profile*  fixed runtime routes and loopback forwarder
-crates/gateway/src/bin/runtime_support/service_save_profile*  attached service composition and wire mapping
+crates/gateway/src/bin/runtime_support/service_save_profile*  attached service composition, capability
+                                                 admission, creation binding, and wire mapping
 crates/gateway/tests/save_profile.rs             deterministic provisioning and ledger fixtures
+crates/gateway/src/save_profile/*_tests.rs       provisioning and ledger restart/refusal regressions
+crates/gateway/src/bin/runtime_support/service_save_profile_composition_tests.rs
+                                                 attached-runtime capability regressions
 ```
 
 These modules contain no host paths, save contents, process commands, or game-mod implementation.
-The in-memory stores and loopback peer are deterministic source/component fixtures. A future
-filesystem or launch-profile adapter must remain behind the named ports and an accepted contract.
+The in-memory stores and loopback peer are deterministic source/component fixtures; the attached
+runtime injects none of the allocation, launch-profile, durable-intent, or active-run dependencies
+and refuses mutations until a real adapter is accepted. A future filesystem or launch-profile
+adapter must remain behind the named ports and an accepted contract.

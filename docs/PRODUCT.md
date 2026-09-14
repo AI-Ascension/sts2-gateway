@@ -116,7 +116,9 @@ foreign contents, traversal, symlink escape, and implicit adoption, and retains 
 uncertain work for lookup without blind retries. The game-mod owns profile meaning and authoritative
 baselines. This slice uses deterministic in-memory stores and synthetic loopback peers; launch
 profile issue #50 integration, production persistence, game-mod contract acceptance, and native
-save compatibility are `unverified`.
+save compatibility are `unverified`. The attached runtime injects no isolated-allocation,
+launch-profile, durable-intent, or active-run dependency, so mutations fail closed with an explicit
+capability result while discovery reads stay available through the fixed loopback targets.
 
 ## Candidate Runtime-v4 rest actions
 

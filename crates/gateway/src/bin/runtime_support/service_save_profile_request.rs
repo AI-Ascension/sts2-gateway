@@ -4,14 +4,12 @@ use super::super::save_profile::RuntimeSaveProfileRoute;
 use super::*;
 use serde_json::Value;
 use sts2_gateway::{
-    LAUNCH_PROFILE_ID, LaunchProfileBinding, SaveProfileOperation, UserDataDescriptor,
-    UserDataIdentity, UserDataProvenance,
+    LaunchProfileBinding, SaveProfileContext, SaveProfileOperation, UserDataDescriptor,
 };
 
 pub(super) fn build_operation(
     route: RuntimeSaveProfileRoute,
     request: &HttpRequest,
-    operation_id: &str,
 ) -> Result<(SaveProfileOperation, Vec<u8>), &'static str> {
     match route {
         RuntimeSaveProfileRoute::List | RuntimeSaveProfileRoute::Current => {
@@ -26,8 +24,9 @@ pub(super) fn build_operation(
             Ok((operation, Vec::new()))
         }
         RuntimeSaveProfileRoute::Select => select_operation(request),
-        RuntimeSaveProfileRoute::CreateDisposable => create_operation(request, operation_id),
-        RuntimeSaveProfileRoute::Lookup => Err("save_profile_route_invalid"),
+        RuntimeSaveProfileRoute::CreateDisposable | RuntimeSaveProfileRoute::Lookup => {
+            Err("save_profile_route_invalid")
+        }
     }
 }
 
@@ -63,43 +62,17 @@ fn select_operation(
     ))
 }
 
-fn create_operation(
-    request: &HttpRequest,
-    operation_id: &str,
-) -> Result<(SaveProfileOperation, Vec<u8>), &'static str> {
-    let body = if request.body.is_empty() {
-        b"{}".to_vec()
-    } else {
-        let value = parse_body(request)?;
-        if !value.as_object().is_some_and(|object| object.is_empty()) {
-            return Err("save_profile_body_fields_invalid");
-        }
-        request.body.clone()
-    };
-    let instance_id = request
-        .headers
-        .get("x-sts2-instance-id")
-        .cloned()
-        .ok_or("save_profile_identity_missing")?;
-    let placeholder = UserDataDescriptor {
-        identity: UserDataIdentity::new(1),
-        provenance: UserDataProvenance {
-            owner: String::from("gateway"),
-            instance_id,
-            operation_id: operation_id.to_owned(),
-            contract: sts2_gateway::LAUNCH_PROFILE_CONTRACT.to_owned(),
-        },
-        baseline: None,
-    };
-    let binding = LaunchProfileBinding::try_new(LAUNCH_PROFILE_ID, placeholder.identity)
-        .map_err(|_| "save_profile_launch_profile_invalid")?;
-    Ok((
-        SaveProfileOperation::CreateDisposable {
-            launch_profile: binding,
-            user_data: placeholder,
-        },
-        body,
-    ))
+/// Validates the disposable-creation body. The operation itself is built from the reserved
+/// allocation in the creation seam, so no launch binding is constructed from caller input.
+pub(super) fn create_body(request: &HttpRequest) -> Result<Vec<u8>, &'static str> {
+    if request.body.is_empty() {
+        return Ok(b"{}".to_vec());
+    }
+    let value = parse_body(request)?;
+    if !value.as_object().is_some_and(|object| object.is_empty()) {
+        return Err("save_profile_body_fields_invalid");
+    }
+    Ok(request.body.clone())
 }
 
 fn parse_body(request: &HttpRequest) -> Result<Value, &'static str> {
@@ -124,4 +97,59 @@ pub(super) fn add_creation_binding(
     object.insert(String::from("user_data"), descriptor);
     object.insert(String::from("launch_profile"), binding);
     serde_json::to_vec(&Value::Object(object)).map_err(|_| "save_profile_encoding_failed")
+}
+
+pub(super) fn context_from_request(
+    request: &HttpRequest,
+) -> Result<SaveProfileContext, &'static str> {
+    let get = |name: &str| {
+        request
+            .headers
+            .get(name)
+            .cloned()
+            .ok_or("save_profile_identity_missing")
+    };
+    Ok(SaveProfileContext {
+        instance_id: get("x-sts2-instance-id")?,
+        caller_id: get("x-sts2-caller-id")?,
+        session_id: get("x-sts2-session-id")?,
+        lease_id: get("x-sts2-lease-id")?,
+        lease_epoch: get("x-sts2-lease-epoch")?
+            .parse()
+            .map_err(|_| "save_profile_epoch_invalid")?,
+        correlation_id: get("x-sts2-correlation-id")?,
+    })
+}
+
+pub(super) fn operation_id(request: &HttpRequest, route: RuntimeSaveProfileRoute) -> String {
+    if route == RuntimeSaveProfileRoute::Lookup {
+        let Some(instance_id) = request.headers.get("x-sts2-instance-id") else {
+            return String::new();
+        };
+        return route
+            .operation_id(&request.path, instance_id)
+            .unwrap_or_default()
+            .to_owned();
+    }
+    request
+        .headers
+        .get("x-mcp-request-id")
+        .cloned()
+        .or_else(|| {
+            route
+                .is_mutation()
+                .then(|| {
+                    super::super::strict_json::parse(&request.body)
+                        .ok()
+                        .and_then(|value| {
+                            value
+                                .get("operation_id")
+                                .and_then(Value::as_str)
+                                .map(str::to_owned)
+                        })
+                })
+                .flatten()
+        })
+        .or_else(|| request.headers.get("x-sts2-correlation-id").cloned())
+        .unwrap_or_default()
 }

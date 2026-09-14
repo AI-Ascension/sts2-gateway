@@ -147,6 +147,8 @@ impl UserDataRecordStore for InMemoryUserDataRecordStore {
 pub struct InMemoryUserDataPort {
     entries: BTreeMap<UserDataIdentity, UserDataInspection>,
     outcomes: BTreeMap<UserDataIdentity, UserDataCreateOutcome>,
+    inspect_errors: BTreeMap<UserDataIdentity, UserDataPortError>,
+    create_errors: BTreeMap<UserDataIdentity, UserDataPortError>,
     pub inspected: Vec<UserDataIdentity>,
     pub created: Vec<UserDataIdentity>,
 }
@@ -158,6 +160,18 @@ impl InMemoryUserDataPort {
 
     pub fn set_outcome(&mut self, identity: UserDataIdentity, value: UserDataCreateOutcome) {
         self.outcomes.insert(identity, value);
+    }
+
+    /// Fail `inspect` for this identity, as a real adapter would when it rejects a containment
+    /// check instead of returning an inspection classification.
+    pub fn set_inspect_error(&mut self, identity: UserDataIdentity, value: UserDataPortError) {
+        self.inspect_errors.insert(identity, value);
+    }
+
+    /// Fail `create` for this identity, as a real adapter would when the root already holds
+    /// unowned contents or is temporarily unavailable.
+    pub fn set_create_error(&mut self, identity: UserDataIdentity, value: UserDataPortError) {
+        self.create_errors.insert(identity, value);
     }
 
     pub fn inspection(&self, identity: UserDataIdentity) -> UserDataInspection {
@@ -174,6 +188,9 @@ impl UserDataPort for InMemoryUserDataPort {
         identity: UserDataIdentity,
     ) -> Result<UserDataInspection, UserDataPortError> {
         self.inspected.push(identity);
+        if let Some(error) = self.inspect_errors.get(&identity) {
+            return Err(*error);
+        }
         Ok(self.inspection(identity))
     }
 
@@ -183,6 +200,9 @@ impl UserDataPort for InMemoryUserDataPort {
     ) -> Result<UserDataCreateOutcome, UserDataPortError> {
         let identity = request.descriptor.identity;
         self.created.push(identity);
+        if let Some(error) = self.create_errors.get(&identity) {
+            return Err(*error);
+        }
         let outcome = self
             .outcomes
             .get(&identity)
@@ -207,4 +227,40 @@ pub struct UserDataProvisioningOutcome {
     pub status: UserDataProvisioningStatus,
     pub descriptor: Option<UserDataDescriptor>,
     pub guidance: Option<RecoveryGuidance>,
+}
+
+impl<T: UserDataPort + ?Sized> UserDataPort for Box<T> {
+    fn inspect(
+        &mut self,
+        identity: UserDataIdentity,
+    ) -> Result<UserDataInspection, UserDataPortError> {
+        (**self).inspect(identity)
+    }
+
+    fn create(
+        &mut self,
+        request: UserDataCreateRequest,
+    ) -> Result<UserDataCreateOutcome, UserDataPortError> {
+        (**self).create(request)
+    }
+}
+
+impl<T: UserDataRecordStore + ?Sized> UserDataRecordStore for Box<T> {
+    fn list(&mut self) -> Result<Vec<UserDataProvisioningRecord>, UserDataProvisioningError> {
+        (**self).list()
+    }
+
+    fn insert(
+        &mut self,
+        record: UserDataProvisioningRecord,
+    ) -> Result<(), UserDataProvisioningError> {
+        (**self).insert(record)
+    }
+
+    fn update(
+        &mut self,
+        record: UserDataProvisioningRecord,
+    ) -> Result<(), UserDataProvisioningError> {
+        (**self).update(record)
+    }
 }

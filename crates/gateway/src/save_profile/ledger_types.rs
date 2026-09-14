@@ -182,3 +182,17 @@ pub enum SaveProfileLedgerError {
     Transport(SaveProfileTransportFault),
     ResponseInvalid,
 }
+
+impl<T: SaveProfileRecordStore + ?Sized> SaveProfileRecordStore for Box<T> {
+    fn list(&mut self) -> Result<Vec<SaveProfileOperationRecord>, SaveProfileLedgerError> {
+        (**self).list()
+    }
+
+    fn insert(&mut self, record: SaveProfileOperationRecord) -> Result<(), SaveProfileLedgerError> {
+        (**self).insert(record)
+    }
+
+    fn update(&mut self, record: SaveProfileOperationRecord) -> Result<(), SaveProfileLedgerError> {
+        (**self).update(record)
+    }
+}
