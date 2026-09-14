@@ -125,7 +125,7 @@ fn mutation_bodies_are_closed_and_active_runs_are_fenced() -> Result<(), String>
         "save_profile_body_fields_invalid"
     );
 
-    service.save_profile_active_run = true;
+    service.save_profile_active_run = SaveProfileActiveRun { governed: Some(true) };
     let mut create =
         authenticated_request("/v1/instances/instance-1/save-profile/create-disposable");
     create.method = String::from("POST");

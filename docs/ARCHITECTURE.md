@@ -383,13 +383,23 @@ session, instance, lease, epoch, MCP session, correlation, active-run state, met
 operation bounds before forwarding to the matching fixed loopback game-mod path. No caller path,
 URL, command, profile root, arbitrary header, or unlisted JSON member is forwarded.
 
-The gateway allocates a nonzero opaque user-data identity and records owner, instance, operation,
-and contract provenance. It refuses unknown contents, traversal, symlink escape, foreign ownership,
-and implicit overwrite/adoption before any create call. Provisioning and selection intent are
-retained before downstream work. Duplicate identical operations replay their retained result;
-conflicts are rejected. Timeouts, disconnects, malformed replies, and possible accepted mutations
-remain `unknown` with an operation lookup path and recovery guidance, never a blind mutation retry.
-The game-mod remains authoritative for save-slot meaning, baselines, and host effects. Current
-evidence is deterministic source/component and synthetic loopback testing; production persistence,
-launch-profile issue #50 wiring, game-mod contract acceptance, and native save compatibility are
-unverified.
+The component allocates a nonzero opaque user-data identity through an injected isolated-allocation
+port and records owner, instance, operation, and contract provenance. It refuses unknown contents,
+traversal, symlink escape, foreign ownership, and implicit overwrite/adoption before any create
+call, and it never builds a launch binding itself: the binding comes from the injected
+launch-profile binding port. Provisioning and selection intent are retained before downstream work.
+Duplicate identical operations replay their retained result; conflicts are rejected. Timeouts,
+disconnects, malformed replies, and possible accepted mutations remain `unknown` with an operation
+lookup path and recovery guidance, never a blind mutation retry. A creation receipt must echo the
+reserved operation identity and the approved launch contract or it is rejected as an invalid
+response.
+
+The attached runtime composes none of those dependencies yet, and no durable operation-intent store
+exists, so `RuntimeService::from_environment` injects no allocation port, launch-profile binding
+port, or durable store and has no authoritative active-run writer. Every save-profile mutation
+therefore fails closed before provisioning or forwarding with an explicit capability result instead
+of creating volatile in-memory substitutes that a restart would silently lose; read routes keep
+forwarding through the fixed loopback targets. The game-mod remains authoritative for save-slot
+meaning, baselines, and host effects. Current evidence is deterministic source/component and
+synthetic loopback testing; real filesystem isolation, production persistence, launch-profile issue
+#50 wiring, game-mod contract acceptance, and native save compatibility are unverified.

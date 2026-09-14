@@ -74,7 +74,7 @@ pub(crate) struct RuntimeService {
     game_information_exchange_timeout: Duration,
     game_information_cursor_bindings: BTreeMap<String, Value>,
     save_profile: service_save_profile::SaveProfileRuntime,
-    save_profile_active_run: bool,
+    save_profile_active_run: SaveProfileActiveRun,
     seeded_run: SeededRunLedger<HttpSeededRunForwarder>,
     journal_path: Option<PathBuf>,
     _journal_lock: Option<journal::JournalLock>,
@@ -250,6 +250,11 @@ mod runtime;
 mod seeded_run;
 #[path = "service_save_profile.rs"]
 mod service_save_profile;
+#[path = "service_save_profile_composition.rs"]
+mod service_save_profile_composition;
+use service_save_profile_composition::SaveProfileActiveRun;
+#[path = "service_save_profile_creation.rs"]
+mod service_save_profile_creation;
 #[path = "service_save_profile_request.rs"]
 mod service_save_profile_request;
 #[path = "service_save_profile_wire.rs"]

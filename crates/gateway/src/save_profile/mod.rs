@@ -8,17 +8,25 @@
 //! shell commands, URLs supplied by callers, or save contents.
 
 mod guidance;
+mod launch_profile;
 mod ledger;
 mod ledger_response;
+#[cfg(test)]
+#[path = "ledger_tests.rs"]
+mod ledger_tests;
 mod ledger_types;
 mod ledger_validation;
 mod provisioning;
+#[cfg(test)]
+#[path = "provisioning_tests.rs"]
+mod provisioning_tests;
 mod provisioning_types;
 mod provisioning_validation;
 mod route;
 mod types;
 
 pub use guidance::RecoveryGuidance;
+pub use launch_profile::InMemoryLaunchProfileBindingPort;
 pub use ledger::SaveProfileLedger;
 pub use ledger_types::{
     InMemorySaveProfileRecordStore, SaveProfileForwardRequest, SaveProfileForwardResponse,

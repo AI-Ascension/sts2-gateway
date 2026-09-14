@@ -159,7 +159,7 @@ impl RuntimeService {
             game_information_exchange_timeout: Duration::from_secs(5),
             game_information_cursor_bindings: BTreeMap::new(),
             save_profile,
-            save_profile_active_run: false,
+            save_profile_active_run: SaveProfileActiveRun::UNCONFIGURED,
             seeded_run,
             metrics: RuntimeMetrics::default(),
             coop_reports,

@@ -13,23 +13,34 @@ use super::provisioning_validation::{
     validate_operation_id, validate_request,
 };
 use super::types::{
-    LAUNCH_PROFILE_CONTRACT, LaunchProfileBinding, SaveProfileContext, UserDataDescriptor,
-    UserDataIdentity,
+    LAUNCH_PROFILE_CONTRACT, LaunchProfileBinding, LaunchProfileBindingPort, SaveProfileContext,
+    UserDataDescriptor, UserDataIdentity,
 };
 
 const MAX_ALLOCATIONS: usize = 64;
 
 /// Allocates a fresh, gateway-owned user-data identity and records every attempt.
-pub struct UserDataProvisioner<P, S> {
+///
+/// The launch binding is never built here: it comes from the injected
+/// [`LaunchProfileBindingPort`] owned by the launch-profile boundary.
+pub struct UserDataProvisioner<P, S, B> {
     capacity: usize,
     next_identity: u64,
     port: P,
     store: S,
+    launch_profile: B,
     records: BTreeMap<(String, String), UserDataProvisioningRecord>,
 }
 
-impl<P: UserDataPort, S: UserDataRecordStore> UserDataProvisioner<P, S> {
-    pub fn new(capacity: usize, port: P, mut store: S) -> Result<Self, UserDataProvisioningError> {
+impl<P: UserDataPort, S: UserDataRecordStore, B: LaunchProfileBindingPort>
+    UserDataProvisioner<P, S, B>
+{
+    pub fn new(
+        capacity: usize,
+        port: P,
+        mut store: S,
+        launch_profile: B,
+    ) -> Result<Self, UserDataProvisioningError> {
         if capacity == 0 || capacity > MAX_ALLOCATIONS {
             return Err(UserDataProvisioningError::CapacityExceeded);
         }
@@ -58,6 +69,7 @@ impl<P: UserDataPort, S: UserDataRecordStore> UserDataProvisioner<P, S> {
             next_identity,
             port,
             store,
+            launch_profile,
             records,
         })
     }
@@ -97,8 +109,16 @@ impl<P: UserDataPort, S: UserDataRecordStore> UserDataProvisioner<P, S> {
             .checked_add(1)
             .ok_or(UserDataProvisioningError::CapacityExceeded)?;
         let descriptor = descriptor(&context, &operation_id, identity);
-        let launch_profile = LaunchProfileBinding::try_new(profile_id, identity)
-            .map_err(|_| UserDataProvisioningError::InvalidRequest)?;
+        let launch_profile = self
+            .launch_profile
+            .bind_disposable(identity)
+            .map_err(|_| UserDataProvisioningError::Port(UserDataPortError::Unavailable))?;
+        if launch_profile.validate().is_err()
+            || launch_profile.user_data != identity
+            || launch_profile.profile_id != profile_id
+        {
+            return Err(UserDataProvisioningError::InvalidRequest);
+        }
         let pending = UserDataProvisioningRecord {
             operation_id: operation_id.clone(),
             context,

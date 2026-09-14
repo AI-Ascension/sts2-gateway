@@ -165,12 +165,30 @@ and require a separately authorized downstream contract and disposable host envi
 
 The save-profile component tests use bounded in-memory provisioning and ledger ports plus an
 ephemeral synthetic loopback peer. They cover fresh opaque identities, portable descriptors without
-paths, unknown/foreign contents, traversal and symlink escape, overwrite refusal, fixed
-list/current/select/create-disposable/lookup mapping, closed mutation bodies, active-run and stale
-lease rejection before forwarding, duplicate selection, caller disconnect, timeout-after-write,
-unknown-to-created reconciliation, and retained operator guidance. They do not prove game-mod
-readback, production filesystem durability, issue #50 launch-profile wiring, native save
-compatibility, or cross-restart persistence.
+paths, injected unknown/foreign-content, traversal, symlink, and overwrite classifications, fixed
+list/current/select/create-disposable/lookup mapping, closed mutation bodies, active-run, missing
+active-run source, missing durable-intent, and stale-lease rejection before forwarding, duplicate
+selection under a distinct operation ID, caller disconnect, timeout-after-write,
+unknown-to-created reconciliation, and retained operator guidance. Creation receipts must echo the
+reserved operation identity and the approved launch contract, or the gateway records an invalid
+response and retains the operation as unknown.
+
+The filesystem-refusal tests inject the adapter's inspection classification or typed port error
+(`Traversal`, `SymlinkEscape`, `UnknownContents`, `ExistingContents`, or `Unavailable`) instead of
+touching a real root, so they prove the provisioner's refusal mapping and that no create call
+follows a refused inspection. They do not traverse a real filesystem, resolve a real symlink, or
+prove containment. The restart tests reopen a shared record store from a second ledger or
+provisioner, which proves that retained accepted/unknown intent is not dispatched again and that
+allocation identities are not reused; there is no production durable-store adapter yet.
+
+The attached runtime composes no durable operation-intent store, isolated-allocation port, or
+launch-profile binding port, so every mutation fails closed before provisioning or forwarding with
+an explicit capability result (`save_profile_active_run_unavailable`,
+`save_profile_persistence_unavailable`, or `save_profile_provisioning_unavailable`) and no
+production in-memory substitute is created. Read routes still forward through the fixed loopback
+targets. These are source/component outcomes; they do not prove a real isolated filesystem
+allocation, production durability, issue #50 launch-profile wiring, game-mod readback, native save
+compatibility, or cross-restart durability.
 
 The authorized exact-host lane now confirms the managed mod listener, downstream forwarding,
 lease fencing, a Godot main-thread callback, the bounded STS2 host effect, and reversible disposable

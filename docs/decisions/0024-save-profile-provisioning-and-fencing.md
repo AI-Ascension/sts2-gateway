@@ -3,8 +3,10 @@
 ## Status
 
 Proposed gateway-owned component contract. The deterministic source/component implementation is
-complete for this slice; game-mod contract acceptance, launch-profile integration from issue #50,
-and native host verification remain external gates.
+complete for this slice, but the attached runtime stays explicitly unprovisioned until a real
+isolated-allocation port, launch-profile binding port, durable operation-intent store, and
+authoritative active-run source are accepted; game-mod contract acceptance, launch-profile
+integration from issue #50, and native host verification remain external gates.
 
 ## Context
 
@@ -39,17 +41,25 @@ forwarding, while disposable creation returns the authoritative user-data descri
 from the game-mod response.
 
 User-data allocation uses an opaque nonzero identity and a provenance record containing only the
-gateway owner, instance, operation, and contract. The adapter must inspect the server-owned root
-before creation. Unknown contents, traversal, symlink escape, foreign ownership, and implicit
-overwrite/adoption are blocked without a create call. A fresh identity is allocated per operation
-and is never inferred from a save-profile ID.
+gateway owner, instance, operation, and contract. The allocation adapter must inspect the
+server-owned root before creation. Unknown contents, traversal, symlink escape, foreign ownership,
+and implicit overwrite/adoption are blocked without a create call. A fresh identity is allocated per
+operation and is never inferred from a save-profile ID. The launch binding is never built by the
+gateway: the injected `LaunchProfileBindingPort` returns it for the reserved identity, and a
+refused binding blocks the allocation entirely.
 
 Provisioning and selection intent are inserted before downstream work. Duplicate operation
 identity replays an identical retained result; conflicting reuse is rejected. A timeout,
 disconnect, malformed response, or uncertain create remains `unknown` and retains the original
 identity. Reconciliation uses the operation lookup route and never blindly repeats a mutation.
-Blocked and unknown outcomes include bounded operator guidance. An active run rejects mutation
-routes before provisioning or forwarding.
+Blocked and unknown outcomes include bounded operator guidance. A mutation is admitted only when
+an authoritative active-run source reports that no run is in progress and the operation intent is
+recorded in an injected durable store; an active run, an unconfigured active-run source, and a
+volatile-only intent store each reject the mutation before provisioning or forwarding. The attached
+runtime composes none of those dependencies yet, so it reports an explicit unavailable capability
+instead of creating production in-memory substitutes. A creation receipt must echo the reserved
+identity and the approved launch contract, otherwise the response is invalid and the operation
+remains unknown.
 
 ## Ownership and compatibility
 
@@ -63,8 +73,11 @@ uncertainty semantics requires a new compatibility decision.
 ## Deterministic oracle and evidence
 
 The source/component tests prove unknown-content, traversal, symlink, foreign-owner, fresh
-allocation, fixed route mapping, body closure, stale lease, active-run, duplicate selection,
-disconnect, timeout, and same-identity reconciliation behavior with in-memory ports and a
-synthetic loopback peer. No game, save, profile, provider, or native host is used. Production
-filesystem persistence, launch-profile adapter wiring, game-mod readback, and cross-restart
-durability remain `unverified`.
+allocation, fixed route mapping, body closure, stale lease, active-run, missing active-run source,
+missing durable intent, duplicate selection under a distinct operation ID, disconnect, timeout,
+reserved-identity receipt binding, launch-binding refusal, and same-identity reconciliation behavior
+with in-memory ports and a synthetic loopback peer. Refusal cases inject the adapter's inspection
+classification or typed port error rather than traversing a real root, and restart cases reopen a
+shared record store rather than a real durable store file. No game, save, profile, provider, or
+native host is used. Production filesystem allocation and containment, a durable store adapter,
+launch-profile adapter wiring, game-mod readback, and cross-restart durability remain `unverified`.

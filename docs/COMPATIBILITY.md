@@ -431,9 +431,19 @@ selection, and empty or `{}` for disposable creation. Body and operation limits 
 128 bytes. The gateway forwards no caller path, URL, command, profile root, arbitrary header, or
 unlisted body member. Unknown, foreign, traversal, symlink, and overwrite/adoption allocation
 states are blocked. Accepted, timed-out, disconnected, or malformed operations retain their
-identity and reconcile through the read-only lookup route; selection is never blindly replayed.
+identity and reconcile through the read-only lookup route; selection is never blindly replayed, and
+a creation receipt that does not echo the reserved allocation identity and the approved launch
+contract is rejected as an invalid response.
+
+The attached runtime has no accepted isolated-allocation port, launch-profile binding port, durable
+operation-intent store, or authoritative active-run writer, so read routes behave as above while
+every mutation fails closed before provisioning or forwarding. The additive capability results are
+`save_profile_active_run_unavailable` (no authoritative active-run source) and
+`save_profile_persistence_unavailable` (no durable intent store), each `503`; disposable creation
+without an allocation adapter returns `save_profile_provisioning_unavailable` (`503`), and a
+refused launch-profile binding returns `save_profile_provisioning_failed` (`503`).
 
 This is a proposed minor surface pending game-mod save-profile contract acceptance and issue #50
 launch-profile integration. Deterministic source/component and synthetic loopback tests are
-confirmed; production persistence, native save behavior, host compatibility, and cross-restart
-durability remain `unverified`.
+confirmed; real filesystem isolation, production persistence, native save behavior, host
+compatibility, and cross-restart durability remain `unverified`.
