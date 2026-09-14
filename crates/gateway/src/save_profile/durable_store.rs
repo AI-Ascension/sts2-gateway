@@ -31,6 +31,12 @@ impl SqliteUserDataRecordStore {
     /// Open (or create) the durable store at `path`.
     pub fn open(path: impl AsRef<Path>) -> Result<Self, UserDataProvisioningError> {
         let path = path.as_ref();
+        // `Connection::open` enables SQLite URI handling, so a `file:...` spelling would resolve to
+        // the same database while defeating the lock-file derivation below. Reject it so one
+        // database has exactly one owner.
+        if path.as_os_str().to_string_lossy().starts_with("file:") {
+            return Err(UserDataProvisioningError::PersistenceFailed);
+        }
         let connection =
             Connection::open(path).map_err(|_| UserDataProvisioningError::PersistenceFailed)?;
         if path == Path::new(":memory:") {

@@ -164,3 +164,15 @@ fn durable_store_refuses_a_competing_owner() -> Result<(), String> {
     remove_database(&path);
     Ok(())
 }
+
+#[test]
+fn durable_store_rejects_sqlite_uri_aliases() -> Result<(), String> {
+    let path = temp_database();
+    let uri = format!("file:{}", path.display());
+    match SqliteUserDataRecordStore::open(uri.as_str()) {
+        Err(UserDataProvisioningError::PersistenceFailed) => {}
+        Err(other) => return Err(format!("expected uri rejection, got {other:?}")),
+        Ok(_) => return Err(String::from("sqlite uri alias was not rejected")),
+    }
+    Ok(())
+}
