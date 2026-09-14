@@ -59,7 +59,7 @@ pub trait UserDataPort {
     ) -> Result<UserDataCreateOutcome, UserDataPortError>;
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct UserDataProvisioningRecord {
     pub operation_id: String,
     pub context: SaveProfileContext,
@@ -69,7 +69,7 @@ pub struct UserDataProvisioningRecord {
     pub guidance: Option<RecoveryGuidance>,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum UserDataProvisioningStatus {
     Pending,
     Created,

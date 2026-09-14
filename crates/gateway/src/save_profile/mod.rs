@@ -7,6 +7,7 @@
 //! operation intent and the fixed forwarding seam.  It deliberately contains no host paths,
 //! shell commands, URLs supplied by callers, or save contents.
 
+mod durable_store;
 mod guidance;
 mod launch_profile;
 mod ledger;
@@ -25,6 +26,7 @@ mod provisioning_validation;
 mod route;
 mod types;
 
+pub use durable_store::SqliteUserDataRecordStore;
 pub use guidance::RecoveryGuidance;
 pub use launch_profile::InMemoryLaunchProfileBindingPort;
 pub use ledger::SaveProfileLedger;
