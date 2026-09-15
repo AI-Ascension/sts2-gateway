@@ -1,5 +1,15 @@
 # Gateway testing and evidence
 
+## Forwarded save-profile operation persistence
+
+Run `cargo test --locked --offline -p sts2-gateway --test save_profile_operation_recovery`
+alongside the normal policy/format/Clippy/full workspace gates. The suite uses temporary
+SQLite journals and a recording mod port, with no game or provider. It covers committed intent,
+lost create/select acknowledgment, reopen-and-lookup recovery, original identity/baseline,
+selection ordering, stale authority, corrupt storage, capacity and stale coordinators.
+See [ADR 0027](decisions/0027-save-profile-operation-persistence.md). This does not enable
+attached mutations or qualify physical allocation, actual launch binding or native profiles.
+
 ## Current status
 
 The target contains the gateway control-plane package and repository tooling. Policy, formatting,
