@@ -17,6 +17,9 @@ mod ledger_response;
 mod ledger_tests;
 mod ledger_types;
 mod ledger_validation;
+mod operation_record;
+mod operation_schema;
+mod operation_store;
 mod provisioning;
 #[cfg(test)]
 #[path = "provisioning_tests.rs"]
@@ -36,6 +39,7 @@ pub use ledger_types::{
     SaveProfileOperationRecord, SaveProfileRecordStore, SaveProfileResult, SaveProfileStatus,
     SaveProfileTransportFault,
 };
+pub use operation_store::{SAVE_PROFILE_OPERATION_CAPACITY, SqliteSaveProfileOperationStore};
 pub use provisioning::UserDataProvisioner;
 pub use provisioning_types::{
     InMemoryUserDataPort, InMemoryUserDataRecordStore, UserDataCreateOutcome,

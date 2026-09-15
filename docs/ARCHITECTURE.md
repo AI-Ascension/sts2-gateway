@@ -2,6 +2,13 @@
 
 ## Decision first
 
+The forwarded save-profile operation journal is a separate implementation of the existing
+`SaveProfileRecordStore` seam, described in
+[ADR 0027](decisions/0027-save-profile-operation-persistence.md). It persists bounded private
+intent/result records for one instance and fences coordinators transactionally. Allocation
+persistence remains separate; the attached runtime still requires complete injected
+dependencies and an authoritative active-run source before enabling mutations.
+
 `sts2-gateway` is one external control/data-plane boundary for explicitly identified game
 instances. It owns lifecycle, process ownership, identity, authentication, leases, fencing,
 readiness, health, fixed routing, isolation, bounded backpressure, and cleanup. It is not a game

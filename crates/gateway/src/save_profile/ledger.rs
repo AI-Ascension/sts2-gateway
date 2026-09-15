@@ -37,6 +37,17 @@ impl<F: SaveProfileForwardingPort, S: SaveProfileRecordStore> SaveProfileLedger<
             return Err(SaveProfileLedgerError::CapacityExceeded);
         }
         let persisted = store.list()?;
+        if persisted.len() > capacity {
+            return Err(SaveProfileLedgerError::CapacityExceeded);
+        }
+        if persisted
+            .iter()
+            .any(|record| record.request.context.instance_id != authority.instance_id)
+        {
+            return Err(SaveProfileLedgerError::Fence(
+                SaveProfileFenceError::WrongInstance,
+            ));
+        }
         let selected = persisted
             .iter()
             .filter_map(|record| record.result.as_ref())

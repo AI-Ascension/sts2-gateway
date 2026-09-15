@@ -5,6 +5,12 @@ host compatibility and release publication.
 
 ## [Unreleased]
 
+- Add a bounded SQLite store for forwarded save-profile operation intents and results (#51).
+  Private versioned records, atomic coordinator fencing and exact request/result validation
+  support reopen-and-lookup recovery without another create/select dispatch. This store is
+  separate from allocation persistence; attached runtime mutations remain disabled until
+  complete owner adapters and authoritative active-run admission are supplied.
+
 - Harden the merged save-profile runtime composition (#51). The attached runtime no longer
   constructs in-memory provisioning or operation-intent substitutes: it injects no
   isolated-allocation port, launch-profile binding port, durable intent store, or authoritative
