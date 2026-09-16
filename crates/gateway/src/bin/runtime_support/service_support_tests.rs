@@ -119,6 +119,8 @@ pub(super) fn test_service() -> Result<RuntimeService, String> {
             &game_information_run_id,
         ),
         game_information_capabilities: None,
+        game_information_lookup_binding: None,
+        runtime_v3_baseline: None,
         game_information_exchange_timeout: Duration::from_secs(5),
         game_information_cursor_bindings: BTreeMap::new(),
         save_profile,

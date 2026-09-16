@@ -142,7 +142,7 @@ impl RuntimeService {
         (response.status, response.body)
     }
 
-    fn game_information_capabilities(
+    pub(super) fn game_information_capabilities(
         &mut self,
         request: &HttpRequest,
         cancellation: &super::RequestCancellation,
@@ -208,7 +208,7 @@ impl RuntimeService {
         (response.status, response.body)
     }
 
-    fn game_information_authority(&self) -> GameInformationProducerAuthority {
+    pub(super) fn game_information_authority(&self) -> GameInformationProducerAuthority {
         let (instance_id, lease_id, lease_epoch) = self.recovery_lease.as_ref().map_or_else(
             || {
                 (

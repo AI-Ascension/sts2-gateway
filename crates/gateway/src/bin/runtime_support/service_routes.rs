@@ -62,6 +62,11 @@ impl RuntimeService {
         {
             return self.runtime_map_request(request, route);
         }
+        if request.method == "GET"
+            && request.path == super::negotiated_capabilities::path(&self.config.instance_id)
+        {
+            return self.negotiated_capabilities(request);
+        }
         if let Some(route) =
             GameInformationRoute::parse(&request.method, &request.path, &self.config.instance_id)
         {

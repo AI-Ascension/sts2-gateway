@@ -167,6 +167,17 @@ impl AuthPolicy {
         )
     }
 
+    /// Authenticates a normal gateway credential and returns only its bounded
+    /// authorization bits. The bearer itself never leaves this module.
+    pub(crate) fn authorized_scope_bits(&self, provided: Option<&str>) -> Result<u8, AuthFailure> {
+        credential_scope_bits(
+            provided,
+            unix_seconds(),
+            &self.current,
+            self.previous.as_ref(),
+        )
+    }
+
     pub(crate) fn authorize_recovery(
         &self,
         provided: Option<&str>,
@@ -202,6 +213,24 @@ fn authorize_credentials(
     current: &Credential,
     previous: Option<&Credential>,
 ) -> Result<(), AuthFailure> {
+    let scopes = credential_scope_bits(provided, now, current, previous)?;
+    let required = match scope {
+        AuthScope::Read => 0b001,
+        AuthScope::Mutate => 0b010,
+        AuthScope::Control => 0b100,
+    };
+    if scopes & required == 0 {
+        return Err(AuthFailure::Scope);
+    }
+    Ok(())
+}
+
+fn credential_scope_bits(
+    provided: Option<&str>,
+    now: u64,
+    current: &Credential,
+    previous: Option<&Credential>,
+) -> Result<u8, AuthFailure> {
     let Some(provided) = provided else {
         return Err(AuthFailure::Missing);
     };
@@ -220,10 +249,7 @@ fn authorize_credentials(
     {
         return Err(AuthFailure::Expired);
     }
-    if !credential.allows(scope) {
-        return Err(AuthFailure::Scope);
-    }
-    Ok(())
+    Ok(credential.scopes)
 }
 
 impl Credential {
@@ -241,15 +267,6 @@ impl Credential {
             expires_at,
             scopes,
         })
-    }
-
-    fn allows(&self, scope: AuthScope) -> bool {
-        let required = match scope {
-            AuthScope::Read => 0b001,
-            AuthScope::Mutate => 0b010,
-            AuthScope::Control => 0b100,
-        };
-        self.scopes & required != 0
     }
 }
 

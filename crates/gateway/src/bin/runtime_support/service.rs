@@ -28,6 +28,7 @@ use super::game_information::GameInformationRoute;
 use super::game_information_forwarder::{
     BoundGameInformationCapabilities, GameInformationForwarder,
 };
+use super::game_information_lookup_binding::BoundLookupBinding;
 use super::http::{HttpRequest, MAX_BODY_BYTES, MAX_RESPONSE_BYTES, read_request, write_response};
 use super::journal;
 use super::metrics::RuntimeMetrics;
@@ -54,6 +55,8 @@ const MAX_QUEUE_CAPACITY: usize = 64;
 const REQUEST_READ_TIMEOUT: Duration = Duration::from_secs(2);
 const REQUEST_WRITE_TIMEOUT: Duration = Duration::from_secs(2);
 
+#[path = "negotiated_capabilities.rs"]
+pub(super) mod negotiated_capabilities;
 pub(crate) struct RuntimeService {
     config: RuntimeConfig,
     lease_active: bool,
@@ -71,6 +74,8 @@ pub(crate) struct RuntimeService {
     runtime_map: RuntimeMapForwarder,
     game_information: GameInformationForwarder,
     game_information_capabilities: Option<BoundGameInformationCapabilities>,
+    game_information_lookup_binding: Option<BoundLookupBinding>,
+    runtime_v3_baseline: Option<negotiated_capabilities::BoundRuntimeV3Baseline>,
     game_information_exchange_timeout: Duration,
     game_information_cursor_bindings: BTreeMap<String, Value>,
     save_profile: service_save_profile::SaveProfileRuntime,
@@ -122,8 +127,7 @@ struct RuntimeConfig {
     save_profile_enabled: bool,
 }
 
-/// Gateway-local identity for exactly one native producer route.  This is deliberately a
-/// transport binding, not a `coop-native-v1` field: callers cannot select or replace its peer.
+/// Gateway-local identity for one native route; callers cannot select or replace its peer.
 #[derive(Clone)]
 struct CoopNativePeerBinding {
     peer_token: String,
