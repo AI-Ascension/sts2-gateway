@@ -181,8 +181,6 @@ impl RuntimeService {
         {
             return Err(map_store_error(error));
         }
-        #[cfg(test)]
-        super::allocation_cleanup::apply_expiry_after_install(self);
         self.recovery_host_grant = Some(HostLeaseGrant {
             installation_id,
             grant_digest: digest,
@@ -190,6 +188,8 @@ impl RuntimeService {
         });
         if status == "INSTALLED" || status == "DUPLICATE" {
             self.activate_recovery_lease(lease.clone())?;
+            #[cfg(test)]
+            super::allocation_cleanup::apply_expiry_after_install(self);
             Ok(lease.clone())
         } else {
             Err(HostLeaseFailure::invalid_response())

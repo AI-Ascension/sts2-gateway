@@ -185,6 +185,10 @@ impl RuntimeService {
                 String::from("x-sts2-correlation-id"),
                 correlation.to_owned(),
             );
+            headers.insert(
+                String::from("x-sts2-locale"),
+                self.config.game_information_locale.clone(),
+            );
         }
         headers
     }

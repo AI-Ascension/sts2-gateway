@@ -29,7 +29,6 @@ fn confirmed_signed_revoke_reopens_a_fresh_allocation_epoch() -> Result<(), Stri
         service.config.host_lease_key.clone(),
         service.config.host_principal_id.clone(),
         vec![HostLeaseKind::Install],
-        false,
         None,
     )?;
     service.config.mod_address = address;
@@ -89,7 +88,6 @@ fn confirmed_signed_revoke_reopens_a_fresh_allocation_epoch() -> Result<(), Stri
         service.config.host_lease_key.clone(),
         service.config.host_principal_id.clone(),
         vec![HostLeaseKind::Revoke, HostLeaseKind::Install],
-        true,
         None,
     )?;
     service.config.mod_address = address;
@@ -103,7 +101,12 @@ fn confirmed_signed_revoke_reopens_a_fresh_allocation_epoch() -> Result<(), Stri
         "confirmed cleanup left lease_revoked=true; fresh allocation status was {}",
         fresh.0
     );
-    assert_eq!(fresh.0, 200);
+    assert_eq!(
+        fresh.0,
+        200,
+        "fresh allocation failed: {}",
+        String::from_utf8_lossy(&fresh.1)
+    );
     let fresh_lease = service
         .recovery_lease
         .as_ref()
@@ -193,7 +196,6 @@ fn expired_install_after_durable_ack_does_not_leave_an_active_installed_lease()
         service.config.host_lease_key.clone(),
         service.config.host_principal_id.clone(),
         vec![HostLeaseKind::Install, HostLeaseKind::Revoke],
-        true,
         None,
     )?;
     service.config.mod_address = address;
@@ -209,7 +211,6 @@ fn expired_install_after_durable_ack_does_not_leave_an_active_installed_lease()
 
     assert_eq!(response.0, 410);
     assert!(!service.lease_active);
-    assert!(!service.lease_revoked);
     let binding = service
         .recovery
         .as_ref()
@@ -217,12 +218,20 @@ fn expired_install_after_durable_ack_does_not_leave_an_active_installed_lease()
         .host_lease_binding(&lease.lease_id)
         .map_err(|error| error.to_string())?
         .ok_or_else(|| String::from("host binding missing"))?;
-    assert_ne!(
-        binding.state,
-        RecoveryHostLeaseState::Installed,
-        "post-install activation expiry left an ACTIVE/INSTALLED durable host authority; response status was {}",
-        response.0
-    );
+    assert_eq!(binding.state, RecoveryHostLeaseState::HostRevoked);
+    let (address, retry_server) = spawn_signed_ack_server(
+        service.config.host_lease_key.clone(),
+        service.config.host_principal_id.clone(),
+        vec![HostLeaseKind::Install],
+        None,
+    )?;
+    service.config.mod_address = address;
+    let fresh = service.allocate(&allocation_body(&service)?);
+    retry_server
+        .join()
+        .map_err(|_| String::from("fresh allocation host fake panicked"))??;
+    assert_eq!(fresh.0, 200);
+    assert!(!service.lease_revoked);
     super::runtime_v3_catalog_tests::cleanup(service, &path);
     Ok(())
 }

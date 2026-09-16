@@ -17,15 +17,15 @@ use super::super::*;
 
 const TEST_CALLER: &str = "00000000-0000-4000-8000-000000000008";
 const TEST_SESSION: &str = "00000000-0000-4000-8000-000000000007";
+// Match the recovery transport's exchange window so the fake never drops an expected request
+// early when the test worker is briefly unscheduled.
+const HOST_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 
-/// A bounded signed host fake.  The optional final request lets the same test
-/// observe both the unfixed path (no cleanup/fresh install) and an eventual
-/// repaired path without making the unfixed run hang for two seconds.
+/// A bounded signed host fake. Every listed request is required by its test.
 pub(super) fn spawn_signed_ack_server(
     key: Vec<u8>,
     principal: String,
     kinds: Vec<HostLeaseKind>,
-    optional_last: bool,
     lock: Option<(PathBuf, Duration)>,
 ) -> Result<(String, thread::JoinHandle<Result<(), String>>), String> {
     let listener = TcpListener::bind("127.0.0.1:0").map_err(|error| error.to_string())?;
@@ -34,15 +34,12 @@ pub(super) fn spawn_signed_ack_server(
         .map_err(|error| error.to_string())?;
     let address = listener.local_addr().map_err(|error| error.to_string())?;
     let server = thread::spawn(move || -> Result<(), String> {
-        let kind_count = kinds.len();
         for (index, kind) in kinds.into_iter().enumerate() {
-            let timeout = if optional_last && index + 1 == kind_count {
-                Duration::from_millis(300)
-            } else {
-                Duration::from_secs(2)
-            };
-            let Some(mut stream) = accept_with_timeout(&listener, timeout)? else {
-                return Ok(());
+            let Some(mut stream) = accept_with_timeout(&listener, HOST_REQUEST_TIMEOUT)? else {
+                return Err(format!(
+                    "host fake timed out waiting for {kind:?} request #{}",
+                    index + 1
+                ));
             };
             let request = super::super::super::http::read_request(&mut stream)
                 .map_err(|status| format!("host request read failed with {status}"))?;

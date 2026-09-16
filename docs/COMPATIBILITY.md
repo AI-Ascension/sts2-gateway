@@ -151,11 +151,21 @@ kind relations. This is source/component evidence. It does not establish native 
 two-peer settlement, checksum agreement, model/provider execution, deployment identity, or release
 compatibility.
 
+The additive lookup-binding route in [ADR 0025](decisions/0025-game-information-lookup-binding-route.md)
+consumes the copied LBR v1 schema at digest
+`f10f9af01d6be1de104069ba842e7971971e88f27553e782e81174ee7aa1cd58`. Gateway rejects duplicate
+JSON, validates nested response structure, matches request and authenticated identity fences, and
+recomputes the contract-defined canonical binding ID. Synthetic production-dispatch tests cover
+valid discovery/observation, malformed and foreign responses, oversize and HTTP status mismatch,
+and auth/stale-lease rejection before forwarding. Producer behavior, host compatibility, MCP tool
+registration, live harness execution, deployment, and release remain `unverified`.
+
 | Adapter | Downstream | Current evidence | Result |
 | --- | --- | --- | --- |
 | `sts2-gateway-runtime` | Attached loopback runtime-v1 listener | Rust gates, synthetic TCP lane, and authorized exact-host trace | Attached forwarding and lease path confirmed for STS2 v0.107.1 Windows x86-64; general lifecycle and gameplay unverified |
 | Runtime-v2 ledger and attached adapter | Owner-local ledger plus fixed synthetic TCP downstream | Rust gates, byte-level artifact verification, deterministic fault tests, and isolated component restart trace | Fixed state/action/operation forwarding, bounded optional journal recovery with exclusive path ownership, exact bearer check, and synthetic route behavior confirmed; live downstream action settlement, lease-epoch rotation, multi-instance isolation, and host compatibility unverified |
 | `coop-native-v1` gateway consumer | Six fixed instance-scoped routes to the managed mod's native co-op paths | Copied artifact checksums, seventeen strict goldens, route/identity/lease/relation tests, and synthetic fixed-path forwarding | Source/component boundary confirmed; native peer admission, host legality/effects, two-peer settlement, checksum convergence, rejoin, deployment, and release compatibility unverified |
+| `game-information-lookup-binding-v1` gateway consumer | Fixed instance-scoped lookup-binding path to the game-mod boundary | Pinned schema inventory, schema-backed synthetic discovery/observation route tests, scope/instance/epoch/canonical-ID checks, and pre-forward auth/lease rejection | Source/component boundary confirmed; producer, host, MCP, harness execution, deployment, and release compatibility unverified |
 
 The adapters' fixed configurations are sprint boundaries, not general lifecycle support claims. The
 attached Runtime-v2 process accepts an optional bounded version-1 journal and a retained-operation
