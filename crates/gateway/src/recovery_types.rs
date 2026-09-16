@@ -12,7 +12,7 @@ mod recovery_host_lease_types;
 mod recovery_types_ticket;
 
 pub use recovery_continuation_owner_types::{
-    RecoveryContinuationOwner, RecoveryContinuationOwnerClaim,
+    RecoveryContinuationOwner, RecoveryContinuationOwnerAdoption, RecoveryContinuationOwnerClaim,
     RecoveryContinuationOwnerClaimResult, RecoveryContinuationOwnerSnapshot,
     RecoveryContinuationOwnerState,
 };

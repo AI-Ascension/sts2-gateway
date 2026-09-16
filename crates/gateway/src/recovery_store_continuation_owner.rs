@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 
-use rusqlite::{Connection, OptionalExtension, Transaction};
+use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior};
 
 use super::super::recovery_types::{
-    RecoveryContinuationOwner, RecoveryContinuationOwnerClaim,
+    RecoveryContinuationOwner, RecoveryContinuationOwnerAdoption, RecoveryContinuationOwnerClaim,
     RecoveryContinuationOwnerClaimResult, RecoveryContinuationOwnerSnapshot,
     RecoveryContinuationOwnerState, RecoveryStoreError, validate_identity, validate_uuid,
     validate_uuid_v4, validate_wire,
@@ -45,6 +45,72 @@ impl GatewayRecoveryStore {
         validate_identity("session_id", session_id)?;
         validate_wire(now_millis, "now_millis")?;
         current_owner_snapshot(&self.conn, session_id, now_millis)
+    }
+
+    /// Revalidates one prior claim and returns the current durable allocation authority.
+    ///
+    /// The immediate read transaction serializes owner, claim, and fence reads
+    /// against any concurrent recovery-store writer. It does not mutate rows,
+    /// renew the lease, or expose the fence token.
+    pub fn adopt_continuation_owner(
+        &mut self,
+        operation_id: &str,
+        expected_owner: &RecoveryContinuationOwner,
+        now_millis: u64,
+    ) -> Result<RecoveryContinuationOwnerAdoption, RecoveryStoreError> {
+        validate_uuid_v4("operation_id", operation_id)?;
+        validate_owner(expected_owner)?;
+        validate_wire(now_millis, "now_millis")?;
+
+        let tx = self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(map_sql_error)?;
+        let snapshot = current_owner_snapshot(&tx, &expected_owner.session_id, now_millis)?;
+        if snapshot.state != RecoveryContinuationOwnerState::Available {
+            return Err(owner_state_store_error(snapshot.state));
+        }
+        let Some(owner) = snapshot.owner else {
+            return Err(RecoveryStoreError::Corrupt(
+                "available continuation owner omitted its identity".to_owned(),
+            ));
+        };
+        if owner != *expected_owner {
+            return Err(RecoveryStoreError::StaleLease);
+        }
+        let Some(claim) = select_claim(&tx, operation_id)? else {
+            return Err(RecoveryStoreError::OperationNotFound);
+        };
+        if claim.owner != owner {
+            return Err(RecoveryStoreError::OperationConflict);
+        }
+        let current_fence = tx
+            .query_row(
+                "SELECT host_fence_id, deployment_id, instance_id, instance_incarnation,
+                        boot_id, authority_generation, fence_generation, host_fence_at
+                 FROM authority WHERE singleton = 1 AND host_fence_id IS NOT NULL",
+                [],
+                super::row_fence,
+            )
+            .optional()
+            .map_err(map_sql_error)?
+            .ok_or(RecoveryStoreError::AuthorityNotFound)?;
+        if current_fence.host_fence_id != owner.host_fence_id
+            || current_fence.fence_generation != owner.host_fence_generation
+            || current_fence.deployment_id != owner.deployment_id
+            || current_fence.instance_id != owner.instance_id
+            || current_fence.instance_incarnation != owner.instance_incarnation
+            || current_fence.boot_id != owner.boot_id
+            || current_fence.authority_generation != owner.authority_generation
+        {
+            return Err(RecoveryStoreError::StaleLease);
+        }
+        tx.commit().map_err(map_sql_error)?;
+        Ok(RecoveryContinuationOwnerAdoption {
+            claim,
+            owner,
+            current_fence,
+        })
     }
 
     /// Durably claims this exact live owner fence for one continuation operation.
@@ -118,6 +184,18 @@ impl GatewayRecoveryStore {
         insert_claim(&tx, &claim)?;
         tx.commit().map_err(map_sql_error)?;
         Ok(RecoveryContinuationOwnerClaimResult::Created(claim))
+    }
+}
+
+fn owner_state_store_error(state: RecoveryContinuationOwnerState) -> RecoveryStoreError {
+    match state {
+        RecoveryContinuationOwnerState::Available => {
+            RecoveryStoreError::InvalidInput("owner is already available".to_owned())
+        }
+        RecoveryContinuationOwnerState::Absent => RecoveryStoreError::LeaseNotFound,
+        RecoveryContinuationOwnerState::Expired => RecoveryStoreError::LeaseExpired,
+        RecoveryContinuationOwnerState::Revoked => RecoveryStoreError::LeaseRevoked,
+        RecoveryContinuationOwnerState::Unknown => RecoveryStoreError::StaleLease,
     }
 }
 

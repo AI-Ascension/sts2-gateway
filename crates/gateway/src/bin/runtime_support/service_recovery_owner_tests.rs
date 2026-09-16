@@ -371,6 +371,7 @@ fn production_dispatch_returns_non_secret_owner_and_idempotent_claim() -> Result
 }
 
 include!("service_recovery_owner_readiness_tests.rs");
+include!("service_recovery_owner_adopt_tests.rs");
 
 #[test]
 fn owner_route_requires_recovery_scope_capability_and_closed_frame() -> Result<(), String> {

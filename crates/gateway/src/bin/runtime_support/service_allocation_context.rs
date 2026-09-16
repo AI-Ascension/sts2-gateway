@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 
 use serde_json::{Value, json};
-use sts2_gateway::RecoveryLease;
+use sts2_gateway::{RecoveryContinuationOwner, RecoveryHostFence, RecoveryLease};
 
 use super::{RuntimeService, json_bytes, json_error};
 
@@ -45,20 +45,40 @@ pub(super) fn recovery_authority(
     lease: &RecoveryLease,
 ) -> Result<Value, (u16, Vec<u8>)> {
     let fence = validate_current_allocation(service, lease)?;
-    Ok(json!({
+    let owner = RecoveryContinuationOwner {
+        deployment_id: lease.deployment_id.clone(),
+        instance_id: lease.instance_id.clone(),
+        instance_incarnation: lease.instance_incarnation.clone(),
+        boot_id: lease.boot_id.clone(),
+        authority_generation: lease.authority_generation,
+        host_fence_id: fence.host_fence_id.clone(),
+        host_fence_generation: fence.fence_generation,
+        lease_id: lease.lease_id.clone(),
+        lease_epoch: lease.lease_epoch,
+        session_id: service.config.session_id.clone(),
+        lease_expires_at_millis: lease.expires_at_millis,
+    };
+    Ok(recovery_authority_from_owner(&owner, &fence))
+}
+
+pub(super) fn recovery_authority_from_owner(
+    owner: &RecoveryContinuationOwner,
+    fence: &RecoveryHostFence,
+) -> Value {
+    json!({
         "contract": ALLOCATION_CONTRACT,
         "schema_digest": ALLOCATION_SCHEMA_DIGEST,
         "context": {
-            "deployment_id": lease.deployment_id,
-            "instance_id": lease.instance_id,
-            "instance_incarnation": lease.instance_incarnation,
-            "boot_id": lease.boot_id,
-            "authority_generation": lease.authority_generation,
-            "lease_id": lease.lease_id,
-            "lease_epoch": lease.lease_epoch,
+            "deployment_id": owner.deployment_id,
+            "instance_id": owner.instance_id,
+            "instance_incarnation": owner.instance_incarnation,
+            "boot_id": owner.boot_id,
+            "authority_generation": owner.authority_generation,
+            "lease_id": owner.lease_id,
+            "lease_epoch": owner.lease_epoch,
         },
-        "current_fence": super::recovery_wire::fence_value(&fence),
-    }))
+        "current_fence": super::recovery_wire::fence_value(fence),
+    })
 }
 fn validate_current_allocation(
     service: &mut RuntimeService,

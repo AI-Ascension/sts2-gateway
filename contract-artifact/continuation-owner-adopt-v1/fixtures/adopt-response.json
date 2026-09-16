@@ -1,0 +1,73 @@
+{
+  "contract": "sts2-continuation-owner-adopt-v1",
+  "schema_digest": "7240e2f5054e5f6639ad12fa1ed66d40992f1234e49b693b2aacc53451dec380",
+  "message_id": "00000000-0000-4000-8000-000000000011",
+  "correlation_id": "00000000-0000-4000-8000-000000000002",
+  "actor": {
+    "principal_id": "00000000-0000-4000-8000-000000000003",
+    "role": "gateway"
+  },
+  "auth": {
+    "principal_id": "00000000-0000-4000-8000-000000000003",
+    "capability": "continuation_owner_adopt",
+    "proof": null
+  },
+  "kind": "owner_adopt_response",
+  "payload": {
+    "result": "ADOPTED",
+    "claim": {
+      "operation_id": "00000000-0000-4000-8000-000000000004",
+      "request_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "owner": {
+        "deployment_id": "00000000-0000-4000-8000-000000000005",
+        "instance_id": "00000000-0000-4000-8000-000000000006",
+        "instance_incarnation": "00000000-0000-4000-8000-000000000007",
+        "boot_id": "00000000-0000-4000-8000-000000000008",
+        "authority_generation": 7,
+        "host_fence_id": "00000000-0000-4000-8000-000000000009",
+        "host_fence_generation": 3,
+        "lease_id": "00000000-0000-4000-8000-000000000010",
+        "lease_epoch": 8,
+        "session_id": "selected-session",
+        "lease_expires_at_millis": 1800000000000
+      },
+      "claimed_at_millis": 1778976000000
+    },
+    "owner": {
+      "deployment_id": "00000000-0000-4000-8000-000000000005",
+      "instance_id": "00000000-0000-4000-8000-000000000006",
+      "instance_incarnation": "00000000-0000-4000-8000-000000000007",
+      "boot_id": "00000000-0000-4000-8000-000000000008",
+      "authority_generation": 7,
+      "host_fence_id": "00000000-0000-4000-8000-000000000009",
+      "host_fence_generation": 3,
+      "lease_id": "00000000-0000-4000-8000-000000000010",
+      "lease_epoch": 8,
+      "session_id": "selected-session",
+      "lease_expires_at_millis": 1800000000000
+    },
+    "recovery_authority": {
+      "contract": "watchdog-runtime-allocation-v1",
+      "schema_digest": "ee967a95e79fb2f157ce58d2b6d857de42b75f1f5ebfeb82dd9672e3b0f7670b",
+      "context": {
+        "deployment_id": "00000000-0000-4000-8000-000000000005",
+        "instance_id": "00000000-0000-4000-8000-000000000006",
+        "instance_incarnation": "00000000-0000-4000-8000-000000000007",
+        "boot_id": "00000000-0000-4000-8000-000000000008",
+        "authority_generation": 7,
+        "lease_id": "00000000-0000-4000-8000-000000000010",
+        "lease_epoch": 8
+      },
+      "current_fence": {
+        "host_fence_id": "00000000-0000-4000-8000-000000000009",
+        "deployment_id": "00000000-0000-4000-8000-000000000005",
+        "instance_id": "00000000-0000-4000-8000-000000000006",
+        "instance_incarnation": "00000000-0000-4000-8000-000000000007",
+        "boot_id": "00000000-0000-4000-8000-000000000008",
+        "authority_generation": 7,
+        "fence_generation": 3,
+        "created_at": "2026-09-16T00:00:00Z"
+      }
+    }
+  }
+}

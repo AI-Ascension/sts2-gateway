@@ -2,6 +2,7 @@
 
 mod auth;
 mod continuation_owner;
+mod continuation_owner_adopt;
 mod coop_native;
 mod coop_native_forwarder;
 mod coop_reports;

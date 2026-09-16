@@ -5,6 +5,14 @@ host compatibility and release publication.
 
 ## [Unreleased]
 
+- Add the separate `sts2-continuation-owner-adopt-v1` route for resuming an
+  already claimed, still-live destination. It returns the original claim and
+  the durable allocation recovery authority without allocating, renewing, or
+  mutating the host. The published continuation-owner-v1 schema and digest
+  remain unchanged. Gateway component evidence covers live-owner and claim
+  fencing; Harness resume wiring and native restore remain separate work. See
+  [ADR 0029](docs/decisions/0029-continuation-owner-adoption.md).
+
 - Add the versioned continuation-owner read, claim, and historical lookup
   routes. Durable claims bind one logical continuation operation to an exact
   current gateway lease/fence and reject sibling or stale claims. Historical
