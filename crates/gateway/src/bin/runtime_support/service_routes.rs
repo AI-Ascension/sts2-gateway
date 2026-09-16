@@ -3,6 +3,8 @@
 use super::super::save_profile::RuntimeSaveProfileRoute;
 use super::*;
 
+#[path = "service_exact_restore.rs"]
+mod exact_restore;
 #[path = "service_recovery_owner.rs"]
 mod recovery_owner;
 
@@ -26,14 +28,8 @@ impl RuntimeService {
         ) {
             return rejection;
         }
-        if request.method == "GET"
-            && request.path
-                == format!(
-                    "/v1/instances/{}/checkpoint-reference",
-                    self.config.instance_id
-                )
-        {
-            return self.checkpoint_reference_request(request);
+        if let Some(response) = super::checkpoint_reference::dispatch(self, request) {
+            return response;
         }
         if let Some(route) =
             RuntimeV3GameplayRoute::parse(&request.method, &request.path, &self.config.instance_id)
@@ -76,6 +72,9 @@ impl RuntimeService {
             RuntimeSaveProfileRoute::parse(&request.method, &request.path, &self.config.instance_id)
         {
             return self.save_profile_request(request, route);
+        }
+        if let Some(route) = exact_restore::Route::parse(&request.method, &request.path) {
+            return exact_restore::handle(self, request, route);
         }
         if request.method == "POST"
             && request.path == self.seeded_run_start_path()

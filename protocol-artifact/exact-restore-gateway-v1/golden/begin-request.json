@@ -1,0 +1,78 @@
+{
+  "contract": "sts2-exact-restore-gateway-v1",
+  "schema_digest": "0b181dc30524c8b14dea73e490da55538f2d57fe87bf58ed9fe33223406a7d89",
+  "message_id": "00000001-6fef-4a1b-9d98-ef2e3def8f20",
+  "correlation_id": "00000001-6fef-4a1b-9d98-ef2e3def8f20",
+  "actor": {
+    "principal_id": "harness",
+    "role": "harness"
+  },
+  "auth": {
+    "principal_id": "harness",
+    "capability": "exact_restore",
+    "proof": null
+  },
+  "kind": "exact_restore_request",
+  "payload": {
+    "frame": {
+      "contract": "sts2-exact-restore-v1",
+      "schema_digest": "2289d888c33eac46873408303c4423eab762e3f7bd6132ae8ae88d0d3b1858e4",
+      "message_id": "00000001-6fef-4a1b-9d98-ef2e3def8f20",
+      "correlation_id": "00000001-6fef-4a1b-9d98-ef2e3def8f20",
+      "kind": "exact_restore_begin_request",
+      "payload": {
+        "operation_id": "c3ee424f-a65e-45a3-8c69-fde8d10cf0b4",
+        "expected_owner": {
+          "deployment_id": "4d503044-f3a4-42f5-a7bc-4894a879b715",
+          "instance_id": "02ab8278-c166-4557-bd6d-8f7575484a55",
+          "instance_incarnation": "14ef8d7b-d10a-4ff5-ae4d-2abcf08a9fa6",
+          "boot_id": "c6f9c045-9498-4780-9e8c-ff47575be944",
+          "authority_generation": 3,
+          "host_fence_id": "8b8ea2c8-8e2c-498e-91a2-8f0dcf42ae37",
+          "host_fence_generation": 7,
+          "lease_id": "c0f5a147-1ba1-4a1c-9a25-1b46935403ef",
+          "lease_epoch": 8,
+          "session_id": "session-example",
+          "lease_expires_at_millis": 1900000000000
+        },
+        "branch": {
+          "experiment_id": "experiment:sample",
+          "branch_id": "branch:sample",
+          "metadata_revision": 4,
+          "run_id": "run:sample",
+          "episode_id": "episode:sample",
+          "trajectory_id": "trajectory:sample"
+        },
+        "checkpoint_id": "asc-checkpoint:v1:sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "exact_state_digest": "asc-state:v1:sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "manifest_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "manifest_size_bytes": 10,
+        "closure_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "compatibility_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "coverage_contract_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "boundary": {
+          "kind": "room",
+          "phase": "map",
+          "game_tick": 91
+        },
+        "artifacts": [
+          {
+            "role": "canonical-state",
+            "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "size_bytes": 10,
+            "codec": "asc-jcs-state-v1"
+          },
+          {
+            "role": "restore-data",
+            "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+            "size_bytes": 5,
+            "codec": "native-v1"
+          }
+        ],
+        "artifact_reference_count": 2,
+        "distinct_blob_count": 2,
+        "aggregate_closure_bytes": 25
+      }
+    }
+  }
+}

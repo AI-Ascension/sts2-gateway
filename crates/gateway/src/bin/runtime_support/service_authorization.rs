@@ -44,6 +44,11 @@ pub(super) fn is_recovery_path(request: &HttpRequest) -> bool {
                 | "/v1/recovery/continuation/owner/claim"
                 | "/v1/recovery/continuation/owner/lookup"
                 | "/v1/recovery/continuation/owner/adopt"
+                | "/v1/exact-restore/begin"
+                | "/v1/exact-restore/chunk"
+                | "/v1/exact-restore/finish"
+                | "/v1/exact-restore/commit"
+                | "/v1/exact-restore/lookup"
         )
 }
 
@@ -134,7 +139,17 @@ pub(super) fn required_scope(request: &HttpRequest, instance_id: &str) -> AuthSc
     let continuation_owner_claim_path = "/v1/recovery/continuation/owner/claim";
     let continuation_owner_lookup_path = "/v1/recovery/continuation/owner/lookup";
     let continuation_owner_adopt_path = "/v1/recovery/continuation/owner/adopt";
+    let exact_restore_paths = [
+        "/v1/exact-restore/begin",
+        "/v1/exact-restore/chunk",
+        "/v1/exact-restore/finish",
+        "/v1/exact-restore/commit",
+        "/v1/exact-restore/lookup",
+    ];
     if request.method == "POST" {
+        if exact_restore_paths.contains(&request.path.as_str()) {
+            return AuthScope::Control;
+        }
         if request.path == operation_lookup_path {
             return AuthScope::Read;
         }

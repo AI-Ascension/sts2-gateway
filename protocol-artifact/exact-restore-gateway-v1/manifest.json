@@ -1,0 +1,44 @@
+{
+  "artifact": "sts2-mcp-server/exact-restore-gateway-v1",
+  "contract": "sts2-exact-restore-gateway-v1",
+  "version": 1,
+  "schema": "schema.json",
+  "schema_digest": "0b181dc30524c8b14dea73e490da55538f2d57fe87bf58ed9fe33223406a7d89",
+  "neutral_protocol": {
+    "artifact": "sts2-protocol/exact-restore-v1",
+    "producer_commit": "5d5a368ef8a89fd1cb356b04dbf9d8a056adbf05",
+    "schema_digest": "2289d888c33eac46873408303c4423eab762e3f7bd6132ae8ae88d0d3b1858e4"
+  },
+  "tools": [
+    "sts2.exact_restore.begin",
+    "sts2.exact_restore.put_chunk",
+    "sts2.exact_restore.finish_blob",
+    "sts2.exact_restore.commit",
+    "sts2.exact_restore.lookup"
+  ],
+  "gateway_routes": [
+    "POST /v1/exact-restore/begin",
+    "POST /v1/exact-restore/chunk",
+    "POST /v1/exact-restore/finish",
+    "POST /v1/exact-restore/commit",
+    "POST /v1/exact-restore/lookup"
+  ],
+  "limits": {
+    "max_wrapper_bytes": 16384,
+    "max_neutral_frame_bytes": 16384,
+    "max_chunk_raw_bytes": 8192,
+    "max_chunk_base64_bytes": 10924
+  },
+  "provenance": {
+    "owner": "sts2-mcp-server",
+    "source": "consumer-owned closed authenticated wrapper for exact-restore-v1",
+    "license": "MIT"
+  },
+  "goldens": [
+    "golden/begin-request.json",
+    "golden/begin-response.json",
+    "golden/commit-unknown-response.json",
+    "golden/rejections.json"
+  ],
+  "checksums": "SHA256SUMS"
+}

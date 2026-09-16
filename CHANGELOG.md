@@ -5,6 +5,16 @@ host compatibility and release publication.
 
 ## [Unreleased]
 
+- Add the authenticated `exact_restore` Gateway transport for the frozen
+  exact-restore neutral protocol and MCP wrapper. Five fixed routes validate the
+  configured principal, capability, complete current owner fence, request and
+  response schemas, correlations, and 16 KiB frame bounds on every phase before
+  forwarding only to the matching fixed native path. A native
+  `REJECTED/no_restore_adapter` reply stays explicit and does not permit uploads.
+  This confirms Gateway source/component transport only; native restore and
+  Harness continuation remain separate work. See
+  [ADR 0031](docs/decisions/0031-exact-restore-gateway-transport.md).
+
 - Add the separate `sts2-continuation-owner-adopt-v1` route for resuming an
   already claimed, still-live destination. It returns the original claim and
   the durable allocation recovery authority without allocating, renewing, or
@@ -28,6 +38,11 @@ host compatibility and release publication.
   after current lease admission, validates raw JSON against the copied schema, binds scope,
   harness authority epoch, instance, locale, correlation, and canonical binding ID, and rejects
   malformed, duplicate, foreign, oversized, or status-inconsistent responses before success.
+  Observation now requires a current matching discovery scope, authority epoch, binding, and
+  manifest before producer I/O; missing or stale discovery returns
+  `409 game_information_lookup_binding_discovery_required` without forwarding. A mismatched
+  validated producer observation returns 502 and clears the retained discovery, so callers must
+  re-discover after authority changes.
   Synthetic route evidence is confirmed; producer and live host behavior remain unverified. See
   [ADR 0025](docs/decisions/0025-game-information-lookup-binding-route.md).
 

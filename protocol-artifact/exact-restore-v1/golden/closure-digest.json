@@ -1,0 +1,14 @@
+{
+  "manifest_utf8": "abc",
+  "canonical_payload_utf8": "abc",
+  "restore_artifacts_utf8": [
+    "abc",
+    "de",
+    "de",
+    "f"
+  ],
+  "artifact_reference_count": 5,
+  "distinct_blob_count": 3,
+  "aggregate_closure_bytes": 9,
+  "closure_digest": "sha256:6786f26ab3307cdcb385f590eb899cfd1fb03cc98f15d74aa2acc622d0423700"
+}

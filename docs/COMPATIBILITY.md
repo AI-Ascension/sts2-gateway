@@ -478,3 +478,20 @@ published owner-v1 frame digest and never allocates, renews, or initializes a
 host. Clients that do not use adoption remain compatible; adoption does not
 provide native restore or prove that resuming the host is safe. See
 [ADR 0029](decisions/0029-continuation-owner-adoption.md).
+
+## Exact restore transport
+
+ADR 0031 adds the five additive fixed control routes for the frozen
+`sts2-exact-restore-v1` frame and the separate MCP-owned
+`sts2-exact-restore-gateway-v1` wrapper. Both wrapper and neutral frame remain
+bounded to 16 KiB. Every phase is bound to the configured principal,
+`exact_restore` capability, current installed owner grant, active lease,
+complete owner tuple, operation, and request/response correlations before the
+matching fixed native path is used.
+
+Gateway preserves the native `REJECTED/no_restore_adapter` result before byte
+upload. A passed synthetic Gateway transport test therefore does not imply that
+the mod can stage a closure, apply a restore, or recapture the selected exact
+state. Native effect support, MCP-to-Gateway deployed compatibility, Harness
+closure orchestration, game-host restore, and post-restore verification remain
+separate acceptance evidence.
