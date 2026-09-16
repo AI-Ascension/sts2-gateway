@@ -42,6 +42,15 @@ with lexicographically sorted members, using the request scope and authority epo
 producer-declared game profile, content manifest, and locale. `instance_id` is checked separately
 and is not part of the digest.
 
+After a successful discovery, Gateway retains its validated scope, authority epoch, binding ID,
+content manifest, and current producer authority only for admission of the next observation.
+`observe` must match that retained scope and epoch and the current authority and manifest before
+Gateway opens a producer connection. A missing, stale, or mismatched discovery returns
+`409 game_information_lookup_binding_discovery_required` with zero producer forwarding. A
+validated observation whose returned identity disagrees with the retained discovery is instead a
+post-forward `502 game_information_lookup_binding_response_invalid` and clears the retained
+binding.
+
 Malformed, duplicate, oversized, foreign, schema-invalid, or status-inconsistent producer
 responses return a bounded 502 gateway error. A valid typed `error_response` keeps its producer
 status and body when the status is 4xx or 5xx. Invalid requests return 400. Authentication and
@@ -50,7 +59,8 @@ use the existing bounded game-information transport outcomes.
 
 ## Compatibility and deterministic oracle
 
-This is an additive gateway route. Existing routes, schemas, and artifacts are unchanged. The
+This is an additive gateway route. Existing routes, schemas, and artifacts are unchanged. Existing
+callers must discover before observing and re-discover after an authority change. The
 deterministic oracle invokes the production dispatcher with a synthetic loopback producer and
 checks discovery and observation success, exact fixed path and forwarded identity headers,
 malformed and duplicate JSON, foreign instance, oversized response, inconsistent status, and

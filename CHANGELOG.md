@@ -28,6 +28,11 @@ host compatibility and release publication.
   after current lease admission, validates raw JSON against the copied schema, binds scope,
   harness authority epoch, instance, locale, correlation, and canonical binding ID, and rejects
   malformed, duplicate, foreign, oversized, or status-inconsistent responses before success.
+  Observation now requires a current matching discovery scope, authority epoch, binding, and
+  manifest before producer I/O; missing or stale discovery returns
+  `409 game_information_lookup_binding_discovery_required` without forwarding. A mismatched
+  validated producer observation returns 502 and clears the retained discovery, so callers must
+  re-discover after authority changes.
   Synthetic route evidence is confirmed; producer and live host behavior remain unverified. See
   [ADR 0025](docs/decisions/0025-game-information-lookup-binding-route.md).
 
