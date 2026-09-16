@@ -23,6 +23,32 @@ pub(super) fn forward(
     // producer exchange fails, so an old binding cannot authorize catalog use.
     if discovery {
         service.game_information_lookup_binding = None;
+    } else {
+        let Some(scope) = game_information_lookup_binding::request_scope(&request.body) else {
+            return (400, json_error("game_information_lookup_binding_invalid"));
+        };
+        let authority = service.game_information_authority();
+        let Some(bound) = service.game_information_lookup_binding.as_ref() else {
+            return (
+                409,
+                json_error("game_information_lookup_binding_discovery_required"),
+            );
+        };
+        if bound.authority != authority
+            || bound.content_manifest_id != authority.content_manifest_id
+        {
+            service.game_information_lookup_binding = None;
+            return (
+                409,
+                json_error("game_information_lookup_binding_discovery_required"),
+            );
+        }
+        if bound.scope != scope {
+            return (
+                409,
+                json_error("game_information_lookup_binding_discovery_required"),
+            );
+        }
     }
     let correlation = request
         .headers
@@ -57,7 +83,7 @@ pub(super) fn forward(
                 );
             }
             if discovery && response.status == 200 {
-                let Some((binding_id, content_manifest_id, authority_epoch)) =
+                let Some((binding_id, content_manifest_id, authority_epoch, scope)) =
                     game_information_lookup_binding::discovery_witness(
                         &response.body,
                         &request.body,
@@ -80,7 +106,36 @@ pub(super) fn forward(
                     binding_id,
                     content_manifest_id,
                     authority_epoch,
+                    scope,
                 });
+            } else if response.status == 200 {
+                let Some((binding_id, content_manifest_id, authority_epoch)) =
+                    game_information_lookup_binding::response_binding(&response.body)
+                else {
+                    return (
+                        502,
+                        json_error("game_information_lookup_binding_response_invalid"),
+                    );
+                };
+                let authority = service.game_information_authority();
+                let matches_discovery = service
+                    .game_information_lookup_binding
+                    .as_ref()
+                    .is_some_and(|bound| {
+                        bound.authority == authority
+                            && bound.binding_id == binding_id
+                            && bound.content_manifest_id == content_manifest_id
+                            && bound.authority_epoch == authority_epoch
+                    });
+                if content_manifest_id != authority.content_manifest_id || !matches_discovery {
+                    // A valid observation for a different identity proves the
+                    // retained discovery cannot safely authorize catalog use.
+                    service.game_information_lookup_binding = None;
+                    return (
+                        502,
+                        json_error("game_information_lookup_binding_response_invalid"),
+                    );
+                }
             }
             (response.status, response.body)
         }
