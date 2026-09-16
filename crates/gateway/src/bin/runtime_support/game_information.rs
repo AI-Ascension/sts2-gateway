@@ -5,6 +5,7 @@
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum GameInformationRoute {
     Capabilities,
+    LookupBinding,
     /// Canonical MCP-facing route.  The query envelope selects one of the
     /// fixed producer operations; the URL itself never becomes a downstream
     /// path.
@@ -22,6 +23,7 @@ impl GameInformationRoute {
         let operation = path.strip_prefix(&prefix)?;
         match (method, operation) {
             ("GET", "capabilities") => Some(Self::Capabilities),
+            ("POST", "lookup-binding") => Some(Self::LookupBinding),
             ("POST", "query") => Some(Self::Query),
             ("POST", "list") => Some(Self::List),
             ("POST", "search") => Some(Self::Search),
@@ -33,12 +35,12 @@ impl GameInformationRoute {
     }
 
     pub(crate) const fn is_query(self) -> bool {
-        !matches!(self, Self::Capabilities)
+        !matches!(self, Self::Capabilities | Self::LookupBinding)
     }
 
     pub(crate) const fn query_kind(self) -> Option<&'static str> {
         match self {
-            Self::Capabilities | Self::Query => None,
+            Self::Capabilities | Self::LookupBinding | Self::Query => None,
             Self::List => Some("list"),
             Self::Search => Some("search"),
             Self::Get => Some("get"),
@@ -50,6 +52,7 @@ impl GameInformationRoute {
     pub(crate) const fn downstream_path(self) -> &'static str {
         match self {
             Self::Capabilities => "/api/v1/game-information/capabilities",
+            Self::LookupBinding => "/api/v1/game-information/lookup-binding",
             // Callers must resolve `Query` with `from_query_kind` before
             // forwarding.  Returning an empty path makes accidental use fail
             // closed at the HTTP transport boundary.

@@ -29,6 +29,9 @@ impl RuntimeService {
         if route == GameInformationRoute::Capabilities {
             return self.game_information_capabilities(request, cancellation);
         }
+        if route == GameInformationRoute::LookupBinding {
+            return self.game_information_lookup_binding(request, cancellation);
+        }
         if !request.content_type_is_json() {
             return (400, json_error("game_information_content_type_required"));
         }
@@ -127,6 +130,32 @@ impl RuntimeService {
         }
         self.remember_next_cursor(&query, &validated.value);
         (response.status, response.body)
+    }
+
+    fn game_information_lookup_binding(
+        &self,
+        request: &HttpRequest,
+        cancellation: &super::RequestCancellation,
+    ) -> (u16, Vec<u8>) {
+        if !request.content_type_is_json() || !lookup_binding_request_is_closed(&request.body) {
+            return (400, json_error("game_information_lookup_binding_invalid"));
+        }
+        let correlation = request
+            .headers
+            .get("x-sts2-correlation-id")
+            .map(String::as_str);
+        match self.forward_mod_with_limit_detailed_timeout_cancelable(
+            "POST",
+            GameInformationRoute::LookupBinding.downstream_path(),
+            &request.body,
+            correlation,
+            super::game_information_forwarder::MAX_RESPONSE_BYTES,
+            self.game_information_exchange_timeout,
+            cancellation,
+        ) {
+            Ok(response) => (response.status, response.body),
+            Err(error) => game_information_transport_error(error),
+        }
     }
 
     fn game_information_capabilities(
@@ -263,6 +292,46 @@ impl RuntimeService {
         self.game_information_cursor_bindings
             .insert(next_cursor.to_owned(), binding);
     }
+}
+
+fn lookup_binding_request_is_closed(body: &[u8]) -> bool {
+    let Ok(value) = super::super::strict_json::parse(body) else {
+        return false;
+    };
+    let Some(object) = value.as_object() else {
+        return false;
+    };
+    if object.len() != 6
+        || !object.keys().all(|name| {
+            matches!(
+                name.as_str(),
+                "operation"
+                    | "project_id"
+                    | "run_id"
+                    | "episode_id"
+                    | "agent_id"
+                    | "authority_epoch"
+            )
+        })
+        || !matches!(
+            object.get("operation").and_then(Value::as_str),
+            Some("discovery" | "observe")
+        )
+        || object
+            .get("authority_epoch")
+            .and_then(Value::as_u64)
+            .is_none()
+    {
+        return false;
+    }
+    ["project_id", "run_id", "episode_id", "agent_id"]
+        .into_iter()
+        .all(|name| {
+            object
+                .get(name)
+                .and_then(Value::as_str)
+                .is_some_and(super::safe_identity)
+        })
 }
 
 fn game_information_request_error(error: GameInformationRequestError) -> (u16, Vec<u8>) {
