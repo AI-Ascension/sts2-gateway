@@ -14,6 +14,21 @@ mod values;
 pub(super) use values::configured_mcp_session;
 use values::{parse_bool, parse_recovery_seconds, valid_uuid, valid_uuid_v4};
 
+fn valid_locale(value: &str) -> bool {
+    let mut parts = value.split('-');
+    let Some(language) = parts.next() else {
+        return false;
+    };
+    if !(2..=3).contains(&language.len())
+        || !language.bytes().all(|byte| byte.is_ascii_alphabetic())
+    {
+        return false;
+    }
+    parts.all(|part| {
+        (2..=8).contains(&part.len()) && part.bytes().all(|byte| byte.is_ascii_alphanumeric())
+    })
+}
+
 pub(super) fn coop_reports_from_environment() -> Result<Option<CoopReports>, String> {
     match std::env::var("STS2_COOP_ROSTER") {
         Ok(text) => CoopReports::from_roster(&text).map(Some),
@@ -41,6 +56,10 @@ impl RuntimeConfig {
         let game_information_content_manifest_id =
             env_or_default("STS2_GAME_INFORMATION_CONTENT_MANIFEST_ID", "content-1")?;
         let game_information_run_id = env_or_default("STS2_GAME_INFORMATION_RUN_ID", "run-1")?;
+        let game_information_locale = env_or_default("STS2_GAME_INFORMATION_LOCALE", "en-US")?;
+        if !valid_locale(&game_information_locale) {
+            return Err(String::from("STS2_GAME_INFORMATION_LOCALE is invalid"));
+        }
         let operation_capacity = parse_operation_capacity(&env_or_default(
             "STS2_RUNTIME_V2_OPERATION_CAPACITY",
             DEFAULT_OPERATION_CAPACITY,
@@ -212,6 +231,7 @@ impl RuntimeConfig {
             coop_native_peer_id,
             game_information_content_manifest_id,
             game_information_run_id,
+            game_information_locale,
             save_profile_enabled,
         })
     }

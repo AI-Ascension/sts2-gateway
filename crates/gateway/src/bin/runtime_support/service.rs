@@ -118,6 +118,7 @@ struct RuntimeConfig {
     coop_native_peer_id: Option<String>,
     game_information_content_manifest_id: String,
     game_information_run_id: String,
+    game_information_locale: String,
     save_profile_enabled: bool,
 }
 
