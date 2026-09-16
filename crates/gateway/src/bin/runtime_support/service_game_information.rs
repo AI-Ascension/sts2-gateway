@@ -18,6 +18,7 @@ mod errors;
 use errors::{
     game_information_request_error, game_information_response_error,
     game_information_transport_error, lookup_binding_request_is_closed,
+    lookup_binding_response_is_closed,
 };
 
 impl RuntimeService {
@@ -160,7 +161,15 @@ impl RuntimeService {
             self.game_information_exchange_timeout,
             cancellation,
         ) {
-            Ok(response) => (response.status, response.body),
+            Ok(response) => {
+                if !lookup_binding_response_is_closed(&response.body, correlation.unwrap_or("")) {
+                    return (
+                        502,
+                        json_error("game_information_lookup_binding_response_invalid"),
+                    );
+                }
+                (response.status, response.body)
+            }
             Err(error) => game_information_transport_error(error),
         }
     }
