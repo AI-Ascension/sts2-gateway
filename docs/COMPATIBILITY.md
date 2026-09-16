@@ -457,3 +457,15 @@ This is a proposed minor surface pending game-mod save-profile contract acceptan
 launch-profile integration. Deterministic source/component and synthetic loopback tests are
 confirmed; real filesystem isolation, production persistence, native save behavior, host
 compatibility, and cross-restart durability remain `unverified`.
+
+## Continuation owner admission
+
+`sts2-continuation-owner-v1` adds privileged fixed owner read, claim, and
+history lookup routes. The gateway reports `available` only when persisted
+recovery authority and the live process-held lease, fence, host installation,
+and deadline agree. Exact claims are idempotent and unique to one operation
+and lease epoch; historical claims remain separate from current liveness. The
+additive contract does not change existing clients or recovery frames. It does
+not supply native restore, a native receipt, or assurance that continuation is
+safe; those remain unavailable until their owners provide and validate those
+effects. See [ADR 0028](decisions/0028-continuation-owner-fence.md).

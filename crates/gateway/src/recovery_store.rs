@@ -55,6 +55,8 @@ mod authority;
 mod authority_lease;
 #[path = "recovery_store_backup.rs"]
 mod backup;
+#[path = "recovery_store_continuation_owner.rs"]
+mod continuation_owner;
 #[path = "recovery_store_host_lease.rs"]
 mod host_lease;
 #[path = "recovery_store_host_lease_ack.rs"]

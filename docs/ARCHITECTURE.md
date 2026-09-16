@@ -257,6 +257,15 @@ allows a new boot/fence handshake to precede lease acquisition; the bridge is
 transport evidence only until the mod/host consumer proves atomic fence
 replacement. See [ADR 0016](decisions/0016-recovery-host-fence-bridge.md).
 
+Continuation owner admission uses the additive `sts2-continuation-owner-v1`
+contract in [ADR 0028](decisions/0028-continuation-owner-fence.md). Fixed
+recovery routes report the current owner, durably claim one exact lease/fence
+for an operation, and read claim history separately from current ownership.
+The owner is `available` only when persisted authority and the live
+process-held lease/deadline agree. A restart or missing process fence reports
+`unknown`; historical claims never authorize replay. This is a gateway
+admission primitive, not native restore or branch execution.
+
 Both gateway and mod endpoint settings require numeric loopback `IP:port` socket addresses;
 wildcard/non-loopback addresses and DNS hostnames fail configuration. This plaintext attached lane
 does not expose a remote mode. HTTP frames and downstream exchanges use absolute deadlines.

@@ -1,0 +1,32 @@
+{
+  "contract": "sts2-continuation-owner-v1",
+  "schema_digest": "5e787126c98cf950b94dcb4e02c5520ebbc5e0571a5e827cf0bd286815cd49dc",
+  "message_id": "00000000-0000-4000-8000-000000000004",
+  "correlation_id": "00000000-0000-4000-8000-000000000005",
+  "actor": {
+    "principal_id": "00000000-0000-4000-8000-000000000003",
+    "role": "harness"
+  },
+  "auth": {
+    "principal_id": "00000000-0000-4000-8000-000000000003",
+    "capability": "continuation_owner_claim",
+    "proof": null
+  },
+  "kind": "owner_claim_request",
+  "payload": {
+    "operation_id": "00000000-0000-4000-8000-000000000006",
+    "expected_owner": {
+      "deployment_id": "00000000-0000-4000-8000-000000000007",
+      "instance_id": "00000000-0000-4000-8000-000000000008",
+      "instance_incarnation": "00000000-0000-4000-8000-000000000009",
+      "boot_id": "00000000-0000-4000-8000-000000000010",
+      "authority_generation": 3,
+      "host_fence_id": "00000000-0000-4000-8000-000000000011",
+      "host_fence_generation": 5,
+      "lease_id": "00000000-0000-4000-8000-000000000012",
+      "lease_epoch": 8,
+      "session_id": "runtime-session-17",
+      "lease_expires_at_millis": 1800000000000
+    }
+  }
+}

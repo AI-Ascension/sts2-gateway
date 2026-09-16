@@ -116,7 +116,24 @@ CREATE TABLE IF NOT EXISTS operation_archive (
 );
 CREATE INDEX IF NOT EXISTS operation_archive_digest_idx
     ON operation_archive(instance_id, operation_id, payload_digest);
-PRAGMA user_version = 3;
+CREATE TABLE IF NOT EXISTS continuation_owner_claims (
+    operation_id TEXT PRIMARY KEY,
+    request_digest TEXT NOT NULL,
+    deployment_id TEXT NOT NULL,
+    instance_id TEXT NOT NULL,
+    instance_incarnation TEXT NOT NULL,
+    boot_id TEXT NOT NULL,
+    authority_generation INTEGER NOT NULL,
+    host_fence_id TEXT NOT NULL,
+    host_fence_generation INTEGER NOT NULL,
+    lease_id TEXT NOT NULL,
+    lease_epoch INTEGER NOT NULL,
+    session_id TEXT NOT NULL,
+    lease_expires_at_millis INTEGER NOT NULL,
+    claimed_at_millis INTEGER NOT NULL,
+    UNIQUE (lease_id, lease_epoch)
+);
+PRAGMA user_version = 4;
 "#;
 
 pub(super) const OPERATION_COLUMNS: &str =

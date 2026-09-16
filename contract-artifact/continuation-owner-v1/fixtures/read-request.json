@@ -1,0 +1,17 @@
+{
+  "contract": "sts2-continuation-owner-v1",
+  "schema_digest": "5e787126c98cf950b94dcb4e02c5520ebbc5e0571a5e827cf0bd286815cd49dc",
+  "message_id": "00000000-0000-4000-8000-000000000001",
+  "correlation_id": "00000000-0000-4000-8000-000000000002",
+  "actor": {
+    "principal_id": "00000000-0000-4000-8000-000000000003",
+    "role": "harness"
+  },
+  "auth": {
+    "principal_id": "00000000-0000-4000-8000-000000000003",
+    "capability": "continuation_owner_read",
+    "proof": null
+  },
+  "kind": "current_owner_request",
+  "payload": {}
+}

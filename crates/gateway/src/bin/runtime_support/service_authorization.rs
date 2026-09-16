@@ -40,6 +40,9 @@ pub(super) fn is_recovery_path(request: &HttpRequest) -> bool {
                 | "/v1/recovery/operation/dispatch"
                 | "/v1/recovery/operation/lookup"
                 | "/v1/recovery/operation/reconcile"
+                | "/v1/recovery/continuation/owner/read"
+                | "/v1/recovery/continuation/owner/claim"
+                | "/v1/recovery/continuation/owner/lookup"
         )
 }
 
@@ -122,6 +125,9 @@ pub(super) fn required_scope(request: &HttpRequest, instance_id: &str) -> AuthSc
     let operation_dispatch_path = "/v1/recovery/operation/dispatch";
     let operation_lookup_path = "/v1/recovery/operation/lookup";
     let operation_reconcile_path = "/v1/recovery/operation/reconcile";
+    let continuation_owner_read_path = "/v1/recovery/continuation/owner/read";
+    let continuation_owner_claim_path = "/v1/recovery/continuation/owner/claim";
+    let continuation_owner_lookup_path = "/v1/recovery/continuation/owner/lookup";
     if request.method == "POST" {
         if request.path == operation_lookup_path {
             return AuthScope::Read;
@@ -129,12 +135,19 @@ pub(super) fn required_scope(request: &HttpRequest, instance_id: &str) -> AuthSc
         if request.path == operation_intent_path || request.path == operation_dispatch_path {
             return AuthScope::Mutate;
         }
+        if request.path == continuation_owner_read_path {
+            return AuthScope::Read;
+        }
+        if request.path == continuation_owner_lookup_path {
+            return AuthScope::Read;
+        }
         if request.path == bootstrap_path
             || request.path == host_fence_path
             || request.path == lease_acquire_path
             || request.path == lease_renew_path
             || request.path == lease_revoke_path
             || request.path == operation_reconcile_path
+            || request.path == continuation_owner_claim_path
         {
             return AuthScope::Control;
         }

@@ -3,6 +3,9 @@
 use super::super::save_profile::RuntimeSaveProfileRoute;
 use super::*;
 
+#[path = "service_recovery_owner.rs"]
+mod recovery_owner;
+
 impl RuntimeService {
     #[cfg_attr(not(test), allow(dead_code))]
     pub(super) fn handle_request(&mut self, request: &HttpRequest) -> (u16, Vec<u8>) {
@@ -80,6 +83,9 @@ impl RuntimeService {
             && let Some(operation_id) = self.seeded_run_operation_id(&request.path)
         {
             return self.seeded_run_reconcile(request, operation_id);
+        }
+        if let Some(response) = recovery_owner::dispatch(self, request) {
+            return response;
         }
         match (request.method.as_str(), request.path.as_str()) {
             ("POST", "/v1/recovery/bootstrap")
@@ -293,3 +299,7 @@ impl RuntimeService {
         (200, json_bytes(&body))
     }
 }
+
+#[cfg(test)]
+#[path = "service_recovery_owner_tests.rs"]
+mod recovery_owner_tests;

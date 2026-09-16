@@ -5,6 +5,16 @@ host compatibility and release publication.
 
 ## [Unreleased]
 
+- Add the versioned continuation-owner read, claim, and historical lookup
+  routes. Durable claims bind one logical continuation operation to an exact
+  current gateway lease/fence and reject sibling or stale claims. Historical
+  claims never establish live ownership; restart without a confirmed in-memory
+  lease remains `unknown`. The contract is pinned in
+  `contract-artifact/continuation-owner-v1`. Synthetic SQLite and production
+  dispatcher evidence is covered; native restore and continuation remain
+  unavailable pending their owning contracts and effects. See
+  [ADR 0028](docs/decisions/0028-continuation-owner-fence.md).
+
 - Add the authenticated lookup-binding route for the pinned
   `game-information-lookup-binding-v1` profile. The gateway forwards only the fixed producer path
   after current lease admission, validates raw JSON against the copied schema, binds scope,
