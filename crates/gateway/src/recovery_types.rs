@@ -4,11 +4,18 @@ use serde::{Deserialize, Serialize};
 
 pub use super::recovery_validation::RecoveryStoreError;
 
+#[path = "recovery_continuation_owner_types.rs"]
+mod recovery_continuation_owner_types;
 #[path = "recovery_host_lease_types.rs"]
 mod recovery_host_lease_types;
 #[path = "recovery_types_ticket.rs"]
 mod recovery_types_ticket;
 
+pub use recovery_continuation_owner_types::{
+    RecoveryContinuationOwner, RecoveryContinuationOwnerClaim,
+    RecoveryContinuationOwnerClaimResult, RecoveryContinuationOwnerSnapshot,
+    RecoveryContinuationOwnerState,
+};
 pub use recovery_host_lease_types::{
     RecoveryHostLeaseBinding, RecoveryHostLeaseState, RecoveryLeaseProof,
 };

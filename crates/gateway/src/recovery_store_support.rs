@@ -55,10 +55,10 @@ pub(super) fn migrate(conn: &Connection) -> Result<(), RecoveryStoreError> {
     let version: i64 = conn
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .map_err(map_sql_error)?;
-    if version != 0 && version != 1 && version != 2 && version != 3 {
+    if version != 0 && version != 1 && version != 2 && version != 3 && version != 4 {
         return Err(RecoveryStoreError::IncompatibleSchema {
             found: version,
-            expected: 3,
+            expected: 4,
         });
     }
     if version == 0 {
@@ -127,6 +127,29 @@ pub(super) fn migrate(conn: &Connection) -> Result<(), RecoveryStoreError> {
              ALTER TABLE leases ADD COLUMN pending_renew_sequence INTEGER;
              UPDATE leases SET host_state = 'UNINSTALLED' WHERE host_state IS NULL;
              PRAGMA user_version = 3;",
+        )
+        .map_err(map_sql_error)?;
+    }
+    if version != 0 && version < 4 {
+        conn.execute_batch(
+            "CREATE TABLE continuation_owner_claims (
+                 operation_id TEXT PRIMARY KEY,
+                 request_digest TEXT NOT NULL,
+                 deployment_id TEXT NOT NULL,
+                 instance_id TEXT NOT NULL,
+                 instance_incarnation TEXT NOT NULL,
+                 boot_id TEXT NOT NULL,
+                 authority_generation INTEGER NOT NULL,
+                 host_fence_id TEXT NOT NULL,
+                 host_fence_generation INTEGER NOT NULL,
+                 lease_id TEXT NOT NULL,
+                 lease_epoch INTEGER NOT NULL,
+                 session_id TEXT NOT NULL,
+                 lease_expires_at_millis INTEGER NOT NULL,
+                 claimed_at_millis INTEGER NOT NULL,
+                 UNIQUE (lease_id, lease_epoch)
+             );
+             PRAGMA user_version = 4;",
         )
         .map_err(map_sql_error)?;
     }
