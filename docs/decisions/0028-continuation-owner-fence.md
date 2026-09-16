@@ -39,8 +39,9 @@ lease identity and epoch, session, and expiry.
 
 The owner read is `available` only when the recovery store reports the ready
 authority, matching current host fence, active unexpired lease, and completed
-host installation, and the process still holds the matching in-memory lease
-and live deadline. Persisted state without matching live process ownership is
+host installation, and the process still holds a matching Ready boot lineage,
+the exact installed host grant acknowledged for that lease, and the live
+in-memory lease and deadline. Persisted state without all of those checks is
 `unknown`. `absent`, `expired`, `revoked`, and `unknown` remain distinct.
 
 Claim is a SQLite compare-and-set against the same current owner tuple. An

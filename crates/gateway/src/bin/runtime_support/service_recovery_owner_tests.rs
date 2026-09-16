@@ -7,8 +7,8 @@ use std::time::{Duration, Instant};
 
 use serde_json::{Value, json};
 use sts2_gateway::{
-    GatewayRecoveryStore, RecoveryContinuationOwner, RecoveryLeaseRequest, RecoveryReleaseSet,
-    sha256_hex,
+    GatewayRecoveryStore, RecoveryBootState, RecoveryContinuationOwner, RecoveryLeaseRequest,
+    RecoveryReleaseSet, sha256_hex,
 };
 use uuid::Uuid;
 
@@ -51,7 +51,7 @@ fn ready_service() -> Result<ReadyService, String> {
     ));
     let mut store = GatewayRecoveryStore::open(&path).map_err(|error| error.to_string())?;
     let now = service.recovery_now_millis();
-    let boot = store
+    let mut boot = store
         .start_boot(
             DEPLOYMENT,
             &service.config.instance_id,
@@ -62,6 +62,7 @@ fn ready_service() -> Result<ReadyService, String> {
     let fence = store
         .complete_host_fence(&boot, now + 1)
         .map_err(|error| error.to_string())?;
+    boot.state = RecoveryBootState::Ready;
     let lease = store
         .acquire_lease(RecoveryLeaseRequest {
             deployment_id: DEPLOYMENT.to_owned(),
@@ -79,7 +80,15 @@ fn ready_service() -> Result<ReadyService, String> {
         })
         .map_err(|error| error.to_string())?;
     let installation_id = Uuid::new_v4().to_string();
-    let grant_digest = "b".repeat(64);
+    let grant = super::super::host_lease_helpers::grant_value(
+        &boot,
+        &fence,
+        &lease,
+        &service.config.caller_id,
+        &service.config.session_id,
+    );
+    let grant_digest = super::super::super::host_lease_control::grant_digest(&grant)
+        .map_err(|error| format!("host grant could not be digested: {error:?}"))?;
     store
         .prepare_host_lease_install(
             &lease.lease_id,
@@ -109,9 +118,20 @@ fn ready_service() -> Result<ReadyService, String> {
     service.recovery_boot = Some(boot);
     service.recovery_fence = Some(fence);
     service.recovery_lease = Some(lease.clone());
+    service.recovery_host_grant = Some(super::super::HostLeaseGrant {
+        installation_id,
+        grant_digest,
+        grant,
+    });
     service.lease_active = true;
     service.recovery_lease_deadline = Some(Instant::now() + Duration::from_secs(30));
-    service.recovery_lease_deadline_lease_id = Some(lease.lease_id);
+    service.recovery_lease_deadline_lease_id = Some(lease.lease_id.clone());
+    if !service
+        .active_host_grant_matches(&lease)
+        .map_err(|error| error.to_string())?
+    {
+        return Err(String::from("ready fixture host grant is not canonical"));
+    }
     Ok(ReadyService {
         service,
         path,
@@ -350,40 +370,7 @@ fn production_dispatch_returns_non_secret_owner_and_idempotent_claim() -> Result
     Ok(())
 }
 
-#[test]
-fn missing_live_owner_memory_is_unknown_and_cannot_be_claimed() -> Result<(), String> {
-    let mut ready = ready_service()?;
-    ready.service.recovery_lease = None;
-    ready.service.lease_active = false;
-    ready.service.recovery_lease_deadline = None;
-    let read = request(
-        ContinuationOwnerKind::Read,
-        json!({}),
-        &ready.service.config.caller_id,
-    )?;
-    let (status, body) = ready.service.handle_request(&read);
-    assert_eq!(status, 200);
-    let current = response_value(&body)?;
-    assert_eq!(current["payload"]["state"], "unknown");
-
-    let claim = request(
-        ContinuationOwnerKind::Claim,
-        json!({
-            "operation_id": Uuid::new_v4().to_string(),
-            "expected_owner": serde_json::to_value(&ready.owner).map_err(|e| e.to_string())?,
-        }),
-        &ready.service.config.caller_id,
-    )?;
-    let (status, body) = ready.service.handle_request(&claim);
-    assert_eq!(status, 503);
-    assert_eq!(
-        response_value(&body)?["error_code"],
-        "continuation_owner_unknown"
-    );
-    drop(ready.service);
-    remove_database(&ready.path);
-    Ok(())
-}
+include!("service_recovery_owner_readiness_tests.rs");
 
 #[test]
 fn owner_route_requires_recovery_scope_capability_and_closed_frame() -> Result<(), String> {

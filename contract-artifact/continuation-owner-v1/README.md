@@ -21,11 +21,11 @@ lease expiry, claim digest, and claim time.
 
 `available` means the recovery store reports a ready boot, current host fence,
 active unexpired lease and installed host binding, and the live gateway process
-still holds the matching lease/deadline. `absent`, `expired`, `revoked`, and
-`unknown` are distinct. `unknown` includes persisted authority that cannot be
-confirmed by the live process. A claim is rejected unless the request exactly
-matches an `available` snapshot. Historical claim rows never establish
-liveness.
+still holds the matching Ready boot lineage, acknowledged installed host grant,
+lease, and deadline. `absent`, `expired`, `revoked`, and `unknown` are distinct.
+`unknown` includes persisted authority that cannot be confirmed by every live
+process check. A claim is rejected unless the request exactly matches an
+`available` snapshot. Historical claim rows never establish liveness.
 
 Claims are durable, unique by operation ID and destination lease epoch, and
 retained up to 4096 records with fail-closed admission at capacity. An exact

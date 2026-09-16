@@ -209,13 +209,33 @@ fn read_owner_snapshot(
                 session_id: service.config.session_id.clone(),
                 lease_expires_at_millis: lease.expires_at_millis,
             });
+        let boot_matches = snapshot.owner.as_ref().is_some_and(|owner| {
+            service.recovery_boot.as_ref().is_some_and(|boot| {
+                boot.deployment_id == owner.deployment_id
+                    && boot.instance_id == owner.instance_id
+                    && boot.instance_incarnation == owner.instance_incarnation
+                    && boot.boot_id == owner.boot_id
+                    && boot.authority_generation == owner.authority_generation
+                    && boot.state == sts2_gateway::RecoveryBootState::Ready
+            })
+        });
+        let grant_matches = service
+            .recovery_lease
+            .as_ref()
+            .map(|lease| service.active_host_grant_matches(lease))
+            .transpose()?
+            .unwrap_or(false);
         let memory_is_live = service.lease_active
             && !service.lease_revoked
             && !service.shutdown_requested
             && service
                 .recovery_lease_deadline
                 .is_some_and(|deadline| std::time::Instant::now() < deadline);
-        if !memory_is_live || memory_owner.as_ref() != snapshot.owner.as_ref() {
+        if !memory_is_live
+            || !boot_matches
+            || !grant_matches
+            || memory_owner.as_ref() != snapshot.owner.as_ref()
+        {
             snapshot.state = RecoveryContinuationOwnerState::Unknown;
         }
     }
