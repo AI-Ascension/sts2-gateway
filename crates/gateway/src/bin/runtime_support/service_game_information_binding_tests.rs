@@ -7,15 +7,18 @@ use serde_json::{Value, json};
 use std::io::ErrorKind;
 use std::net::TcpListener;
 
-const DISCOVERY_RESPONSE: &[u8] = include_bytes!(concat!(
+pub(super) const DISCOVERY_RESPONSE: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../protocol-artifact/game-information-lookup-binding-v1/golden/discovery-response.json"
 ));
-const OBSERVATION_RESPONSE: &[u8] = include_bytes!(concat!(
+pub(super) const OBSERVATION_RESPONSE: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../protocol-artifact/game-information-lookup-binding-v1/golden/observation-response.json"
 ));
-fn lookup_request(operation: &str, correlation: &str) -> Result<HttpRequest, String> {
+#[path = "service_game_information_observe_tests.rs"]
+mod observe_tests;
+
+pub(super) fn lookup_request(operation: &str, correlation: &str) -> Result<HttpRequest, String> {
     let mut request =
         authenticated_request("/v1/instances/instance-1/game-information/lookup-binding");
     request.method = String::from("POST");
@@ -39,7 +42,7 @@ fn lookup_request(operation: &str, correlation: &str) -> Result<HttpRequest, Str
     Ok(request)
 }
 
-fn service_with_address(address: String) -> Result<RuntimeService, String> {
+pub(super) fn service_with_address(address: String) -> Result<RuntimeService, String> {
     let mut service = test_service()?;
     service.config.mod_address = address;
     Ok(service)
@@ -257,8 +260,22 @@ fn malformed_duplicate_foreign_oversized_and_status_mismatch_never_return_succes
             .local_addr()
             .map_err(|error| error.to_string())?
             .to_string();
-        let worker = serve_http_sequence(listener, vec![(status, body)]);
+        let responses = if operation == "observe" {
+            vec![(200, DISCOVERY_RESPONSE.to_vec()), (status, body)]
+        } else {
+            vec![(status, body)]
+        };
+        let worker = serve_http_sequence(listener, responses);
         let mut service = service_with_address(address)?;
+        if operation == "observe" {
+            assert_eq!(
+                service
+                    .handle_request(&lookup_request("discovery", "corr-lbr-discovery-1")?)
+                    .0,
+                200,
+                "{label}: discovery"
+            );
+        }
         let request = lookup_request(operation, correlation)?;
         let (returned_status, returned_body) = service.handle_request(&request);
         assert_eq!(returned_status, 502, "{label}");
