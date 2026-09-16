@@ -10,6 +10,7 @@ mod forwarder;
 mod game_information;
 mod game_information_capabilities;
 mod game_information_forwarder;
+mod game_information_lookup_binding;
 mod game_information_payload;
 mod game_information_payload_response;
 mod host_lease_control;

@@ -1,0 +1,53 @@
+{
+  "case_id": "CT-GAME-INFORMATION-LOOKUP-BINDING-V1-001",
+  "contract": "sts2.protocol/game-information-lookup-binding-v1",
+  "profile": "game-information-lookup-binding-v1",
+  "schema": "schemas/game-information-lookup-binding-v1.schema.json",
+  "consumers": [
+    "sts2-harness",
+    "sts2-gateway",
+    "sts2-mcp-server"
+  ],
+  "valid_vectors": [
+    "LBR-VALID-DISCOVERY-INITIAL",
+    "LBR-VALID-DISCOVERY-OBSERVED",
+    "LBR-VALID-REOBSERVE-REQUIRED",
+    "LBR-VALID-REOBSERVE-EXHAUSTED",
+    "LBR-VALID-REOBSERVE-UNAVAILABLE",
+    "LBR-VALID-REOBSERVED",
+    "LBR-VALID-BINDING-IDENTITY-INPUT",
+    "LBR-VALID-BINDING-IDENTITY-EPOCH"
+  ],
+  "invalid_vectors": [
+    "LBR-INVALID-WRONG-SCOPE",
+    "LBR-INVALID-WRONG-INSTANCE",
+    "LBR-INVALID-FORGED-BINDING-ID",
+    "LBR-INVALID-MIXED-BINDING",
+    "LBR-INVALID-STALE-OBSERVATION",
+    "LBR-INVALID-MISSING-CAPABILITY",
+    "LBR-INVALID-SUPERSEDES-MISMATCH",
+    "LBR-INVALID-UNKNOWN-VERSION",
+    "LBR-INVALID-REOBSERVE-UNAVAILABLE-SHAPE",
+    "LBR-INVALID-EXHAUSTED-WITH-OBSERVATION",
+    "LBR-INVALID-STATE-SHAPE",
+    "LBR-INVALID-DUPLICATE-KEY"
+  ],
+  "validators": [
+    {
+      "name": "rust-schema-witness",
+      "language": "rust",
+      "path": "crates/protocol/tests/game_information_lookup_binding_v1_conformance.rs"
+    },
+    {
+      "name": "javascript-wire-witness",
+      "language": "javascript",
+      "path": "tools/game-information-lookup-binding/validate.mjs"
+    }
+  ],
+  "consumer_source_pins": {
+    "sts2-gateway": "b6b94bf",
+    "sts2-mcp-server": "2567cd3",
+    "sts2-game-mod": "a8ccb8b",
+    "sts2-harness": "36127d1"
+  }
+}

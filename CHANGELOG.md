@@ -5,6 +5,14 @@ host compatibility and release publication.
 
 ## [Unreleased]
 
+- Add the authenticated lookup-binding route for the pinned
+  `game-information-lookup-binding-v1` profile. The gateway forwards only the fixed producer path
+  after current lease admission, validates raw JSON against the copied schema, binds scope,
+  harness authority epoch, instance, locale, correlation, and canonical binding ID, and rejects
+  malformed, duplicate, foreign, oversized, or status-inconsistent responses before success.
+  Synthetic route evidence is confirmed; producer and live host behavior remain unverified. See
+  [ADR 0025](docs/decisions/0025-game-information-lookup-binding-route.md).
+
 - Add a bounded SQLite store for forwarded save-profile operation intents and results (#51).
   Private versioned records, atomic coordinator fencing and exact request/result validation
   support reopen-and-lookup recovery without another create/select dispatch. This store is

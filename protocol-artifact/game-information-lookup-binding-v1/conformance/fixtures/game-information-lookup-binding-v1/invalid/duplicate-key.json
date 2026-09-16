@@ -1,0 +1,7 @@
+{
+  "id": "LBR-INVALID-DUPLICATE-KEY",
+  "contract": "sts2.protocol/game-information-lookup-binding-v1",
+  "expected_error": "malformed",
+  "schema_valid": false,
+  "raw": "{\"correlation_id\":\"corr-lbr-duplicate-1\",\"kind\":\"lookup_binding_discovery_response\",\"kind\":\"error_response\"}"
+}

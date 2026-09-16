@@ -1,0 +1,40 @@
+{
+  "id": "LBR-INVALID-UNKNOWN-VERSION",
+  "contract": "sts2.protocol/game-information-lookup-binding-v1",
+  "kind": "invalid",
+  "schema_valid": false,
+  "expected_error": "unsupported_version",
+  "context": {
+    "scope": {
+      "project_id": "proj-1",
+      "run_id": "run-42",
+      "episode_id": "episode-7",
+      "agent_id": "agent-3"
+    },
+    "instance_id": "instance-1",
+    "retained_observation_id": "observation-1",
+    "retained_state_generation": 41,
+    "negotiated_capabilities": [
+      "game-information-lookup-binding-v1"
+    ]
+  },
+  "document": {
+    "binding": null,
+    "correlation_id": "corr-lbr-discovery-1",
+    "discovery": null,
+    "error": {
+      "code": "unsupported_version",
+      "field": "protocol_version",
+      "reason": "unknown profile"
+    },
+    "kind": "error_response",
+    "observation": null,
+    "protocol_version": "game-information-lookup-binding-v2",
+    "provenance": {
+      "artifact": "sts2-protocol/game-information-lookup-binding-v1",
+      "generator": "hand-authored",
+      "source": "schemas/game-information-lookup-binding-v1.schema.json"
+    },
+    "schema_digest": "f10f9af01d6be1de104069ba842e7971971e88f27553e782e81174ee7aa1cd58"
+  }
+}

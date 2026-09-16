@@ -13,6 +13,16 @@ use super::{HttpRequest, RuntimeService, json_error};
 
 const MAX_CURSOR_BINDINGS: usize = 64;
 
+#[path = "service_game_information_errors.rs"]
+mod errors;
+use errors::{
+    game_information_request_error, game_information_response_error,
+    game_information_transport_error,
+};
+
+#[path = "service_game_information_lookup_binding.rs"]
+mod lookup_binding;
+
 impl RuntimeService {
     pub(super) fn game_information_request(
         &mut self,
@@ -28,6 +38,9 @@ impl RuntimeService {
         }
         if route == GameInformationRoute::Capabilities {
             return self.game_information_capabilities(request, cancellation);
+        }
+        if route == GameInformationRoute::LookupBinding {
+            return lookup_binding::forward(self, request, cancellation);
         }
         if !request.content_type_is_json() {
             return (400, json_error("game_information_content_type_required"));
@@ -262,46 +275,5 @@ impl RuntimeService {
         }
         self.game_information_cursor_bindings
             .insert(next_cursor.to_owned(), binding);
-    }
-}
-
-fn game_information_request_error(error: GameInformationRequestError) -> (u16, Vec<u8>) {
-    match error {
-        GameInformationRequestError::Required => {
-            (400, json_error("game_information_body_required"))
-        }
-        GameInformationRequestError::Oversized => {
-            (413, json_error("game_information_request_oversized"))
-        }
-        GameInformationRequestError::Invalid => {
-            (400, json_error("game_information_request_invalid"))
-        }
-        GameInformationRequestError::Scope => (409, json_error("game_information_scope_rejected")),
-        GameInformationRequestError::Limit => (413, json_error("game_information_limits_rejected")),
-    }
-}
-
-fn game_information_response_error(error: GameInformationResponseError) -> (u16, Vec<u8>) {
-    match error {
-        GameInformationResponseError::Oversized => {
-            (502, json_error("game_information_response_oversized"))
-        }
-        GameInformationResponseError::Invalid => {
-            (502, json_error("game_information_response_invalid"))
-        }
-    }
-}
-
-fn game_information_transport_error(error: ReadError) -> (u16, Vec<u8>) {
-    match error {
-        ReadError::Cancelled => (499, json_error("game_information_cancelled")),
-        ReadError::Oversized => {
-            game_information_response_error(GameInformationResponseError::Oversized)
-        }
-        ReadError::Malformed => {
-            game_information_response_error(GameInformationResponseError::Invalid)
-        }
-        ReadError::Timeout => (504, json_error("game_information_downstream_timeout")),
-        ReadError::Unavailable => (503, json_error("game_information_downstream_unavailable")),
     }
 }

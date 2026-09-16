@@ -38,7 +38,6 @@ fn verify_stop(stop: Stop) -> Result<(), String> {
         service.config.host_lease_key.clone(),
         service.config.host_principal_id.clone(),
         vec![HostLeaseKind::Install],
-        false,
         None,
     )?;
     service.config.mod_address = address;
@@ -69,7 +68,6 @@ fn verify_stop(stop: Stop) -> Result<(), String> {
         service.config.host_lease_key.clone(),
         service.config.host_principal_id.clone(),
         vec![HostLeaseKind::Revoke],
-        false,
         None,
     )?;
     service.config.mod_address = address;
