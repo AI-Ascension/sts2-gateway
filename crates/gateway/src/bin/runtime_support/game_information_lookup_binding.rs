@@ -17,29 +17,60 @@ const SCHEMA: &str = include_str!(concat!(
 pub(crate) const RESPONSE_LIMIT_BYTES: usize = MAX_RESPONSE_BYTES;
 
 /// Gateway-local evidence produced only after a pinned discovery response has
-/// passed the complete lookup-binding validator. The canonical binding id
-/// commits the closed harness scope and its authority epoch; retaining those
-/// values separately would widen the discovery surface without helping MCP.
+/// passed the complete lookup-binding validator.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct BoundLookupBinding {
     pub(crate) authority: GameInformationProducerAuthority,
     pub(crate) binding_id: String,
     pub(crate) content_manifest_id: String,
     pub(crate) authority_epoch: u64,
+    pub(crate) scope: LookupBindingScope,
+}
+
+/// The closed harness-owned request identity retained solely to prove that a
+/// later observation is for the exact discovery binding before Gateway I/O.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct LookupBindingScope {
+    project_id: String,
+    run_id: String,
+    episode_id: String,
+    agent_id: String,
+    authority_epoch: u64,
 }
 
 pub(crate) fn discovery_witness(
     response_body: &[u8],
     request_body: &[u8],
-) -> Option<(String, String, u64)> {
+) -> Option<(String, String, u64, LookupBindingScope)> {
     let request = strict_json::parse(request_body).ok()?;
     if request.get("operation").and_then(Value::as_str) != Some("discovery") {
         return None;
     }
+    let (binding_id, content_manifest_id, authority_epoch) = response_binding(response_body)?;
+    Some((
+        binding_id,
+        content_manifest_id,
+        authority_epoch,
+        request_scope(request_body)?,
+    ))
+}
+
+/// This is called only after the route has accepted the closed request shape.
+pub(crate) fn request_scope(request_body: &[u8]) -> Option<LookupBindingScope> {
+    let request = strict_json::parse(request_body).ok()?;
+    Some(LookupBindingScope {
+        project_id: request.get("project_id")?.as_str()?.to_owned(),
+        run_id: request.get("run_id")?.as_str()?.to_owned(),
+        episode_id: request.get("episode_id")?.as_str()?.to_owned(),
+        agent_id: request.get("agent_id")?.as_str()?.to_owned(),
+        authority_epoch: request.get("authority_epoch")?.as_u64()?,
+    })
+}
+
+/// Extracts the closed binding identity after `response_is_valid` has checked
+/// the response kind, request scope, canonical digest, and observation link.
+pub(crate) fn response_binding(response_body: &[u8]) -> Option<(String, String, u64)> {
     let response = strict_json::parse(response_body).ok()?;
-    if response.get("kind").and_then(Value::as_str) != Some("lookup_binding_discovery_response") {
-        return None;
-    }
     let binding = response.get("binding")?.as_object()?;
     Some((
         binding.get("binding_id")?.as_str()?.to_owned(),
