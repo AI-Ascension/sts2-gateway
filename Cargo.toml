@@ -10,7 +10,7 @@ license = "MIT"
 publish = false
 
 [workspace.dependencies]
-base64 = "=0.22.1"
+base64 = "=0.23.1"
 fs2 = "=0.4.3"
 rusqlite = { version = "=0.40.2", default-features = false, features = ["backup", "bundled"] }
 serde = { version = "=1.0.229", features = ["derive"] }
