@@ -24,11 +24,11 @@ the process or native destination remains live.
 Add the versioned `sts2-continuation-owner-v1` frame contract and three fixed
 routes:
 
-| Route | Scope | Operation |
+| Route | `x-sts2-recovery-capability` and frame capability | Operation |
 | --- | --- | --- |
-| `POST /v1/recovery/continuation/owner/read` | recovery `read` | Read current owner state and non-secret fence identity. |
-| `POST /v1/recovery/continuation/owner/claim` | recovery `control` | Compare the exact current owner and durably claim its lease epoch for one operation ID. |
-| `POST /v1/recovery/continuation/owner/lookup` | recovery `read` | Read a historical claim and current owner state separately. |
+| `POST /v1/recovery/continuation/owner/read` | `continuation_owner_read` | Read current owner state and non-secret fence identity. |
+| `POST /v1/recovery/continuation/owner/claim` | `continuation_owner_claim` | Compare the exact current owner and durably claim its lease epoch for one operation ID. |
+| `POST /v1/recovery/continuation/owner/lookup` | `continuation_owner_lookup` | Read a historical claim and current owner state separately. |
 
 Frames are closed strict JSON and at most 16 KiB. The configured recovery
 bearer, per-route capability header, frame capability, and configured harness

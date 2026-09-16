@@ -6,15 +6,16 @@ change `watchdog-recovery-v1` or the Runtime-v3 gameplay contract.
 
 The fixed routes are:
 
-| Method and path | Capability | Purpose |
+| Method and path | `x-sts2-recovery-capability` and frame capability | Purpose |
 | --- | --- | --- |
-| `POST /v1/recovery/continuation/owner/read` | recovery bearer `read`, frame `continuation_owner_read` | Report the current owner state and non-secret fence identity. |
-| `POST /v1/recovery/continuation/owner/claim` | recovery bearer `control`, frame `continuation_owner_claim` | Compare an exact current owner snapshot and durably claim its lease for one operation ID. |
-| `POST /v1/recovery/continuation/owner/lookup` | recovery bearer `read`, frame `continuation_owner_lookup` | Return an operation's historical claim separately from the live owner state. |
+| `POST /v1/recovery/continuation/owner/read` | `continuation_owner_read` | Report the current owner state and non-secret fence identity. |
+| `POST /v1/recovery/continuation/owner/claim` | `continuation_owner_claim` | Compare an exact current owner snapshot and durably claim its lease for one operation ID. |
+| `POST /v1/recovery/continuation/owner/lookup` | `continuation_owner_lookup` | Return an operation's historical claim separately from the live owner state. |
 
-Both requests require the configured recovery bearer, the exact
-`x-sts2-recovery-capability` header, a closed bounded frame, and an actor whose
-principal matches the configured harness caller. The body is capped at 16 KiB.
+Each request requires the configured recovery bearer, the exact
+`x-sts2-recovery-capability` header matching its frame capability, a closed
+bounded frame, and an actor whose principal matches the configured harness caller.
+The body is capped at 16 KiB.
 Frames carry no lease token or host proof. Responses expose only identities,
 lease expiry, claim digest, and claim time.
 
