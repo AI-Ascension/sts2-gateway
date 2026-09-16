@@ -48,6 +48,10 @@ pub(super) fn is_recovery_path(request: &HttpRequest) -> bool {
 }
 
 pub(super) fn required_scope(request: &HttpRequest, instance_id: &str) -> AuthScope {
+    if request.method == "GET" && request.path == super::negotiated_capabilities::path(instance_id)
+    {
+        return AuthScope::Read;
+    }
     if let Some(route) = RuntimeV3GameplayRoute::parse(&request.method, &request.path, instance_id)
     {
         return match route {

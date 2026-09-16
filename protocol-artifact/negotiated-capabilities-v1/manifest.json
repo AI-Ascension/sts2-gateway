@@ -1,0 +1,19 @@
+{
+  "artifact": "sts2-gateway/negotiated-capabilities-v1",
+  "protocol_version": "sts2-gateway-negotiated-capabilities-v1",
+  "schema": "schema.json",
+  "schema_digest": "24491a0a539ac377f889e56910f777152ca3a9e6b16f7238475d122f43582ccb",
+  "provenance": {
+    "source": "crates/gateway/src/bin/runtime_support/negotiated_capabilities.rs",
+    "generator": "hand-authored",
+    "license": "MIT"
+  },
+  "producer_source_commit": "3c865c8d0a44b50bc4fce45f7e1610f990455232",
+  "consumers": [
+    "sts2-mcp-server"
+  ],
+  "checksums": "SHA256SUMS",
+  "examples": [
+    "limit-examples.json"
+  ]
+}

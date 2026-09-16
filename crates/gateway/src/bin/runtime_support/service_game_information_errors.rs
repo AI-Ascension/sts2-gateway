@@ -47,6 +47,19 @@ pub(super) fn lookup_binding_request_is_closed(body: &[u8]) -> bool {
             })
 }
 
+pub(super) fn lookup_binding_request_is_discovery(body: &[u8]) -> bool {
+    strict_json::parse(body)
+        .ok()
+        .and_then(|value| {
+            value
+                .get("operation")
+                .and_then(Value::as_str)
+                .map(str::to_owned)
+        })
+        .as_deref()
+        == Some("discovery")
+}
+
 pub(super) fn game_information_request_error(error: GameInformationRequestError) -> (u16, Vec<u8>) {
     let code = match error {
         GameInformationRequestError::Required => (400, "game_information_body_required"),

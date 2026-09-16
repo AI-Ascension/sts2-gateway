@@ -4,7 +4,7 @@ use serde_json::Value;
 use std::collections::BTreeMap;
 use std::sync::OnceLock;
 
-use super::game_information_forwarder::MAX_RESPONSE_BYTES;
+use super::game_information_forwarder::{GameInformationProducerAuthority, MAX_RESPONSE_BYTES};
 use super::strict_json;
 
 pub(crate) const SCHEMA_DIGEST: &str =
@@ -15,6 +15,38 @@ const SCHEMA: &str = include_str!(concat!(
     "/../../protocol-artifact/game-information-lookup-binding-v1/schema.json"
 ));
 pub(crate) const RESPONSE_LIMIT_BYTES: usize = MAX_RESPONSE_BYTES;
+
+/// Gateway-local evidence produced only after a pinned discovery response has
+/// passed the complete lookup-binding validator. The canonical binding id
+/// commits the closed harness scope and its authority epoch; retaining those
+/// values separately would widen the discovery surface without helping MCP.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct BoundLookupBinding {
+    pub(crate) authority: GameInformationProducerAuthority,
+    pub(crate) binding_id: String,
+    pub(crate) content_manifest_id: String,
+    pub(crate) authority_epoch: u64,
+}
+
+pub(crate) fn discovery_witness(
+    response_body: &[u8],
+    request_body: &[u8],
+) -> Option<(String, String, u64)> {
+    let request = strict_json::parse(request_body).ok()?;
+    if request.get("operation").and_then(Value::as_str) != Some("discovery") {
+        return None;
+    }
+    let response = strict_json::parse(response_body).ok()?;
+    if response.get("kind").and_then(Value::as_str) != Some("lookup_binding_discovery_response") {
+        return None;
+    }
+    let binding = response.get("binding")?.as_object()?;
+    Some((
+        binding.get("binding_id")?.as_str()?.to_owned(),
+        binding.get("content_manifest_id")?.as_str()?.to_owned(),
+        binding.get("authority_epoch")?.as_u64()?,
+    ))
+}
 
 pub(crate) fn response_is_valid(
     body: &[u8],
