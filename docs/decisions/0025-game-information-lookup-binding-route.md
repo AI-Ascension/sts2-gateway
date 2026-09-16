@@ -43,7 +43,7 @@ producer-declared game profile, content manifest, and locale. `instance_id` is c
 and is not part of the digest.
 
 After a successful discovery, Gateway retains its validated scope, authority epoch, binding ID,
-content manifest, and current producer authority only for admission of the next observation.
+content manifest, and current producer authority for admission of subsequent observations.
 `observe` must match that retained scope and epoch and the current authority and manifest before
 Gateway opens a producer connection. A missing, stale, or mismatched discovery returns
 `409 game_information_lookup_binding_discovery_required` with zero producer forwarding. A
