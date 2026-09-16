@@ -1,0 +1,70 @@
+[
+  {
+    "case": "unknown_top_level_member",
+    "frame_index": 0,
+    "operation": "add",
+    "path": ["unexpected"],
+    "value": true
+  },
+  {
+    "case": "unknown_owner_member",
+    "frame_index": 0,
+    "operation": "add",
+    "path": ["payload", "expected_owner", "unfenced"],
+    "value": true
+  },
+  {
+    "case": "verified_lookup_missing_receipt",
+    "frame_index": 21,
+    "operation": "remove",
+    "path": ["payload", "receipt"]
+  },
+  {
+    "case": "existing_begin_cannot_report_not_found",
+    "frame_index": 13,
+    "operation": "set",
+    "path": ["payload", "state"],
+    "value": "NOT_FOUND"
+  },
+  {
+    "case": "empty_chunk_for_zero_length_blob",
+    "frame_index": 2,
+    "operation": "set",
+    "path": ["payload", "data_base64"],
+    "value": ""
+  },
+  {
+    "case": "lookup_result_state_mismatch",
+    "frame_index": 19,
+    "operation": "set",
+    "path": ["payload", "result"],
+    "value": "STAGING"
+  },
+  {
+    "case": "lookup_partial_blob_progress",
+    "frame_index": 19,
+    "operation": "remove",
+    "path": ["payload", "verified"]
+  },
+  {
+    "case": "finish_state_closure_state_mismatch",
+    "frame_index": 15,
+    "operation": "set",
+    "path": ["payload", "closure_state"],
+    "value": "STAGING"
+  },
+  {
+    "case": "rejected_error_cannot_claim_possible_host_effect",
+    "frame_index": 22,
+    "operation": "set",
+    "path": ["payload", "host_effect"],
+    "value": "may_have_started"
+  },
+  {
+    "case": "unknown_error_code",
+    "frame_index": 22,
+    "operation": "set",
+    "path": ["payload", "error_code"],
+    "value": "arbitrary_error"
+  }
+]

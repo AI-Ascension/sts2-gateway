@@ -1,0 +1,830 @@
+{
+  "frames": [
+    {
+      "contract": "sts2-exact-restore-v1",
+      "schema_digest": "2289d888c33eac46873408303c4423eab762e3f7bd6132ae8ae88d0d3b1858e4",
+      "message_id": "00000001-6fef-4a1b-9d98-ef2e3def8f20",
+      "correlation_id": "00000001-6fef-4a1b-9d98-ef2e3def8f20",
+      "kind": "exact_restore_begin_request",
+      "payload": {
+        "operation_id": "c3ee424f-a65e-45a3-8c69-fde8d10cf0b4",
+        "expected_owner": {
+          "deployment_id": "4d503044-f3a4-42f5-a7bc-4894a879b715",
+          "instance_id": "02ab8278-c166-4557-bd6d-8f7575484a55",
+          "instance_incarnation": "14ef8d7b-d10a-4ff5-ae4d-2abcf08a9fa6",
+          "boot_id": "c6f9c045-9498-4780-9e8c-ff47575be944",
+          "authority_generation": 3,
+          "host_fence_id": "8b8ea2c8-8e2c-498e-91a2-8f0dcf42ae37",
+          "host_fence_generation": 7,
+          "lease_id": "c0f5a147-1ba1-4a1c-9a25-1b46935403ef",
+          "lease_epoch": 8,
+          "session_id": "session-example",
+          "lease_expires_at_millis": 1900000000000
+        },
+        "branch": {
+          "experiment_id": "experiment:sample",
+          "branch_id": "branch:sample",
+          "metadata_revision": 4,
+          "run_id": "run:sample",
+          "episode_id": "episode:sample",
+          "trajectory_id": "trajectory:sample"
+        },
+        "checkpoint_id": "asc-checkpoint:v1:sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "exact_state_digest": "asc-state:v1:sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "manifest_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "manifest_size_bytes": 10,
+        "closure_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "compatibility_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "coverage_contract_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "boundary": {
+          "kind": "room",
+          "phase": "map",
+          "game_tick": 91
+        },
+        "artifacts": [
+          {
+            "role": "canonical-state",
+            "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "size_bytes": 10,
+            "codec": "asc-jcs-state-v1"
+          },
+          {
+            "role": "restore-data",
+            "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+            "size_bytes": 5,
+            "codec": "native-v1"
+          }
+        ],
+        "artifact_reference_count": 2,
+        "distinct_blob_count": 2,
+        "aggregate_closure_bytes": 25
+      }
+    },
+    {
+      "contract": "sts2-exact-restore-v1",
+      "schema_digest": "2289d888c33eac46873408303c4423eab762e3f7bd6132ae8ae88d0d3b1858e4",
+      "message_id": "00000002-6fef-4a1b-9d98-ef2e3def8f20",
+      "correlation_id": "00000002-6fef-4a1b-9d98-ef2e3def8f20",
+      "kind": "exact_restore_begin_request",
+      "payload": {
+        "operation_id": "c3ee424f-a65e-45a3-8c69-fde8d10cf0b4",
+        "expected_owner": {
+          "deployment_id": "4d503044-f3a4-42f5-a7bc-4894a879b715",
+          "instance_id": "02ab8278-c166-4557-bd6d-8f7575484a55",
+          "instance_incarnation": "14ef8d7b-d10a-4ff5-ae4d-2abcf08a9fa6",
+          "boot_id": "c6f9c045-9498-4780-9e8c-ff47575be944",
+          "authority_generation": 3,
+          "host_fence_id": "8b8ea2c8-8e2c-498e-91a2-8f0dcf42ae37",
+          "host_fence_generation": 7,
+          "lease_id": "c0f5a147-1ba1-4a1c-9a25-1b46935403ef",
+          "lease_epoch": 8,
+          "session_id": "session-example",
+          "lease_expires_at_millis": 1900000000000
+        },
+        "branch": {
+          "experiment_id": "experiment:sample",
+          "branch_id": "branch:sample",
+          "metadata_revision": 4,
+          "run_id": "run:sample",
+          "episode_id": "episode:sample",
+          "trajectory_id": "trajectory:sample"
+        },
+        "checkpoint_id": "asc-checkpoint:v1:sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "exact_state_digest": "asc-state:v1:sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "manifest_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "manifest_size_bytes": 10,
+        "closure_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "compatibility_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "coverage_contract_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "boundary": {
+          "kind": "room",
+          "phase": "map",
+          "game_tick": 91
+        },
+        "artifacts": [
+          {
+            "role": "canonical-state",
+            "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "size_bytes": 10,
+            "codec": "asc-jcs-state-v1"
+          },
+          {
+            "role": "restore-data",
+            "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+            "size_bytes": 5,
+            "codec": "native-v1"
+          }
+        ],
+        "artifact_reference_count": 2,
+        "distinct_blob_count": 2,
+        "aggregate_closure_bytes": 25
+      }
+    },
+    {
+      "contract": "sts2-exact-restore-v1",
+      "schema_digest": "2289d888c33eac46873408303c4423eab762e3f7bd6132ae8ae88d0d3b1858e4",
+      "message_id": "00000003-6fef-4a1b-9d98-ef2e3def8f20",
+      "correlation_id": "00000003-6fef-4a1b-9d98-ef2e3def8f20",
+      "kind": "exact_restore_chunk_request",
+      "payload": {
+        "operation_id": "c3ee424f-a65e-45a3-8c69-fde8d10cf0b4",
+        "expected_owner": {
+          "deployment_id": "4d503044-f3a4-42f5-a7bc-4894a879b715",
+          "instance_id": "02ab8278-c166-4557-bd6d-8f7575484a55",
+          "instance_incarnation": "14ef8d7b-d10a-4ff5-ae4d-2abcf08a9fa6",
+          "boot_id": "c6f9c045-9498-4780-9e8c-ff47575be944",
+          "authority_generation": 3,
+          "host_fence_id": "8b8ea2c8-8e2c-498e-91a2-8f0dcf42ae37",
+          "host_fence_generation": 7,
+          "lease_id": "c0f5a147-1ba1-4a1c-9a25-1b46935403ef",
+          "lease_epoch": 8,
+          "session_id": "session-example",
+          "lease_expires_at_millis": 1900000000000
+        },
+        "artifact_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "offset": 0,
+        "total_bytes": 5,
+        "chunk_digest": "sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
+        "data_base64": "aGVsbG8="
+      }
+    },
+    {
+      "contract": "sts2-exact-restore-v1",
+      "schema_digest": "2289d888c33eac46873408303c4423eab762e3f7bd6132ae8ae88d0d3b1858e4",
+      "message_id": "00000004-6fef-4a1b-9d98-ef2e3def8f20",
+      "correlation_id": "00000004-6fef-4a1b-9d98-ef2e3def8f20",
+      "kind": "exact_restore_finish_blob_request",
+      "payload": {
+        "operation_id": "c3ee424f-a65e-45a3-8c69-fde8d10cf0b4",
+        "expected_owner": {
+          "deployment_id": "4d503044-f3a4-42f5-a7bc-4894a879b715",
+          "instance_id": "02ab8278-c166-4557-bd6d-8f7575484a55",
+          "instance_incarnation": "14ef8d7b-d10a-4ff5-ae4d-2abcf08a9fa6",
+          "boot_id": "c6f9c045-9498-4780-9e8c-ff47575be944",
+          "authority_generation": 3,
+          "host_fence_id": "8b8ea2c8-8e2c-498e-91a2-8f0dcf42ae37",
+          "host_fence_generation": 7,
+          "lease_id": "c0f5a147-1ba1-4a1c-9a25-1b46935403ef",
+          "lease_epoch": 8,
+          "session_id": "session-example",
+          "lease_expires_at_millis": 1900000000000
+        },
+        "artifact_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "total_bytes": 5
+      }
+    },
+    {
+      "contract": "sts2-exact-restore-v1",
+      "schema_digest": "2289d888c33eac46873408303c4423eab762e3f7bd6132ae8ae88d0d3b1858e4",
+      "message_id": "00000005-6fef-4a1b-9d98-ef2e3def8f20",
+      "correlation_id": "00000005-6fef-4a1b-9d98-ef2e3def8f20",
+      "kind": "exact_restore_commit_request",
+      "payload": {
+        "operation_id": "c3ee424f-a65e-45a3-8c69-fde8d10cf0b4",
+        "expected_owner": {
+          "deployment_id": "4d503044-f3a4-42f5-a7bc-4894a879b715",
+          "instance_id": "02ab8278-c166-4557-bd6d-8f7575484a55",
+          "instance_incarnation": "14ef8d7b-d10a-4ff5-ae4d-2abcf08a9fa6",
+          "boot_id": "c6f9c045-9498-4780-9e8c-ff47575be944",
+          "authority_generation": 3,
+          "host_fence_id": "8b8ea2c8-8e2c-498e-91a2-8f0dcf42ae37",
+          "host_fence_generation": 7,
+          "lease_id": "c0f5a147-1ba1-4a1c-9a25-1b46935403ef",
+          "lease_epoch": 8,
+          "session_id": "session-example",
+          "lease_expires_at_millis": 1900000000000
+        },
+        "branch": {
+          "experiment_id": "experiment:sample",
+          "branch_id": "branch:sample",
+          "metadata_revision": 4,
+          "run_id": "run:sample",
+          "episode_id": "episode:sample",
+          "trajectory_id": "trajectory:sample"
+        },
+        "checkpoint_id": "asc-checkpoint:v1:sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "closure_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "exact_state_digest": "asc-state:v1:sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "manifest_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "contract": "sts2-exact-restore-v1",
+      "schema_digest": "2289d888c33eac46873408303c4423eab762e3f7bd6132ae8ae88d0d3b1858e4",
+      "message_id": "00000006-6fef-4a1b-9d98-ef2e3def8f20",
+      "correlation_id": "00000006-6fef-4a1b-9d98-ef2e3def8f20",
+      "kind": "exact_restore_commit_request",
+      "payload": {
+        "operation_id": "c3ee424f-a65e-45a3-8c69-fde8d10cf0b4",
+        "expected_owner": {
+          "deployment_id": "4d503044-f3a4-42f5-a7bc-4894a879b715",
+          "instance_id": "02ab8278-c166-4557-bd6d-8f7575484a55",
+          "instance_incarnation": "14ef8d7b-d10a-4ff5-ae4d-2abcf08a9fa6",
+          "boot_id": "c6f9c045-9498-4780-9e8c-ff47575be944",
+          "authority_generation": 3,
+          "host_fence_id": "8b8ea2c8-8e2c-498e-91a2-8f0dcf42ae37",
+          "host_fence_generation": 7,
+          "lease_id": "c0f5a147-1ba1-4a1c-9a25-1b46935403ef",
+          "lease_epoch": 8,
+          "session_id": "session-example",
+          "lease_expires_at_millis": 1900000000000
+        },
+        "branch": {
+          "experiment_id": "experiment:sample",
+          "branch_id": "branch:sample",
+          "metadata_revision": 4,
+          "run_id": "run:sample",
+          "episode_id": "episode:sample",
+          "trajectory_id": "trajectory:sample"
+        },
+        "checkpoint_id": "asc-checkpoint:v1:sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "closure_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "exact_state_digest": "asc-state:v1:sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "manifest_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "contract": "sts2-exact-restore-v1",
+      "schema_digest": "2289d888c33eac46873408303c4423eab762e3f7bd6132ae8ae88d0d3b1858e4",
+      "message_id": "00000007-6fef-4a1b-9d98-ef2e3def8f20",
+      "correlation_id": "00000007-6fef-4a1b-9d98-ef2e3def8f20",
+      "kind": "exact_restore_lookup_request",
+      "payload": {
+        "operation_id": "c3ee424f-a65e-45a3-8c69-fde8d10cf0b4",
+        "expected_owner": {
+          "deployment_id": "4d503044-f3a4-42f5-a7bc-4894a879b715",
+          "instance_id": "02ab8278-c166-4557-bd6d-8f7575484a55",
+          "instance_incarnation": "14ef8d7b-d10a-4ff5-ae4d-2abcf08a9fa6",
+          "boot_id": "c6f9c045-9498-4780-9e8c-ff47575be944",
+          "authority_generation": 3,
+          "host_fence_id": "8b8ea2c8-8e2c-498e-91a2-8f0dcf42ae37",
+          "host_fence_generation": 7,
+          "lease_id": "c0f5a147-1ba1-4a1c-9a25-1b46935403ef",
+          "lease_epoch": 8,
+          "session_id": "session-example",
+          "lease_expires_at_millis": 1900000000000
+        }
+      }
+    },
+    {
+      "contract": "sts2-exact-restore-v1",
+      "schema_digest": "2289d888c33eac46873408303c4423eab762e3f7bd6132ae8ae88d0d3b1858e4",
+      "message_id": "00000008-6fef-4a1b-9d98-ef2e3def8f20",
+      "correlation_id": "00000008-6fef-4a1b-9d98-ef2e3def8f20",
+      "kind": "exact_restore_lookup_request",
+      "payload": {
+        "operation_id": "c3ee424f-a65e-45a3-8c69-fde8d10cf0b4",
+        "expected_owner": {
+          "deployment_id": "4d503044-f3a4-42f5-a7bc-4894a879b715",
+          "instance_id": "02ab8278-c166-4557-bd6d-8f7575484a55",
+          "instance_incarnation": "14ef8d7b-d10a-4ff5-ae4d-2abcf08a9fa6",
+          "boot_id": "c6f9c045-9498-4780-9e8c-ff47575be944",
+          "authority_generation": 3,
+          "host_fence_id": "8b8ea2c8-8e2c-498e-91a2-8f0dcf42ae37",
+          "host_fence_generation": 7,
+          "lease_id": "c0f5a147-1ba1-4a1c-9a25-1b46935403ef",
+          "lease_epoch": 8,
+          "session_id": "session-example",
+          "lease_expires_at_millis": 1900000000000
+        },
+        "artifact_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "contract": "sts2-exact-restore-v1",
+      "schema_digest": "2289d888c33eac46873408303c4423eab762e3f7bd6132ae8ae88d0d3b1858e4",
+      "message_id": "00000009-6fef-4a1b-9d98-ef2e3def8f20",
+      "correlation_id": "00000009-6fef-4a1b-9d98-ef2e3def8f20",
+      "kind": "exact_restore_lookup_request",
+      "payload": {
+        "operation_id": "d4ff5350-b76f-46b4-9d80-efe9e21d41c5",
+        "expected_owner": {
+          "deployment_id": "4d503044-f3a4-42f5-a7bc-4894a879b715",
+          "instance_id": "02ab8278-c166-4557-bd6d-8f7575484a55",
+          "instance_incarnation": "14ef8d7b-d10a-4ff5-ae4d-2abcf08a9fa6",
+          "boot_id": "c6f9c045-9498-4780-9e8c-ff47575be944",
+          "authority_generation": 3,
+          "host_fence_id": "8b8ea2c8-8e2c-498e-91a2-8f0dcf42ae37",
+          "host_fence_generation": 7,
+          "lease_id": "c0f5a147-1ba1-4a1c-9a25-1b46935403ef",
+          "lease_epoch": 8,
+          "session_id": "session-example",
+          "lease_expires_at_millis": 1900000000000
+        }
+      }
+    },
+    {
+      "contract": "sts2-exact-restore-v1",
+      "schema_digest": "2289d888c33eac46873408303c4423eab762e3f7bd6132ae8ae88d0d3b1858e4",
+      "message_id": "0000000a-6fef-4a1b-9d98-ef2e3def8f20",
+      "correlation_id": "0000000a-6fef-4a1b-9d98-ef2e3def8f20",
+      "kind": "exact_restore_begin_request",
+      "payload": {
+        "operation_id": "d4ff5350-b76f-46b4-9d80-efe9e21d41c5",
+        "expected_owner": {
+          "deployment_id": "4d503044-f3a4-42f5-a7bc-4894a879b715",
+          "instance_id": "02ab8278-c166-4557-bd6d-8f7575484a55",
+          "instance_incarnation": "14ef8d7b-d10a-4ff5-ae4d-2abcf08a9fa6",
+          "boot_id": "c6f9c045-9498-4780-9e8c-ff47575be944",
+          "authority_generation": 3,
+          "host_fence_id": "8b8ea2c8-8e2c-498e-91a2-8f0dcf42ae37",
+          "host_fence_generation": 7,
+          "lease_id": "c0f5a147-1ba1-4a1c-9a25-1b46935403ef",
+          "lease_epoch": 8,
+          "session_id": "session-example",
+          "lease_expires_at_millis": 1900000000000
+        },
+        "branch": {
+          "experiment_id": "experiment:sample",
+          "branch_id": "branch:sample",
+          "metadata_revision": 4,
+          "run_id": "run:sample",
+          "episode_id": "episode:sample",
+          "trajectory_id": "trajectory:sample"
+        },
+        "checkpoint_id": "asc-checkpoint:v1:sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "exact_state_digest": "asc-state:v1:sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "manifest_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "manifest_size_bytes": 10,
+        "closure_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "compatibility_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "coverage_contract_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "boundary": {
+          "kind": "room",
+          "phase": "map",
+          "game_tick": 91
+        },
+        "artifacts": [
+          {
+            "role": "canonical-state",
+            "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "size_bytes": 10,
+            "codec": "asc-jcs-state-v1"
+          },
+          {
+            "role": "restore-data",
+            "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+            "size_bytes": 5,
+            "codec": "native-v1"
+          }
+        ],
+        "artifact_reference_count": 2,
+        "distinct_blob_count": 2,
+        "aggregate_closure_bytes": 25
+      }
+    },
+    {
+      "contract": "sts2-exact-restore-v1",
+      "schema_digest": "2289d888c33eac46873408303c4423eab762e3f7bd6132ae8ae88d0d3b1858e4",
+      "message_id": "0000000b-6fef-4a1b-9d98-ef2e3def8f20",
+      "correlation_id": "0000000b-6fef-4a1b-9d98-ef2e3def8f20",
+      "kind": "exact_restore_chunk_request",
+      "payload": {
+        "operation_id": "c3ee424f-a65e-45a3-8c69-fde8d10cf0b4",
+        "expected_owner": {
+          "deployment_id": "4d503044-f3a4-42f5-a7bc-4894a879b715",
+          "instance_id": "02ab8278-c166-4557-bd6d-8f7575484a55",
+          "instance_incarnation": "14ef8d7b-d10a-4ff5-ae4d-2abcf08a9fa6",
+          "boot_id": "c6f9c045-9498-4780-9e8c-ff47575be944",
+          "authority_generation": 3,
+          "host_fence_id": "8b8ea2c8-8e2c-498e-91a2-8f0dcf42ae37",
+          "host_fence_generation": 7,
+          "lease_id": "c0f5a147-1ba1-4a1c-9a25-1b46935403ef",
+          "lease_epoch": 8,
+          "session_id": "session-example",
+          "lease_expires_at_millis": 1900000000000
+        },
+        "artifact_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "offset": 5,
+        "total_bytes": 5,
+        "chunk_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "data_base64": "aA=="
+      }
+    },
+    {
+      "contract": "sts2-exact-restore-v1",
+      "schema_digest": "2289d888c33eac46873408303c4423eab762e3f7bd6132ae8ae88d0d3b1858e4",
+      "message_id": "0000000c-6fef-4a1b-9d98-ef2e3def8f20",
+      "correlation_id": "0000000c-6fef-4a1b-9d98-ef2e3def8f20",
+      "kind": "exact_restore_commit_request",
+      "payload": {
+        "operation_id": "c3ee424f-a65e-45a3-8c69-fde8d10cf0b4",
+        "expected_owner": {
+          "deployment_id": "4d503044-f3a4-42f5-a7bc-4894a879b715",
+          "instance_id": "02ab8278-c166-4557-bd6d-8f7575484a55",
+          "instance_incarnation": "14ef8d7b-d10a-4ff5-ae4d-2abcf08a9fa6",
+          "boot_id": "c6f9c045-9498-4780-9e8c-ff47575be944",
+          "authority_generation": 3,
+          "host_fence_id": "8b8ea2c8-8e2c-498e-91a2-8f0dcf42ae37",
+          "host_fence_generation": 7,
+          "lease_id": "c0f5a147-1ba1-4a1c-9a25-1b46935403ef",
+          "lease_epoch": 8,
+          "session_id": "session-example",
+          "lease_expires_at_millis": 1900000000000
+        },
+        "branch": {
+          "experiment_id": "experiment:sample",
+          "branch_id": "branch:sample",
+          "metadata_revision": 4,
+          "run_id": "run:sample",
+          "episode_id": "episode:sample",
+          "trajectory_id": "trajectory:sample"
+        },
+        "checkpoint_id": "asc-checkpoint:v1:sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "closure_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "exact_state_digest": "asc-state:v1:sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "manifest_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "contract": "sts2-exact-restore-v1",
+      "schema_digest": "2289d888c33eac46873408303c4423eab762e3f7bd6132ae8ae88d0d3b1858e4",
+      "message_id": "00000020-6fef-4a1b-9d98-ef2e3def8f20",
+      "correlation_id": "00000001-6fef-4a1b-9d98-ef2e3def8f20",
+      "kind": "exact_restore_begin_response",
+      "payload": {
+        "operation_id": "c3ee424f-a65e-45a3-8c69-fde8d10cf0b4",
+        "result": "CREATED",
+        "state": "STAGING",
+        "expected_owner": {
+          "deployment_id": "4d503044-f3a4-42f5-a7bc-4894a879b715",
+          "instance_id": "02ab8278-c166-4557-bd6d-8f7575484a55",
+          "instance_incarnation": "14ef8d7b-d10a-4ff5-ae4d-2abcf08a9fa6",
+          "boot_id": "c6f9c045-9498-4780-9e8c-ff47575be944",
+          "authority_generation": 3,
+          "host_fence_id": "8b8ea2c8-8e2c-498e-91a2-8f0dcf42ae37",
+          "host_fence_generation": 7,
+          "lease_id": "c0f5a147-1ba1-4a1c-9a25-1b46935403ef",
+          "lease_epoch": 8,
+          "session_id": "session-example",
+          "lease_expires_at_millis": 1900000000000
+        },
+        "request_digest": "sha256:af10fa4d0e91df41adc42305fe9aa99a31a685dc9273d2c1adc36338d16e7a15"
+      }
+    },
+    {
+      "contract": "sts2-exact-restore-v1",
+      "schema_digest": "2289d888c33eac46873408303c4423eab762e3f7bd6132ae8ae88d0d3b1858e4",
+      "message_id": "00000021-6fef-4a1b-9d98-ef2e3def8f20",
+      "correlation_id": "00000002-6fef-4a1b-9d98-ef2e3def8f20",
+      "kind": "exact_restore_begin_response",
+      "payload": {
+        "operation_id": "c3ee424f-a65e-45a3-8c69-fde8d10cf0b4",
+        "result": "EXISTING",
+        "state": "CLOSURE_VERIFIED",
+        "expected_owner": {
+          "deployment_id": "4d503044-f3a4-42f5-a7bc-4894a879b715",
+          "instance_id": "02ab8278-c166-4557-bd6d-8f7575484a55",
+          "instance_incarnation": "14ef8d7b-d10a-4ff5-ae4d-2abcf08a9fa6",
+          "boot_id": "c6f9c045-9498-4780-9e8c-ff47575be944",
+          "authority_generation": 3,
+          "host_fence_id": "8b8ea2c8-8e2c-498e-91a2-8f0dcf42ae37",
+          "host_fence_generation": 7,
+          "lease_id": "c0f5a147-1ba1-4a1c-9a25-1b46935403ef",
+          "lease_epoch": 8,
+          "session_id": "session-example",
+          "lease_expires_at_millis": 1900000000000
+        },
+        "request_digest": "sha256:9482e53da1669fe72dd78439722785bb790bef888c77d99c7990e072ce913c40"
+      }
+    },
+    {
+      "contract": "sts2-exact-restore-v1",
+      "schema_digest": "2289d888c33eac46873408303c4423eab762e3f7bd6132ae8ae88d0d3b1858e4",
+      "message_id": "00000022-6fef-4a1b-9d98-ef2e3def8f20",
+      "correlation_id": "00000003-6fef-4a1b-9d98-ef2e3def8f20",
+      "kind": "exact_restore_chunk_response",
+      "payload": {
+        "operation_id": "c3ee424f-a65e-45a3-8c69-fde8d10cf0b4",
+        "result": "CHUNK_ACCEPTED",
+        "state": "STAGING",
+        "expected_owner": {
+          "deployment_id": "4d503044-f3a4-42f5-a7bc-4894a879b715",
+          "instance_id": "02ab8278-c166-4557-bd6d-8f7575484a55",
+          "instance_incarnation": "14ef8d7b-d10a-4ff5-ae4d-2abcf08a9fa6",
+          "boot_id": "c6f9c045-9498-4780-9e8c-ff47575be944",
+          "authority_generation": 3,
+          "host_fence_id": "8b8ea2c8-8e2c-498e-91a2-8f0dcf42ae37",
+          "host_fence_generation": 7,
+          "lease_id": "c0f5a147-1ba1-4a1c-9a25-1b46935403ef",
+          "lease_epoch": 8,
+          "session_id": "session-example",
+          "lease_expires_at_millis": 1900000000000
+        },
+        "request_digest": "sha256:4087a2dda0fbed544b5516bd07c9457befc8d4b4a3b24eefd2d21b6e0d053958",
+        "artifact_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "next_offset": 5
+      }
+    },
+    {
+      "contract": "sts2-exact-restore-v1",
+      "schema_digest": "2289d888c33eac46873408303c4423eab762e3f7bd6132ae8ae88d0d3b1858e4",
+      "message_id": "00000023-6fef-4a1b-9d98-ef2e3def8f20",
+      "correlation_id": "00000004-6fef-4a1b-9d98-ef2e3def8f20",
+      "kind": "exact_restore_finish_blob_response",
+      "payload": {
+        "operation_id": "c3ee424f-a65e-45a3-8c69-fde8d10cf0b4",
+        "result": "BLOB_VERIFIED",
+        "state": "CLOSURE_VERIFIED",
+        "expected_owner": {
+          "deployment_id": "4d503044-f3a4-42f5-a7bc-4894a879b715",
+          "instance_id": "02ab8278-c166-4557-bd6d-8f7575484a55",
+          "instance_incarnation": "14ef8d7b-d10a-4ff5-ae4d-2abcf08a9fa6",
+          "boot_id": "c6f9c045-9498-4780-9e8c-ff47575be944",
+          "authority_generation": 3,
+          "host_fence_id": "8b8ea2c8-8e2c-498e-91a2-8f0dcf42ae37",
+          "host_fence_generation": 7,
+          "lease_id": "c0f5a147-1ba1-4a1c-9a25-1b46935403ef",
+          "lease_epoch": 8,
+          "session_id": "session-example",
+          "lease_expires_at_millis": 1900000000000
+        },
+        "request_digest": "sha256:7340d3faeed3c5d2ae530c6fbd60200c4bb93b837995bd29bbdf3a41cca92743",
+        "artifact_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "total_bytes": 5,
+        "closure_state": "CLOSURE_VERIFIED"
+      }
+    },
+    {
+      "contract": "sts2-exact-restore-v1",
+      "schema_digest": "2289d888c33eac46873408303c4423eab762e3f7bd6132ae8ae88d0d3b1858e4",
+      "message_id": "00000024-6fef-4a1b-9d98-ef2e3def8f20",
+      "correlation_id": "00000005-6fef-4a1b-9d98-ef2e3def8f20",
+      "kind": "exact_restore_commit_response",
+      "payload": {
+        "operation_id": "c3ee424f-a65e-45a3-8c69-fde8d10cf0b4",
+        "result": "COMMIT_INTENT",
+        "state": "COMMIT_INTENT",
+        "expected_owner": {
+          "deployment_id": "4d503044-f3a4-42f5-a7bc-4894a879b715",
+          "instance_id": "02ab8278-c166-4557-bd6d-8f7575484a55",
+          "instance_incarnation": "14ef8d7b-d10a-4ff5-ae4d-2abcf08a9fa6",
+          "boot_id": "c6f9c045-9498-4780-9e8c-ff47575be944",
+          "authority_generation": 3,
+          "host_fence_id": "8b8ea2c8-8e2c-498e-91a2-8f0dcf42ae37",
+          "host_fence_generation": 7,
+          "lease_id": "c0f5a147-1ba1-4a1c-9a25-1b46935403ef",
+          "lease_epoch": 8,
+          "session_id": "session-example",
+          "lease_expires_at_millis": 1900000000000
+        },
+        "request_digest": "sha256:1630c92e931984745d8ab09b7e0ab3e080fec9951d1bf3095ec8f64bf8e90ae4"
+      }
+    },
+    {
+      "contract": "sts2-exact-restore-v1",
+      "schema_digest": "2289d888c33eac46873408303c4423eab762e3f7bd6132ae8ae88d0d3b1858e4",
+      "message_id": "00000025-6fef-4a1b-9d98-ef2e3def8f20",
+      "correlation_id": "00000006-6fef-4a1b-9d98-ef2e3def8f20",
+      "kind": "exact_restore_commit_response",
+      "payload": {
+        "operation_id": "c3ee424f-a65e-45a3-8c69-fde8d10cf0b4",
+        "result": "UNKNOWN",
+        "state": "UNKNOWN",
+        "expected_owner": {
+          "deployment_id": "4d503044-f3a4-42f5-a7bc-4894a879b715",
+          "instance_id": "02ab8278-c166-4557-bd6d-8f7575484a55",
+          "instance_incarnation": "14ef8d7b-d10a-4ff5-ae4d-2abcf08a9fa6",
+          "boot_id": "c6f9c045-9498-4780-9e8c-ff47575be944",
+          "authority_generation": 3,
+          "host_fence_id": "8b8ea2c8-8e2c-498e-91a2-8f0dcf42ae37",
+          "host_fence_generation": 7,
+          "lease_id": "c0f5a147-1ba1-4a1c-9a25-1b46935403ef",
+          "lease_epoch": 8,
+          "session_id": "session-example",
+          "lease_expires_at_millis": 1900000000000
+        },
+        "request_digest": "sha256:aa9b6fd3121283cdba00d1b4fe1a9d51824400323b0305020a331c55d40dcdb7"
+      }
+    },
+    {
+      "contract": "sts2-exact-restore-v1",
+      "schema_digest": "2289d888c33eac46873408303c4423eab762e3f7bd6132ae8ae88d0d3b1858e4",
+      "message_id": "00000026-6fef-4a1b-9d98-ef2e3def8f20",
+      "correlation_id": "00000007-6fef-4a1b-9d98-ef2e3def8f20",
+      "kind": "exact_restore_lookup_response",
+      "payload": {
+        "operation_id": "c3ee424f-a65e-45a3-8c69-fde8d10cf0b4",
+        "result": "COMMIT_INTENT",
+        "state": "COMMIT_INTENT",
+        "expected_owner": {
+          "deployment_id": "4d503044-f3a4-42f5-a7bc-4894a879b715",
+          "instance_id": "02ab8278-c166-4557-bd6d-8f7575484a55",
+          "instance_incarnation": "14ef8d7b-d10a-4ff5-ae4d-2abcf08a9fa6",
+          "boot_id": "c6f9c045-9498-4780-9e8c-ff47575be944",
+          "authority_generation": 3,
+          "host_fence_id": "8b8ea2c8-8e2c-498e-91a2-8f0dcf42ae37",
+          "host_fence_generation": 7,
+          "lease_id": "c0f5a147-1ba1-4a1c-9a25-1b46935403ef",
+          "lease_epoch": 8,
+          "session_id": "session-example",
+          "lease_expires_at_millis": 1900000000000
+        },
+        "request_digest": "sha256:3a8600f023572f4804650a8be48b47b592246aa81c67e5bbae1197400083d891"
+      }
+    },
+    {
+      "contract": "sts2-exact-restore-v1",
+      "schema_digest": "2289d888c33eac46873408303c4423eab762e3f7bd6132ae8ae88d0d3b1858e4",
+      "message_id": "00000027-6fef-4a1b-9d98-ef2e3def8f20",
+      "correlation_id": "00000008-6fef-4a1b-9d98-ef2e3def8f20",
+      "kind": "exact_restore_lookup_response",
+      "payload": {
+        "operation_id": "c3ee424f-a65e-45a3-8c69-fde8d10cf0b4",
+        "result": "CLOSURE_VERIFIED",
+        "state": "CLOSURE_VERIFIED",
+        "expected_owner": {
+          "deployment_id": "4d503044-f3a4-42f5-a7bc-4894a879b715",
+          "instance_id": "02ab8278-c166-4557-bd6d-8f7575484a55",
+          "instance_incarnation": "14ef8d7b-d10a-4ff5-ae4d-2abcf08a9fa6",
+          "boot_id": "c6f9c045-9498-4780-9e8c-ff47575be944",
+          "authority_generation": 3,
+          "host_fence_id": "8b8ea2c8-8e2c-498e-91a2-8f0dcf42ae37",
+          "host_fence_generation": 7,
+          "lease_id": "c0f5a147-1ba1-4a1c-9a25-1b46935403ef",
+          "lease_epoch": 8,
+          "session_id": "session-example",
+          "lease_expires_at_millis": 1900000000000
+        },
+        "request_digest": "sha256:b8ef85f937965a98682aa04587bb22b3bda5c10a2d9463935fa03c93941aa62f",
+        "artifact_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "total_bytes": 10,
+        "next_offset": 10,
+        "verified": true
+      }
+    },
+    {
+      "contract": "sts2-exact-restore-v1",
+      "schema_digest": "2289d888c33eac46873408303c4423eab762e3f7bd6132ae8ae88d0d3b1858e4",
+      "message_id": "00000028-6fef-4a1b-9d98-ef2e3def8f20",
+      "correlation_id": "00000009-6fef-4a1b-9d98-ef2e3def8f20",
+      "kind": "exact_restore_lookup_response",
+      "payload": {
+        "operation_id": "d4ff5350-b76f-46b4-9d80-efe9e21d41c5",
+        "result": "NOT_FOUND",
+        "state": "NOT_FOUND",
+        "expected_owner": {
+          "deployment_id": "4d503044-f3a4-42f5-a7bc-4894a879b715",
+          "instance_id": "02ab8278-c166-4557-bd6d-8f7575484a55",
+          "instance_incarnation": "14ef8d7b-d10a-4ff5-ae4d-2abcf08a9fa6",
+          "boot_id": "c6f9c045-9498-4780-9e8c-ff47575be944",
+          "authority_generation": 3,
+          "host_fence_id": "8b8ea2c8-8e2c-498e-91a2-8f0dcf42ae37",
+          "host_fence_generation": 7,
+          "lease_id": "c0f5a147-1ba1-4a1c-9a25-1b46935403ef",
+          "lease_epoch": 8,
+          "session_id": "session-example",
+          "lease_expires_at_millis": 1900000000000
+        },
+        "request_digest": "sha256:dd4cc217dd4b706082b2eedd2126d5d347fdbcd9537bd785d5317c7fdfcd3850"
+      }
+    },
+    {
+      "contract": "sts2-exact-restore-v1",
+      "schema_digest": "2289d888c33eac46873408303c4423eab762e3f7bd6132ae8ae88d0d3b1858e4",
+      "message_id": "00000029-6fef-4a1b-9d98-ef2e3def8f20",
+      "correlation_id": "00000007-6fef-4a1b-9d98-ef2e3def8f20",
+      "kind": "exact_restore_lookup_response",
+      "payload": {
+        "operation_id": "c3ee424f-a65e-45a3-8c69-fde8d10cf0b4",
+        "result": "RESTORE_VERIFIED",
+        "state": "RESTORE_VERIFIED",
+        "expected_owner": {
+          "deployment_id": "4d503044-f3a4-42f5-a7bc-4894a879b715",
+          "instance_id": "02ab8278-c166-4557-bd6d-8f7575484a55",
+          "instance_incarnation": "14ef8d7b-d10a-4ff5-ae4d-2abcf08a9fa6",
+          "boot_id": "c6f9c045-9498-4780-9e8c-ff47575be944",
+          "authority_generation": 3,
+          "host_fence_id": "8b8ea2c8-8e2c-498e-91a2-8f0dcf42ae37",
+          "host_fence_generation": 7,
+          "lease_id": "c0f5a147-1ba1-4a1c-9a25-1b46935403ef",
+          "lease_epoch": 8,
+          "session_id": "session-example",
+          "lease_expires_at_millis": 1900000000000
+        },
+        "request_digest": "sha256:3a8600f023572f4804650a8be48b47b592246aa81c67e5bbae1197400083d891",
+        "receipt": {
+          "operation_id": "c3ee424f-a65e-45a3-8c69-fde8d10cf0b4",
+          "branch": {
+            "experiment_id": "experiment:sample",
+            "branch_id": "branch:sample",
+            "metadata_revision": 4,
+            "run_id": "run:sample",
+            "episode_id": "episode:sample",
+            "trajectory_id": "trajectory:sample"
+          },
+          "destination_owner": {
+            "deployment_id": "4d503044-f3a4-42f5-a7bc-4894a879b715",
+            "instance_id": "02ab8278-c166-4557-bd6d-8f7575484a55",
+            "instance_incarnation": "14ef8d7b-d10a-4ff5-ae4d-2abcf08a9fa6",
+            "boot_id": "c6f9c045-9498-4780-9e8c-ff47575be944",
+            "authority_generation": 3,
+            "host_fence_id": "8b8ea2c8-8e2c-498e-91a2-8f0dcf42ae37",
+            "host_fence_generation": 7,
+            "lease_id": "c0f5a147-1ba1-4a1c-9a25-1b46935403ef",
+            "lease_epoch": 8,
+            "session_id": "session-example",
+            "lease_expires_at_millis": 1900000000000
+          },
+          "checkpoint_id": "asc-checkpoint:v1:sha256:0000000000000000000000000000000000000000000000000000000000000000",
+          "exact_state_digest": "asc-state:v1:sha256:0000000000000000000000000000000000000000000000000000000000000000",
+          "manifest_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+          "closure_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+          "compatibility_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+          "coverage_contract_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+          "aggregate_closure_bytes": 25,
+          "artifact_reference_count": 2,
+          "distinct_blob_count": 2,
+          "boundary": {
+            "kind": "room",
+            "phase": "map",
+            "game_tick": 91
+          },
+          "recaptured_exact_state_digest": "asc-state:v1:sha256:0000000000000000000000000000000000000000000000000000000000000000",
+          "receipt_digest": "sha256:924091b5c561736b105ae56244b0b66e4ddc42f66c17f57ad07f6af39b267234"
+        }
+      }
+    },
+    {
+      "contract": "sts2-exact-restore-v1",
+      "schema_digest": "2289d888c33eac46873408303c4423eab762e3f7bd6132ae8ae88d0d3b1858e4",
+      "message_id": "0000002a-6fef-4a1b-9d98-ef2e3def8f20",
+      "correlation_id": "0000000a-6fef-4a1b-9d98-ef2e3def8f20",
+      "kind": "exact_restore_error_response",
+      "payload": {
+        "operation_id": "d4ff5350-b76f-46b4-9d80-efe9e21d41c5",
+        "expected_owner": {
+          "deployment_id": "4d503044-f3a4-42f5-a7bc-4894a879b715",
+          "instance_id": "02ab8278-c166-4557-bd6d-8f7575484a55",
+          "instance_incarnation": "14ef8d7b-d10a-4ff5-ae4d-2abcf08a9fa6",
+          "boot_id": "c6f9c045-9498-4780-9e8c-ff47575be944",
+          "authority_generation": 3,
+          "host_fence_id": "8b8ea2c8-8e2c-498e-91a2-8f0dcf42ae37",
+          "host_fence_generation": 7,
+          "lease_id": "c0f5a147-1ba1-4a1c-9a25-1b46935403ef",
+          "lease_epoch": 8,
+          "session_id": "session-example",
+          "lease_expires_at_millis": 1900000000000
+        },
+        "request_digest": "sha256:9b5841d1df34e400947ff56a6abc50029c0bc298d328e6faca4ea32a61d998ef",
+        "outcome": "REJECTED",
+        "error_code": "no_restore_adapter",
+        "host_effect": "not_started"
+      }
+    },
+    {
+      "contract": "sts2-exact-restore-v1",
+      "schema_digest": "2289d888c33eac46873408303c4423eab762e3f7bd6132ae8ae88d0d3b1858e4",
+      "message_id": "0000002b-6fef-4a1b-9d98-ef2e3def8f20",
+      "correlation_id": "0000000b-6fef-4a1b-9d98-ef2e3def8f20",
+      "kind": "exact_restore_error_response",
+      "payload": {
+        "operation_id": "c3ee424f-a65e-45a3-8c69-fde8d10cf0b4",
+        "expected_owner": {
+          "deployment_id": "4d503044-f3a4-42f5-a7bc-4894a879b715",
+          "instance_id": "02ab8278-c166-4557-bd6d-8f7575484a55",
+          "instance_incarnation": "14ef8d7b-d10a-4ff5-ae4d-2abcf08a9fa6",
+          "boot_id": "c6f9c045-9498-4780-9e8c-ff47575be944",
+          "authority_generation": 3,
+          "host_fence_id": "8b8ea2c8-8e2c-498e-91a2-8f0dcf42ae37",
+          "host_fence_generation": 7,
+          "lease_id": "c0f5a147-1ba1-4a1c-9a25-1b46935403ef",
+          "lease_epoch": 8,
+          "session_id": "session-example",
+          "lease_expires_at_millis": 1900000000000
+        },
+        "request_digest": "sha256:0844d9c0d91abe19b20be15269d831df9d86c8b0c0dd135c80f9d7e257633aa8",
+        "outcome": "STALE_OWNER",
+        "error_code": "owner_mismatch",
+        "host_effect": "not_started"
+      }
+    },
+    {
+      "contract": "sts2-exact-restore-v1",
+      "schema_digest": "2289d888c33eac46873408303c4423eab762e3f7bd6132ae8ae88d0d3b1858e4",
+      "message_id": "0000002c-6fef-4a1b-9d98-ef2e3def8f20",
+      "correlation_id": "0000000c-6fef-4a1b-9d98-ef2e3def8f20",
+      "kind": "exact_restore_error_response",
+      "payload": {
+        "operation_id": "c3ee424f-a65e-45a3-8c69-fde8d10cf0b4",
+        "expected_owner": {
+          "deployment_id": "4d503044-f3a4-42f5-a7bc-4894a879b715",
+          "instance_id": "02ab8278-c166-4557-bd6d-8f7575484a55",
+          "instance_incarnation": "14ef8d7b-d10a-4ff5-ae4d-2abcf08a9fa6",
+          "boot_id": "c6f9c045-9498-4780-9e8c-ff47575be944",
+          "authority_generation": 3,
+          "host_fence_id": "8b8ea2c8-8e2c-498e-91a2-8f0dcf42ae37",
+          "host_fence_generation": 7,
+          "lease_id": "c0f5a147-1ba1-4a1c-9a25-1b46935403ef",
+          "lease_epoch": 8,
+          "session_id": "session-example",
+          "lease_expires_at_millis": 1900000000000
+        },
+        "request_digest": "sha256:f3fb7204c03b763f9aded841e17b381aea61471a2ba4e72f2fe0b64e391b4c37",
+        "outcome": "UNAVAILABLE",
+        "error_code": "native_unavailable",
+        "host_effect": "may_have_started"
+      }
+    }
+  ]
+}

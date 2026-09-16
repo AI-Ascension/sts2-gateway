@@ -272,6 +272,17 @@ match. It never allocates, renews, or initializes a host. Harness owns explicit
 resume selection and must reuse the already running destination; see
 [ADR 0029](decisions/0029-continuation-owner-adoption.md).
 
+The `sts2-exact-restore-v1` transport is exposed through five fixed control
+routes. Each validates the MCP-owned wrapper and neutral frame, then rechecks
+the current durable owner, installed host grant, and in-memory lease before
+forwarding to only the corresponding fixed native route. It repeats those
+checks after the reply and returns the result only when the operation, owner,
+request digest, phase, and correlation match. Frames are bounded to 16 KiB.
+The route preserves an explicit `REJECTED/no_restore_adapter` response so the
+Harness can stop before upload. This proves transport binding only; it does not
+establish that native restore or post-restore recapture is available. See
+[ADR 0031](decisions/0031-exact-restore-gateway-transport.md).
+
 Both gateway and mod endpoint settings require numeric loopback `IP:port` socket addresses;
 wildcard/non-loopback addresses and DNS hostnames fail configuration. This plaintext attached lane
 does not expose a remote mode. HTTP frames and downstream exchanges use absolute deadlines.

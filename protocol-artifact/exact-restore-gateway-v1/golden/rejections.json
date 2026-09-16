@@ -1,0 +1,15 @@
+{
+  "contract": "sts2-exact-restore-gateway-v1",
+  "invalid": [
+    {
+      "id": "request-wrapper-carries-response-frame",
+      "wrapper_kind": "exact_restore_request",
+      "inner_kind": "exact_restore_begin_response"
+    },
+    {
+      "id": "response-wrapper-carries-request-frame",
+      "wrapper_kind": "exact_restore_response",
+      "inner_kind": "exact_restore_begin_request"
+    }
+  ]
+}

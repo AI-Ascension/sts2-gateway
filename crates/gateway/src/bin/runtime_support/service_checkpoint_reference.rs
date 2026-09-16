@@ -5,6 +5,19 @@ use sts2_gateway::validate_exact_checkpoint_reference;
 
 const MAX_REFERENCE_RESPONSE_BYTES: usize = 8192;
 
+pub(super) fn dispatch(
+    service: &mut RuntimeService,
+    request: &HttpRequest,
+) -> Option<(u16, Vec<u8>)> {
+    (request.method == "GET"
+        && request.path
+            == format!(
+                "/v1/instances/{}/checkpoint-reference",
+                service.config.instance_id
+            ))
+    .then(|| service.checkpoint_reference_request(request))
+}
+
 impl RuntimeService {
     pub(super) fn checkpoint_reference_request(&mut self, request: &HttpRequest) -> (u16, Vec<u8>) {
         if self.shutdown_requested || self.lease_revoked {

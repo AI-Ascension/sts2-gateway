@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-ascension.invalid/schemas/sts2-exact-restore-gateway-v1/schema.json",
+  "title": "sts2-exact-restore-gateway-v1 authenticated consumer wrapper",
+  "oneOf": [
+    {"$ref": "#/$defs/request"},
+    {"$ref": "#/$defs/response"}
+  ],
+  "$defs": {
+    "uuid_v4": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "identity": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[!-~]+$"
+    },
+    "actor_request": {
+      "type": "object",
+      "properties": {
+        "principal_id": {"$ref": "#/$defs/identity"},
+        "role": {"const": "harness"}
+      },
+      "required": ["principal_id", "role"],
+      "additionalProperties": false
+    },
+    "actor_response": {
+      "type": "object",
+      "properties": {
+        "principal_id": {"$ref": "#/$defs/identity"},
+        "role": {"const": "gateway"}
+      },
+      "required": ["principal_id", "role"],
+      "additionalProperties": false
+    },
+    "auth": {
+      "type": "object",
+      "properties": {
+        "principal_id": {"$ref": "#/$defs/identity"},
+        "capability": {"const": "exact_restore"},
+        "proof": {"type": "null"}
+      },
+      "required": ["principal_id", "capability", "proof"],
+      "additionalProperties": false
+    },
+    "neutral_frame": {
+      "type": "object",
+      "properties": {
+        "contract": {"const": "sts2-exact-restore-v1"},
+        "schema_digest": {
+          "const": "2289d888c33eac46873408303c4423eab762e3f7bd6132ae8ae88d0d3b1858e4"
+        },
+        "message_id": {"$ref": "#/$defs/uuid_v4"},
+        "correlation_id": {"$ref": "#/$defs/uuid_v4"},
+        "kind": {
+          "enum": [
+            "exact_restore_begin_request",
+            "exact_restore_chunk_request",
+            "exact_restore_finish_blob_request",
+            "exact_restore_commit_request",
+            "exact_restore_lookup_request",
+            "exact_restore_begin_response",
+            "exact_restore_chunk_response",
+            "exact_restore_finish_blob_response",
+            "exact_restore_commit_response",
+            "exact_restore_lookup_response",
+            "exact_restore_error_response"
+          ]
+        },
+        "payload": {"type": "object"}
+      },
+      "required": [
+        "contract",
+        "schema_digest",
+        "message_id",
+        "correlation_id",
+        "kind",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "neutral_request_frame": {
+      "allOf": [
+        {"$ref": "#/$defs/neutral_frame"},
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "exact_restore_begin_request",
+                "exact_restore_chunk_request",
+                "exact_restore_finish_blob_request",
+                "exact_restore_commit_request",
+                "exact_restore_lookup_request"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "neutral_response_frame": {
+      "allOf": [
+        {"$ref": "#/$defs/neutral_frame"},
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "exact_restore_begin_response",
+                "exact_restore_chunk_response",
+                "exact_restore_finish_blob_response",
+                "exact_restore_commit_response",
+                "exact_restore_lookup_response",
+                "exact_restore_error_response"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "request": {
+      "type": "object",
+      "properties": {
+        "contract": {"const": "sts2-exact-restore-gateway-v1"},
+        "schema_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "message_id": {"$ref": "#/$defs/uuid_v4"},
+        "correlation_id": {"$ref": "#/$defs/uuid_v4"},
+        "actor": {"$ref": "#/$defs/actor_request"},
+        "auth": {"$ref": "#/$defs/auth"},
+        "kind": {"const": "exact_restore_request"},
+        "payload": {
+          "type": "object",
+          "properties": {
+            "frame": {"$ref": "#/$defs/neutral_request_frame"}
+          },
+          "required": ["frame"],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "contract",
+        "schema_digest",
+        "message_id",
+        "correlation_id",
+        "actor",
+        "auth",
+        "kind",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "response": {
+      "type": "object",
+      "properties": {
+        "contract": {"const": "sts2-exact-restore-gateway-v1"},
+        "schema_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "message_id": {"$ref": "#/$defs/uuid_v4"},
+        "correlation_id": {"$ref": "#/$defs/uuid_v4"},
+        "actor": {"$ref": "#/$defs/actor_response"},
+        "auth": {"$ref": "#/$defs/auth"},
+        "kind": {"const": "exact_restore_response"},
+        "payload": {
+          "type": "object",
+          "properties": {
+            "frame": {"$ref": "#/$defs/neutral_response_frame"}
+          },
+          "required": ["frame"],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "contract",
+        "schema_digest",
+        "message_id",
+        "correlation_id",
+        "actor",
+        "auth",
+        "kind",
+        "payload"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
