@@ -469,3 +469,12 @@ additive contract does not change existing clients or recovery frames. It does
 not supply native restore, a native receipt, or assurance that continuation is
 safe; those remain unavailable until their owners provide and validate those
 effects. See [ADR 0028](decisions/0028-continuation-owner-fence.md).
+
+`sts2-continuation-owner-adopt-v1` is a separate additive contract for clients
+that must resume a previously claimed, still-live destination. It returns the
+existing durable allocation authority after rechecking the exact current owner
+and historical claim in a serialized read transaction. It preserves the
+published owner-v1 frame digest and never allocates, renews, or initializes a
+host. Clients that do not use adoption remain compatible; adoption does not
+provide native restore or prove that resuming the host is safe. See
+[ADR 0029](decisions/0029-continuation-owner-adoption.md).

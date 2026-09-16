@@ -2,6 +2,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use super::RecoveryHostFence;
+
 /// Non-secret identity of the gateway's current owner for one live destination.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct RecoveryContinuationOwner {
@@ -46,4 +48,15 @@ pub struct RecoveryContinuationOwnerClaim {
 pub enum RecoveryContinuationOwnerClaimResult {
     Created(RecoveryContinuationOwnerClaim),
     Duplicate(RecoveryContinuationOwnerClaim),
+}
+
+/// Read-only result for adopting one retained claim onto its still-live owner.
+///
+/// This contains no lease token or host proof. The fence is the durable row
+/// used to reconstruct the public allocation recovery authority.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecoveryContinuationOwnerAdoption {
+    pub claim: RecoveryContinuationOwnerClaim,
+    pub owner: RecoveryContinuationOwner,
+    pub current_fence: RecoveryHostFence,
 }

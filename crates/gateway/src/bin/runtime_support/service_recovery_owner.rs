@@ -12,6 +12,9 @@ use super::super::super::continuation_owner::{
 };
 use super::super::{HttpRequest, RuntimeService, json_error};
 
+#[path = "service_recovery_owner_adopt.rs"]
+mod adopt;
+
 pub(super) fn dispatch(
     service: &mut RuntimeService,
     request: &HttpRequest,
@@ -20,6 +23,7 @@ pub(super) fn dispatch(
         return None;
     }
     let kind = match request.path.as_str() {
+        "/v1/recovery/continuation/owner/adopt" => return Some(adopt::handle(service, request)),
         "/v1/recovery/continuation/owner/read" => ContinuationOwnerKind::Read,
         "/v1/recovery/continuation/owner/claim" => ContinuationOwnerKind::Claim,
         "/v1/recovery/continuation/owner/lookup" => ContinuationOwnerKind::Lookup,
@@ -182,7 +186,7 @@ fn claim_value(claim: &sts2_gateway::RecoveryContinuationOwnerClaim) -> Value {
     })
 }
 
-fn read_owner_snapshot(
+pub(super) fn read_owner_snapshot(
     service: &mut RuntimeService,
 ) -> Result<RecoveryContinuationOwnerSnapshot, sts2_gateway::RecoveryStoreError> {
     service.check_recovery_deadline();
@@ -252,7 +256,7 @@ fn owner_state_name(state: RecoveryContinuationOwnerState) -> &'static str {
     }
 }
 
-fn owner_state_error(state: RecoveryContinuationOwnerState) -> (u16, Vec<u8>) {
+pub(super) fn owner_state_error(state: RecoveryContinuationOwnerState) -> (u16, Vec<u8>) {
     match state {
         RecoveryContinuationOwnerState::Available => {
             (409, json_error("continuation_owner_invalid"))

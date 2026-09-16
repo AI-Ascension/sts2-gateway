@@ -266,6 +266,12 @@ process-held lease/deadline agree. A restart or missing process fence reports
 `unknown`; historical claims never authorize replay. This is a gateway
 admission primitive, not native restore or branch execution.
 
+The separate `sts2-continuation-owner-adopt-v1` route returns the durable
+allocation authority only when a retained claim and the exact live owner still
+match. It never allocates, renews, or initializes a host. Harness owns explicit
+resume selection and must reuse the already running destination; see
+[ADR 0029](decisions/0029-continuation-owner-adoption.md).
+
 Both gateway and mod endpoint settings require numeric loopback `IP:port` socket addresses;
 wildcard/non-loopback addresses and DNS hostnames fail configuration. This plaintext attached lane
 does not expose a remote mode. HTTP frames and downstream exchanges use absolute deadlines.

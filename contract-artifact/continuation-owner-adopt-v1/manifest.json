@@ -1,0 +1,6 @@
+{
+  "contract": "sts2-continuation-owner-adopt-v1",
+  "frame_schema": "frame.schema.json",
+  "schema_digest": "7240e2f5054e5f6639ad12fa1ed66d40992f1234e49b693b2aacc53451dec380",
+  "max_frame_bytes": 16384
+}

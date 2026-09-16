@@ -21,12 +21,13 @@ pub use recovery_types::{
     MAX_RECOVERY_FRAME_BYTES, MAX_RECOVERY_RESPONSE_BYTES, MAX_WIRE_INTEGER, RECOVERY_CONTRACT,
     RECOVERY_SCHEMA_DIGEST, RECOVERY_TOMBSTONE_RETENTION_MILLIS, RUNTIME_V3_SCHEMA_DIGEST,
     RecoveryAdmissionTicket, RecoveryBootContext, RecoveryBootState, RecoveryContinuationOwner,
-    RecoveryContinuationOwnerClaim, RecoveryContinuationOwnerClaimResult,
-    RecoveryContinuationOwnerSnapshot, RecoveryContinuationOwnerState, RecoveryEffectWitness,
-    RecoveryHostFence, RecoveryHostLeaseBinding, RecoveryHostLeaseState, RecoveryIntentResult,
-    RecoveryLease, RecoveryLeaseProof, RecoveryLeaseState, RecoveryOperation,
-    RecoveryOperationIntent, RecoveryOperationState, RecoveryReleaseSet, RecoveryStoreConfig,
-    RecoveryStoreError, RecoveryTicketState, RecoveryUncertaintyReason,
+    RecoveryContinuationOwnerAdoption, RecoveryContinuationOwnerClaim,
+    RecoveryContinuationOwnerClaimResult, RecoveryContinuationOwnerSnapshot,
+    RecoveryContinuationOwnerState, RecoveryEffectWitness, RecoveryHostFence,
+    RecoveryHostLeaseBinding, RecoveryHostLeaseState, RecoveryIntentResult, RecoveryLease,
+    RecoveryLeaseProof, RecoveryLeaseState, RecoveryOperation, RecoveryOperationIntent,
+    RecoveryOperationState, RecoveryReleaseSet, RecoveryStoreConfig, RecoveryStoreError,
+    RecoveryTicketState, RecoveryUncertaintyReason,
 };
 
 pub(crate) fn random_uuid() -> String {
