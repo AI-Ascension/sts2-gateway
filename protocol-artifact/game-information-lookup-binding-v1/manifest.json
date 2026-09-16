@@ -1,0 +1,34 @@
+{
+  "artifact": "sts2-protocol/game-information-lookup-binding-v1",
+  "protocol_version": "game-information-lookup-binding-v1",
+  "schema": "schema.json",
+  "schema_digest": "f10f9af01d6be1de104069ba842e7971971e88f27553e782e81174ee7aa1cd58",
+  "provenance": {
+    "source": "schemas/game-information-lookup-binding-v1.schema.json",
+    "generator": "hand-authored",
+    "license": "MIT"
+  },
+  "producer_source_commit": "843fddbd3b5875d01d7f99d3433f872b0a4d7681",
+  "consumers": [
+    "sts2-harness",
+    "sts2-gateway",
+    "sts2-mcp-server"
+  ],
+  "goldens": [
+    "golden/discovery-response.json",
+    "golden/observation-response.json",
+    "golden/reobserve-exhausted-response.json",
+    "golden/reobserve-required-response.json",
+    "golden/reobserve-unavailable-response.json",
+    "golden/reobserved-response.json"
+  ],
+  "fixtures": [
+    "conformance/fixtures/game-information-lookup-binding-v1/valid/binding-identity-epoch.json",
+    "conformance/fixtures/game-information-lookup-binding-v1/valid/binding-identity-input.json"
+  ],
+  "negative_fixtures": [
+    "conformance/fixtures/game-information-lookup-binding-v1/invalid"
+  ],
+  "conformance": "conformance/cases/game-information-lookup-binding-v1.json",
+  "checksums": "SHA256SUMS"
+}

@@ -305,6 +305,10 @@ mod game_information_tests;
 mod game_information_additional_tests;
 
 #[cfg(test)]
+#[path = "service_game_information_binding_tests.rs"]
+mod game_information_binding_tests;
+
+#[cfg(test)]
 #[path = "service_game_information_capability_tests.rs"]
 mod game_information_capability_tests;
 

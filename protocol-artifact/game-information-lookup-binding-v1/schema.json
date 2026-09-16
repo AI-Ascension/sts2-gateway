@@ -1,0 +1,310 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sts2-game-information-lookup-binding-v1",
+  "title": "STS2 game-information lookup-binding discovery and observation contract v1",
+  "description": "Inert discovery and observation-binding contract for the initial game-information lookup binding. It defines the stable binding identity, the owning boundary of each member, the pre-observation discovery state, observation binding, staleness with re-observe, and the terminal fail-closed state. It carries no route, transport, host access, clock, credential, registry, or mutation authority.",
+  "oneOf": [
+    {"$ref": "#/$defs/discovery_response"},
+    {"$ref": "#/$defs/observation_response"},
+    {"$ref": "#/$defs/error_response"}
+  ],
+  "$defs": {
+    "identity": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9._:/-]+$"
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "locale": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 35,
+      "pattern": "^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$"
+    },
+    "safe_integer": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact", "source", "generator"],
+      "properties": {
+        "artifact": {"const": "sts2-protocol/game-information-lookup-binding-v1"},
+        "source": {"const": "schemas/game-information-lookup-binding-v1.schema.json"},
+        "generator": {"const": "hand-authored"}
+      }
+    },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope", "instance_lease", "content_revision"],
+      "properties": {
+        "scope": {"const": "sts2-harness"},
+        "instance_lease": {"const": "sts2-gateway"},
+        "content_revision": {"const": "sts2-game-mod"}
+      }
+    },
+    "scope_fence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["project_id", "run_id", "episode_id", "agent_id"],
+      "properties": {
+        "project_id": {"$ref": "#/$defs/identity"},
+        "run_id": {"$ref": "#/$defs/identity"},
+        "episode_id": {"$ref": "#/$defs/identity"},
+        "agent_id": {"$ref": "#/$defs/identity"}
+      }
+    },
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "binding_id",
+        "scope",
+        "game_profile",
+        "content_manifest_id",
+        "locale",
+        "authority_epoch",
+        "instance_id",
+        "authority"
+      ],
+      "properties": {
+        "binding_id": {"$ref": "#/$defs/digest"},
+        "scope": {"$ref": "#/$defs/scope_fence"},
+        "game_profile": {"$ref": "#/$defs/identity"},
+        "content_manifest_id": {"$ref": "#/$defs/identity"},
+        "locale": {"$ref": "#/$defs/locale"},
+        "authority_epoch": {"$ref": "#/$defs/safe_integer"},
+        "instance_id": {"$ref": "#/$defs/identity"},
+        "authority": {"$ref": "#/$defs/authority"}
+      }
+    },
+    "required_capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profile", "schema_digest"],
+      "properties": {
+        "profile": {"const": "game-information-lookup-binding-v1"},
+        "schema_digest": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "reobserve": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["attempts", "supersedes_observation_id"],
+      "properties": {
+        "attempts": {"$ref": "#/$defs/safe_integer"},
+        "supersedes_observation_id": {
+          "anyOf": [{"$ref": "#/$defs/identity"}, {"type": "null"}]
+        }
+      }
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["observation_id", "binding_id", "snapshot_id", "state_generation"],
+      "properties": {
+        "observation_id": {"$ref": "#/$defs/identity"},
+        "binding_id": {"$ref": "#/$defs/digest"},
+        "snapshot_id": {"$ref": "#/$defs/identity"},
+        "state_generation": {"$ref": "#/$defs/safe_integer"}
+      }
+    },
+    "discovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["observation_state", "required_capabilities", "reobserve"],
+      "properties": {
+        "observation_state": {
+          "enum": [
+            "not_yet_observed",
+            "observed",
+            "reobserve_required",
+            "reobserve_exhausted"
+          ]
+        },
+        "required_capabilities": {"$ref": "#/$defs/required_capabilities"},
+        "reobserve": {
+          "anyOf": [{"$ref": "#/$defs/reobserve"}, {"type": "null"}]
+        }
+      }
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "field", "reason"],
+      "properties": {
+        "code": {
+          "enum": [
+            "unsupported_version",
+            "invalid_identity",
+            "denied_scope",
+            "missing_capability",
+            "stale_snapshot",
+            "mixed_binding",
+            "reobserve_unavailable",
+            "malformed"
+          ]
+        },
+        "field": {
+          "anyOf": [{"$ref": "#/$defs/identity"}, {"type": "null"}]
+        },
+        "reason": {
+          "anyOf": [{"$ref": "#/$defs/reason"}, {"type": "null"}]
+        }
+      }
+    },
+    "envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocol_version",
+        "schema_digest",
+        "provenance",
+        "correlation_id",
+        "kind",
+        "binding",
+        "discovery",
+        "observation",
+        "error"
+      ],
+      "properties": {
+        "protocol_version": {"const": "game-information-lookup-binding-v1"},
+        "schema_digest": {"$ref": "#/$defs/digest"},
+        "provenance": {"$ref": "#/$defs/provenance"},
+        "correlation_id": {"$ref": "#/$defs/identity"},
+        "kind": {
+          "enum": [
+            "lookup_binding_discovery_response",
+            "lookup_binding_observation_response",
+            "error_response"
+          ]
+        },
+        "binding": {"anyOf": [{"$ref": "#/$defs/binding"}, {"type": "null"}]},
+        "discovery": {"anyOf": [{"$ref": "#/$defs/discovery"}, {"type": "null"}]},
+        "observation": {
+          "anyOf": [{"$ref": "#/$defs/observation"}, {"type": "null"}]
+        },
+        "error": {"anyOf": [{"$ref": "#/$defs/error"}, {"type": "null"}]}
+      }
+    },
+    "discovery_response": {
+      "allOf": [
+        {"$ref": "#/$defs/envelope"},
+        {
+          "properties": {
+            "kind": {"const": "lookup_binding_discovery_response"},
+            "binding": {"$ref": "#/$defs/binding"},
+            "discovery": {
+              "allOf": [
+                {"$ref": "#/$defs/discovery"},
+                {
+                  "properties": {
+                    "observation_state": {"const": "not_yet_observed"},
+                    "reobserve": {"type": "null"}
+                  }
+                }
+              ]
+            },
+            "observation": {"type": "null"},
+            "error": {"type": "null"}
+          }
+        }
+      ]
+    },
+    "observation_response": {
+      "allOf": [
+        {"$ref": "#/$defs/envelope"},
+        {
+          "properties": {
+            "kind": {"const": "lookup_binding_observation_response"},
+            "binding": {"$ref": "#/$defs/binding"},
+            "discovery": {"$ref": "#/$defs/discovery"},
+            "error": {"type": "null"}
+          }
+        },
+        {
+          "oneOf": [
+            {
+              "properties": {
+                "discovery": {
+                  "properties": {
+                    "observation_state": {"const": "observed"},
+                    "reobserve": {"type": "null"}
+                  }
+                },
+                "observation": {"$ref": "#/$defs/observation"}
+              }
+            },
+            {
+              "properties": {
+                "discovery": {
+                  "properties": {
+                    "observation_state": {"const": "reobserve_required"},
+                    "reobserve": {"$ref": "#/$defs/reobserve"}
+                  }
+                },
+                "observation": {"type": "null"}
+              }
+            },
+            {
+              "properties": {
+                "discovery": {
+                  "properties": {
+                    "observation_state": {"const": "reobserve_exhausted"},
+                    "reobserve": {
+                      "allOf": [
+                        {"$ref": "#/$defs/reobserve"},
+                        {"properties": {"attempts": {"minimum": 1}}}
+                      ]
+                    }
+                  }
+                },
+                "observation": {"type": "null"}
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "error_response": {
+      "allOf": [
+        {"$ref": "#/$defs/envelope"},
+        {
+          "properties": {
+            "kind": {"const": "error_response"},
+            "observation": {"type": "null"},
+            "error": {"$ref": "#/$defs/error"}
+          }
+        },
+        {
+          "oneOf": [
+            {
+              "properties": {
+                "binding": {"type": "null"},
+                "discovery": {"type": "null"}
+              }
+            },
+            {
+              "properties": {
+                "binding": {"$ref": "#/$defs/binding"},
+                "discovery": {"$ref": "#/$defs/discovery"}
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

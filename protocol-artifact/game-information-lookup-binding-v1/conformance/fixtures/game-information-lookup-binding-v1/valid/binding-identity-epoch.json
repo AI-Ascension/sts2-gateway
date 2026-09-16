@@ -1,0 +1,19 @@
+{
+  "id": "LBR-VALID-BINDING-IDENTITY-EPOCH",
+  "contract": "sts2.protocol/game-information-lookup-binding-v1",
+  "kind": "valid",
+  "digest_algorithm": "sha256",
+  "canonicalization": "compact UTF-8 JSON with object members sorted lexicographically",
+  "identity_input": {
+    "agent_id": "agent-3",
+    "authority_epoch": 8,
+    "content_manifest_id": "content-1",
+    "episode_id": "episode-7",
+    "game_profile": "sts2-native-v1",
+    "locale": "en-US",
+    "project_id": "proj-1",
+    "run_id": "run-42"
+  },
+  "canonical_json": "{\"agent_id\":\"agent-3\",\"authority_epoch\":8,\"content_manifest_id\":\"content-1\",\"episode_id\":\"episode-7\",\"game_profile\":\"sts2-native-v1\",\"locale\":\"en-US\",\"project_id\":\"proj-1\",\"run_id\":\"run-42\"}",
+  "binding_id": "1e48a1c79a1389c7c1cd753990275b81cba1d5cd44f42b114de760bf3a997970"
+}

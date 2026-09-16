@@ -17,9 +17,11 @@ const MAX_CURSOR_BINDINGS: usize = 64;
 mod errors;
 use errors::{
     game_information_request_error, game_information_response_error,
-    game_information_transport_error, lookup_binding_request_is_closed,
-    lookup_binding_response_is_closed,
+    game_information_transport_error,
 };
+
+#[path = "service_game_information_lookup_binding.rs"]
+mod lookup_binding;
 
 impl RuntimeService {
     pub(super) fn game_information_request(
@@ -38,7 +40,7 @@ impl RuntimeService {
             return self.game_information_capabilities(request, cancellation);
         }
         if route == GameInformationRoute::LookupBinding {
-            return self.game_information_lookup_binding(request, cancellation);
+            return lookup_binding::forward(self, request, cancellation);
         }
         if !request.content_type_is_json() {
             return (400, json_error("game_information_content_type_required"));
@@ -138,40 +140,6 @@ impl RuntimeService {
         }
         self.remember_next_cursor(&query, &validated.value);
         (response.status, response.body)
-    }
-
-    fn game_information_lookup_binding(
-        &self,
-        request: &HttpRequest,
-        cancellation: &super::RequestCancellation,
-    ) -> (u16, Vec<u8>) {
-        if !request.content_type_is_json() || !lookup_binding_request_is_closed(&request.body) {
-            return (400, json_error("game_information_lookup_binding_invalid"));
-        }
-        let correlation = request
-            .headers
-            .get("x-sts2-correlation-id")
-            .map(String::as_str);
-        match self.forward_mod_with_limit_detailed_timeout_cancelable(
-            "POST",
-            GameInformationRoute::LookupBinding.downstream_path(),
-            &request.body,
-            correlation,
-            super::game_information_forwarder::MAX_RESPONSE_BYTES,
-            self.game_information_exchange_timeout,
-            cancellation,
-        ) {
-            Ok(response) => {
-                if !lookup_binding_response_is_closed(&response.body, correlation.unwrap_or("")) {
-                    return (
-                        502,
-                        json_error("game_information_lookup_binding_response_invalid"),
-                    );
-                }
-                (response.status, response.body)
-            }
-            Err(error) => game_information_transport_error(error),
-        }
     }
 
     fn game_information_capabilities(
