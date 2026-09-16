@@ -29,7 +29,6 @@ fn confirmed_signed_revoke_reopens_a_fresh_allocation_epoch() -> Result<(), Stri
         service.config.host_lease_key.clone(),
         service.config.host_principal_id.clone(),
         vec![HostLeaseKind::Install],
-        false,
         None,
     )?;
     service.config.mod_address = address;
@@ -89,7 +88,6 @@ fn confirmed_signed_revoke_reopens_a_fresh_allocation_epoch() -> Result<(), Stri
         service.config.host_lease_key.clone(),
         service.config.host_principal_id.clone(),
         vec![HostLeaseKind::Revoke, HostLeaseKind::Install],
-        true,
         None,
     )?;
     service.config.mod_address = address;
@@ -103,7 +101,12 @@ fn confirmed_signed_revoke_reopens_a_fresh_allocation_epoch() -> Result<(), Stri
         "confirmed cleanup left lease_revoked=true; fresh allocation status was {}",
         fresh.0
     );
-    assert_eq!(fresh.0, 200);
+    assert_eq!(
+        fresh.0,
+        200,
+        "fresh allocation failed: {}",
+        String::from_utf8_lossy(&fresh.1)
+    );
     let fresh_lease = service
         .recovery_lease
         .as_ref()
@@ -193,7 +196,6 @@ fn expired_install_after_durable_ack_does_not_leave_an_active_installed_lease()
         service.config.host_lease_key.clone(),
         service.config.host_principal_id.clone(),
         vec![HostLeaseKind::Install, HostLeaseKind::Revoke],
-        true,
         None,
     )?;
     service.config.mod_address = address;
@@ -221,7 +223,6 @@ fn expired_install_after_durable_ack_does_not_leave_an_active_installed_lease()
         service.config.host_lease_key.clone(),
         service.config.host_principal_id.clone(),
         vec![HostLeaseKind::Install],
-        true,
         None,
     )?;
     service.config.mod_address = address;
