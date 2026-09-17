@@ -82,8 +82,32 @@ profile version rather than an in-place change to this one.
 
 ## Evidence boundary
 
-The accompanying tests drive the real route boundary against the durable
-recovery store and signed host lease frames over TCP loopback. They are
-**real-process synthetic** evidence. This record claims Gateway component
-behavior only: no native game, provider, deployment, or 24-hour soak is claimed,
-and the downstream soak in `ascension-watchdog#58` remains separate.
+Two evidence classes accompany this record, and they are not interchangeable.
+
+`crates/gateway/tests/gateway_real_process_episode.rs` spawns the built
+`sts2-gateway-runtime` binary with `std::process::Command::new` and drives it
+over real loopback sockets, so every decision it asserts was made by the
+*served* process: the listener, the request parser, the authorization policy,
+the durable store, and the signed host sideband. This is the **spawned-process**
+evidence class.
+
+The in-process tests under
+`crates/gateway/src/bin/runtime_support/service_episode_*.rs` call
+`RuntimeService::handle_request` inside the test process. They are fast and
+exhaustive, but they exercise a library entry point, not a running deployment,
+so they must not be cited as real-process evidence.
+
+Either way, this record claims Gateway component behavior only: no native game,
+provider, deployment, or 24-hour soak is claimed, and the downstream soak in
+`ascension-watchdog#58` remains separate.
+
+### Single-process lifetime limit
+
+The profile is gateway-local process state. It is deliberately not written to
+the durable boot authority or the release set, so a **restart discards it**: a
+process that did not itself negotiate the profile reports no witness for a
+header-less release and stays permanently revoking. The spawned-process suite
+asserts that limit directly, and any operator runbook that relies on repeated
+episodes must state it. A restart also rotates the boot authority and revokes
+every active lease, so a restarted process cannot reuse an earlier episode's
+epoch either.
