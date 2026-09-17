@@ -10,7 +10,11 @@ fn durable_duplicate_replays_before_missing_catalog_admission() -> Result<(), St
     let dispatch_request = runtime_request(&service, &lease, "action", dispatch.clone())?;
     let (status, body) = service.handle_request(&dispatch_request);
     assert_eq!(status, 503);
-    assert_eq!(json_body(&body)?["payload"]["result"]["status"], "UNKNOWN");
+    let response = json_body(&body)?;
+    assert_eq!(response["kind"], "dispatch_action_response");
+    assert_eq!(response["status"], "unknown");
+    assert_eq!(response["error_code"], "receipt_missing");
+    assert_eq!(response["operation_id"], DISPATCH_OPERATION);
 
     // The first dispatch consumed the catalog before the host outcome became
     // UNKNOWN. A delayed legal-actions response for that same boundary is
@@ -35,11 +39,10 @@ fn durable_duplicate_replays_before_missing_catalog_admission() -> Result<(), St
     let (status, body) = service.handle_request(&dispatch_request);
     assert_eq!(status, 503);
     let replay = json_body(&body)?;
-    assert_eq!(replay["payload"]["result"]["status"], "UNKNOWN");
-    assert_eq!(
-        replay["payload"]["operation"]["operation_id"],
-        DISPATCH_OPERATION
-    );
+    assert_eq!(replay["kind"], "dispatch_action_response");
+    assert_eq!(replay["status"], "unknown");
+    assert_eq!(replay["error_code"], "receipt_missing");
+    assert_eq!(replay["operation_id"], DISPATCH_OPERATION);
     cleanup(service, &path);
     Ok(())
 }

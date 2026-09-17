@@ -120,8 +120,10 @@ fn malformed_settled_receipt_persists_unknown_and_replays_without_dispatch() -> 
     let (status, body) = service.handle_request(&dispatch_request);
     assert_eq!(status, 503);
     let replay = json_body(&body)?;
-    assert_eq!(replay["payload"]["result"]["status"], "UNKNOWN");
-    assert_eq!(replay["payload"]["operation"]["operation_id"], operation_id);
+    assert_eq!(replay["kind"], "dispatch_action_response");
+    assert_eq!(replay["status"], "unknown");
+    assert_eq!(replay["error_code"], "receipt_missing");
+    assert_eq!(replay["operation_id"], operation_id);
     cleanup(service, &path);
     Ok(())
 }
