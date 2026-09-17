@@ -71,7 +71,13 @@ pub(super) fn forward(
                 json_error("game_information_live_observation_bootstrap_unavailable"),
             );
         }
-        Err(error) => return game_information_transport_error(error),
+        Err(error) => {
+            if !matches!(error, ReadError::Cancelled) {
+                service.game_information_live_bootstrap_supported = Some(authority);
+                service.game_information_live_bootstrap_transport_failed = true;
+            }
+            return game_information_transport_error(error);
+        }
     };
     if let Err(error) = service.check_lease(request) {
         return error;
