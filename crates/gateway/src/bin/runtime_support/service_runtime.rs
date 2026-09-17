@@ -172,9 +172,13 @@ impl RuntimeService {
             recovery_lease_deadline: None,
             recovery_lease_deadline_lease_id: None,
             recovery_host_grant: None,
-            recovery_clock_started,
-            recovery_clock_wall_millis,
-            recovery_last_now_millis: recovery_clock_wall_millis,
+            recovery_clock: recovery_state::RecoveryClock {
+                started: recovery_clock_started,
+                wall_millis: recovery_clock_wall_millis,
+                last_now_millis: recovery_clock_wall_millis,
+            },
+            #[cfg(test)]
+            recovery_test_bootstrap_secret: None,
         })
     }
 

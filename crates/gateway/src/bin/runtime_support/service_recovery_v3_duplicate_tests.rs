@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-use serde_json::json;
+use serde_json::{Value, json};
 use sts2_gateway::{
     GatewayRecoveryStore, RUNTIME_V3_SCHEMA_DIGEST, RecoveryIntentResult, RecoveryLeaseRequest,
     RecoveryOperationIntent, RecoveryOperationState, RecoveryUncertaintyReason,
@@ -9,7 +9,11 @@ use sts2_gateway::{
 use uuid::Uuid;
 
 use super::super::RuntimeV3GameplayRoute;
-use super::test_service;
+use super::{authenticated_request, test_service};
+use std::io::ErrorKind;
+use std::net::TcpListener;
+use std::thread;
+use std::time::{Duration, Instant};
 
 const DEPLOYMENT: &str = "00000000-0000-4000-8000-000000000001";
 const INSTANCE: &str = "00000000-0000-4000-8000-000000000002";
@@ -147,5 +151,124 @@ fn unknown_duplicate_replays_original_binding_before_missing_cache() -> Result<(
     );
     let _ = std::fs::remove_file(&path);
     let _ = std::fs::remove_file(path.with_extension("gateway-recovery.lock"));
+    Ok(())
+}
+
+#[test]
+fn runtime_v3_non_uuid_correlation_uses_uuid_host_frames() -> Result<(), String> {
+    let (mut service, lease, path) =
+        super::super::runtime_v3_catalog_tests::recovery_service()?;
+    service.config.caller_id = String::from("00000000-0000-4000-8000-000000000008");
+    let mut dispatch = super::super::runtime_v3_catalog_tests::dispatch_envelope(
+        &service,
+        &lease,
+        "3",
+    )?;
+    super::super::runtime_v3_catalog_tests::capture_old_catalog(
+        &mut service,
+        &lease,
+        &dispatch,
+    )?;
+    dispatch["correlation_id"] = "3".into();
+    let mut request = authenticated_request("/v3/instances/unused/action");
+    request.method = String::from("POST");
+    request
+        .headers
+        .insert(String::from("x-sts2-correlation-id"), String::from("3"));
+    request.body = serde_json::to_vec(&dispatch).map_err(|error| error.to_string())?;
+    service.recovery_test_bootstrap_secret = Some(vec![b'a'; 32]);
+
+    let listener = TcpListener::bind("127.0.0.1:0").map_err(|error| error.to_string())?;
+    listener
+        .set_nonblocking(true)
+        .map_err(|error| error.to_string())?;
+    let address = listener
+        .local_addr()
+        .map_err(|error| error.to_string())?
+        .to_string();
+    let worker = thread::spawn(move || -> Result<Vec<String>, String> {
+        let deadline = Instant::now() + Duration::from_secs(3);
+        let mut correlations = Vec::new();
+        for (index, kind) in [
+            super::super::super::recovery_frame::RecoveryKind::OperationIntent,
+            super::super::super::recovery_frame::RecoveryKind::OperationDispatch,
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let (mut stream, _) = loop {
+                match listener.accept() {
+                    Ok(pair) => break pair,
+                    Err(error)
+                        if error.kind() == ErrorKind::WouldBlock
+                            && Instant::now() < deadline =>
+                    {
+                        thread::sleep(Duration::from_millis(1));
+                    }
+                    Err(error) => return Err(format!("accept {index}: {error}")),
+                }
+            };
+            let forwarded = super::super::super::http::read_request(&mut stream)
+                .map_err(|error| format!("{error:?}"))?;
+            let value: Value =
+                serde_json::from_slice(&forwarded.body).map_err(|error| error.to_string())?;
+            let correlation = value["correlation_id"]
+                .as_str()
+                .ok_or_else(|| String::from("host correlation missing"))?
+                .to_owned();
+            let parsed = uuid::Uuid::parse_str(&correlation)
+                .map_err(|error| format!("host correlation is not UUID: {error}"))?;
+            if parsed.get_version_num() != 4 {
+                return Err(String::from("host correlation is not UUIDv4"));
+            }
+            correlations.push(correlation.clone());
+            let result = if kind
+                == super::super::super::recovery_frame::RecoveryKind::OperationIntent
+            {
+                super::super::super::recovery_frame::response_result(
+                    "INTENT_RECORDED",
+                    false,
+                    None,
+                )
+            } else {
+                super::super::super::recovery_frame::response_result("REJECTED", false, None)
+            };
+            let body = json!({
+                "result": result,
+                "operation": value["payload"]["operation"],
+            });
+            let response = super::super::super::recovery_frame::response_frame(
+                kind,
+                &correlation,
+                "00000000-0000-4000-8000-000000000009",
+                body,
+            );
+            super::super::super::http::write_response(&mut stream, 200, &response)
+                .map_err(|error| error.to_string())?;
+        }
+        Ok(correlations)
+    });
+    service.config.mod_address = address;
+    let (status, body) = service.recovery_v3_dispatch(
+        &request,
+        RuntimeV3GameplayRoute::DispatchAction,
+        dispatch,
+    );
+    let worker_result = worker
+        .join()
+        .map_err(|_| String::from("host worker panicked"))?;
+    let correlations = worker_result.map_err(|error| {
+        format!(
+            "{error}; gateway status={status} body={}",
+            String::from_utf8_lossy(&body)
+        )
+    })?;
+    assert_eq!(status, 200, "body={}", String::from_utf8_lossy(&body));
+    let response: Value = serde_json::from_slice(&body).map_err(|error| error.to_string())?;
+    assert_eq!(response["correlation_id"], "3");
+    assert_eq!(correlations.len(), 2);
+    assert_ne!(correlations[0], "3");
+    assert_ne!(correlations[0], correlations[1]);
+    super::super::runtime_v3_catalog_tests::cleanup(service, &path);
     Ok(())
 }

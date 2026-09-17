@@ -33,7 +33,6 @@ use super::http::{HttpRequest, MAX_BODY_BYTES, MAX_RESPONSE_BYTES, read_request,
 use super::journal;
 use super::metrics::RuntimeMetrics;
 use super::runtime_map::RuntimeMapRoute;
-use super::runtime_map_forwarder::RuntimeMapForwardError;
 use super::runtime_map_forwarder::{MAX_MAP_RESPONSE_BYTES, RuntimeMapForwarder};
 use super::runtime_v3_gameplay::RuntimeV3GameplayRoute;
 use super::runtime_v3_gameplay_forwarder::{
@@ -92,9 +91,9 @@ pub(crate) struct RuntimeService {
     recovery_lease_deadline: Option<Instant>,
     recovery_lease_deadline_lease_id: Option<String>,
     recovery_host_grant: Option<HostLeaseGrant>,
-    recovery_clock_started: Instant,
-    recovery_clock_wall_millis: u64,
-    recovery_last_now_millis: u64,
+    recovery_clock: recovery_state::RecoveryClock,
+    #[cfg(test)]
+    recovery_test_bootstrap_secret: Option<Vec<u8>>,
 }
 
 struct RuntimeConfig {

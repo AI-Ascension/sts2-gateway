@@ -312,8 +312,8 @@ fn delayed_revoke_ack_after_expiry_commits_host_revoked_without_active_lease() -
 #[test]
 fn recovery_clock_never_moves_backwards() {
     let mut service = test_service().expect("test service");
-    service.recovery_clock_wall_millis = 10_000;
-    service.recovery_last_now_millis = 20_000;
+    service.recovery_clock.wall_millis = 10_000;
+    service.recovery_clock.last_now_millis = 20_000;
 
     assert!(service.recovery_now_millis() >= 20_000);
 }
