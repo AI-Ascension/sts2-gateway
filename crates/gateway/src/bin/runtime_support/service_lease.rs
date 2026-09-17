@@ -76,6 +76,14 @@ impl RuntimeService {
                 Ok(lease) => lease,
                 Err(error) => return super::recovery_wire::recovery_store_error(error),
             };
+            // A repeated-episode admission must land on an epoch strictly above
+            // every completed episode of this boot. The durable allocator
+            // already issues `MAX(lease_epoch) + 1`; this independent local
+            // floor keeps a released lease from being resurrected if the two
+            // views ever disagree.
+            if self.episode_admission_refused(&boot, lease.lease_epoch) {
+                return self.refuse_released_epoch(&lease);
+            }
             self.recovery_lease = Some(lease.clone());
             self.lease_active = false;
             return match self.install_host_lease(&boot, &fence, &lease, &Uuid::new_v4().to_string())
@@ -108,6 +116,19 @@ impl RuntimeService {
             return error;
         }
         self.allocation_cleanup_lease_id = None;
+        // Negotiate before any durable write so an unsupported or
+        // unsatisfiable profile can never half-apply. A rejected negotiation
+        // preserves the permanent stop flag and produces no new effects.
+        let negotiated = match self.negotiate_episode_profile(
+            request
+                .headers
+                .get(super::episode_profile::EPISODE_PROFILE_HEADER)
+                .map(String::as_str),
+        ) {
+            Ok(negotiated) => negotiated,
+            Err(error) => return error,
+        };
+        let profiled = negotiated.is_some();
         if self.recovery.is_some() {
             let Some(lease) = self.recovery_lease.clone() else {
                 return (409, json_error("lease_not_active"));
@@ -120,17 +141,47 @@ impl RuntimeService {
             if let Err(error) = self.revoke_host_lease(&lease.proof(), "shutdown", correlation) {
                 return error.body();
             }
+            // Only an explicitly profiled release of a live episode may reopen
+            // admission, and only after the host confirmed the revoke. A stop
+            // already in force (operator revoke, shutdown) or a rotated boot
+            // keeps the permanent flag set. The host frame keeps its closed
+            // reason vocabulary; the completion decision stays gateway-local.
+            if let Some(profile) = negotiated {
+                // Bind the negotiated profile before the completion decision so
+                // the epoch floor and witness below observe it.
+                self.episode_profile = Some(profile);
+            }
+            if profiled && !self.shutdown_requested {
+                self.commit_completed_episode(lease.lease_epoch);
+            }
         }
         self.lease_active = false;
-        self.lease_revoked = true;
+        if self.recovery.is_none() {
+            // The attached adapter issues no durable lease, so it cannot hand
+            // out a distinct lease/epoch. Repeated episodes are unsupported
+            // here and the release stays permanently revoking.
+            self.lease_revoked = true;
+        }
         (
             200,
-            json_bytes(&json!({
-                "status": "released",
-                "instance_id": self.config.instance_id,
-                "lease_id": self.config.lease_id,
-                "lease_epoch": self.config.lease_epoch
-            })),
+            json_bytes(&match self.episode_profile_witness() {
+                // The profiled body is additive: the legacy default stays
+                // byte-identical because the witness appears only when a
+                // profile was accepted on this release.
+                Some(witness) => json!({
+                    "status": "released",
+                    "instance_id": self.config.instance_id,
+                    "lease_id": self.config.lease_id,
+                    "lease_epoch": self.config.lease_epoch,
+                    "episode_profile": witness,
+                }),
+                None => json!({
+                    "status": "released",
+                    "instance_id": self.config.instance_id,
+                    "lease_id": self.config.lease_id,
+                    "lease_epoch": self.config.lease_epoch
+                }),
+            }),
         )
     }
 

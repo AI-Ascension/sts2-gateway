@@ -22,7 +22,7 @@ const TEST_SESSION: &str = "00000000-0000-4000-8000-000000000007";
 const HOST_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// A bounded signed host fake. Every listed request is required by its test.
-pub(super) fn spawn_signed_ack_server(
+pub(crate) fn spawn_signed_ack_server(
     key: Vec<u8>,
     principal: String,
     kinds: Vec<HostLeaseKind>,
@@ -131,7 +131,7 @@ pub(super) fn spawn_signed_ack_server(
     Ok((address.to_string(), server))
 }
 
-pub(super) fn accept_with_timeout(
+pub(crate) fn accept_with_timeout(
     listener: &TcpListener,
     timeout: Duration,
 ) -> Result<Option<TcpStream>, String> {
@@ -150,7 +150,7 @@ pub(super) fn accept_with_timeout(
     }
 }
 
-pub(super) fn retire_fixture_lease(
+pub(crate) fn retire_fixture_lease(
     service: &mut RuntimeService,
     old_lease: &RecoveryLease,
 ) -> Result<(), String> {
@@ -171,7 +171,7 @@ pub(super) fn retire_fixture_lease(
     Ok(())
 }
 
-pub(super) fn allocation_body(service: &RuntimeService) -> Result<Vec<u8>, String> {
+pub(crate) fn allocation_body(service: &RuntimeService) -> Result<Vec<u8>, String> {
     serde_json::to_vec(&json!({
         "instance_id": service.config.instance_id,
         "caller_id": service.config.caller_id,
@@ -180,7 +180,7 @@ pub(super) fn allocation_body(service: &RuntimeService) -> Result<Vec<u8>, Strin
     .map_err(|error| error.to_string())
 }
 
-pub(super) fn recovery_revoke_request(
+pub(crate) fn recovery_revoke_request(
     service: &RuntimeService,
     lease: &RecoveryLease,
 ) -> HttpRequest {
@@ -230,7 +230,7 @@ pub(super) fn recovery_revoke_request(
     request
 }
 
-pub(super) fn runtime_request_for(
+pub(crate) fn runtime_request_for(
     service: &RuntimeService,
     lease: &RecoveryLease,
 ) -> HttpRequest {

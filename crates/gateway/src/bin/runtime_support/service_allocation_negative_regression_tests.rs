@@ -11,7 +11,7 @@ use super::host_lease_helpers::grant_value;
 use super::*;
 
 #[path = "service_allocation_negative_test_support.rs"]
-mod support;
+pub(crate) mod support;
 #[path = "service_allocation_stop_provenance_tests.rs"]
 mod stop_provenance;
 use self::support::{

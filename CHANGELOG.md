@@ -5,6 +5,21 @@ host compatibility and release publication.
 
 ## [Unreleased]
 
+- Add an explicitly negotiated repeated-episode lease profile
+  (`x-sts2-episode-profile: repeated-episode-lease-v1`) so two completed
+  episodes can run against one deployment without weakening the single-episode
+  default. A profiled release of a live episode, after a confirmed host revoke,
+  records the completed epoch as an admission floor and reopens admission for a
+  strictly higher epoch of the same boot; a release without the header stays
+  byte-identical and permanently revoked, and operator revoke, shutdown,
+  unresolved host revoke, stale fence, rotated boot, and wrong caller/session
+  all keep admission closed. The profile is gateway-local process state and is
+  not written to durable boot or release-set authority. This is Gateway
+  component evidence from the durable store and signed host frames over TCP
+  loopback; native execution and the downstream watchdog soak remain separate.
+  See
+  [ADR 0033](docs/decisions/0033-repeated-episode-lease-profile.md), refs #67.
+
 - Add the authenticated, fixed `game-information-live-observation-bootstrap-v1`
   route. The Gateway pins schema digest
   `6041a282ffda8757af4e3eb6ab551e082f136fe53138ab8ac17db9fab52765c2`, requires a
