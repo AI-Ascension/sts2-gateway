@@ -5,6 +5,16 @@ host compatibility and release publication.
 
 ## [Unreleased]
 
+- Add a real filesystem isolated-allocation adapter for save-profile provisioning
+  (`FilesystemUserDataPort`). The adapter binds one canonical, server-configured root and allocates
+  exactly one `run-<identity>` directory per opaque identity, recording gateway provenance inside
+  that directory. Traversal, symlink escape, unknown or foreign existing contents, capacity
+  overrun, and implicit overwrite or adoption are all refused before any write, and host paths never
+  appear in a descriptor or an error. This supplies the physical allocation and containment half of
+  issue #51 at the component level; the attached runtime still injects no adapters unless a durable
+  store path and user-data root are configured, so mutations keep failing closed by default. See
+  [ADR 0024](docs/decisions/0024-save-profile-provisioning-and-fencing.md), refs #51.
+
 - Add an explicitly negotiated repeated-episode lease profile
   (`x-sts2-episode-profile: repeated-episode-lease-v1`) so two completed
   episodes can run against one deployment without weakening the single-episode

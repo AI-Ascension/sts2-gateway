@@ -3,6 +3,7 @@
 use std::collections::BTreeMap;
 
 use super::guidance::RecoveryGuidance;
+use super::provisioning_descriptor::PROVENANCE_OWNER;
 use super::provisioning_types::{
     UserDataCreateOutcome, UserDataCreateRequest, UserDataInspection, UserDataPort,
     UserDataPortError, UserDataProvisioningError, UserDataProvisioningOutcome,
@@ -90,7 +91,7 @@ impl<P: UserDataPort, S: UserDataRecordStore, B: LaunchProfileBindingPort>
                 || existing.launch_profile.validate().is_err()
                 || existing.descriptor.validate().is_err()
                 || existing.launch_profile.user_data != existing.descriptor.identity
-                || existing.descriptor.provenance.owner != "gateway"
+                || existing.descriptor.provenance.owner != PROVENANCE_OWNER
                 || existing.descriptor.provenance.instance_id != context.instance_id
                 || existing.descriptor.provenance.operation_id != operation_id
                 || existing.descriptor.provenance.contract != LAUNCH_PROFILE_CONTRACT

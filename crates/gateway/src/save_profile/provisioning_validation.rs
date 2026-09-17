@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 
 use super::guidance::RecoveryGuidance;
+pub(super) use super::provisioning_descriptor::descriptor;
 use super::provisioning_types::{
     UserDataProvisioningError, UserDataProvisioningOutcome, UserDataProvisioningRecord,
     UserDataProvisioningStatus,
 };
 use super::types::{
-    LAUNCH_PROFILE_CONTRACT, LaunchProfileBinding, SaveProfileContext, SaveProfileId,
-    UserDataDescriptor, UserDataIdentity, UserDataProvenance,
+    LaunchProfileBinding, SaveProfileContext, SaveProfileId, UserDataDescriptor, UserDataIdentity,
 };
 
 pub(super) fn validate_request(
@@ -32,23 +32,6 @@ pub(super) fn validate_operation_id(operation_id: &str) -> Result<(), UserDataPr
         return Err(UserDataProvisioningError::InvalidRequest);
     }
     Ok(())
-}
-
-pub(super) fn descriptor(
-    context: &SaveProfileContext,
-    operation_id: &str,
-    identity: UserDataIdentity,
-) -> UserDataDescriptor {
-    UserDataDescriptor {
-        identity,
-        provenance: UserDataProvenance {
-            owner: String::from("gateway"),
-            instance_id: context.instance_id.clone(),
-            operation_id: operation_id.to_owned(),
-            contract: LAUNCH_PROFILE_CONTRACT.to_owned(),
-        },
-        baseline: None,
-    }
 }
 
 pub(super) fn update_record(

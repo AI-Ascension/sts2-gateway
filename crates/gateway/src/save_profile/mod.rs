@@ -21,6 +21,7 @@ mod operation_record;
 mod operation_schema;
 mod operation_store;
 mod provisioning;
+mod provisioning_descriptor;
 #[cfg(test)]
 #[path = "provisioning_tests.rs"]
 mod provisioning_tests;
@@ -28,6 +29,11 @@ mod provisioning_types;
 mod provisioning_validation;
 mod route;
 mod types;
+mod user_data_files;
+#[cfg(test)]
+#[path = "user_data_files_tests.rs"]
+mod user_data_files_tests;
+mod user_data_files_validation;
 
 pub use durable_store::SqliteUserDataRecordStore;
 pub use guidance::RecoveryGuidance;
@@ -41,6 +47,7 @@ pub use ledger_types::{
 };
 pub use operation_store::{SAVE_PROFILE_OPERATION_CAPACITY, SqliteSaveProfileOperationStore};
 pub use provisioning::UserDataProvisioner;
+pub use provisioning_descriptor::PROVENANCE_OWNER;
 pub use provisioning_types::{
     InMemoryUserDataPort, InMemoryUserDataRecordStore, UserDataCreateOutcome,
     UserDataCreateRequest, UserDataInspection, UserDataPort, UserDataPortError,
@@ -55,3 +62,4 @@ pub use types::{
     SaveProfileContext, SaveProfileFenceError, SaveProfileId, SaveProfileIdError,
     UserDataDescriptor, UserDataIdentity, UserDataProvenance,
 };
+pub use user_data_files::{FilesystemUserDataPort, USER_DATA_ROOT_CAPACITY};

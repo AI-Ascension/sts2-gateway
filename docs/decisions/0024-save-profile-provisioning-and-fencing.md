@@ -3,10 +3,12 @@
 ## Status
 
 Proposed gateway-owned component contract. The deterministic source/component implementation is
-complete for this slice, but the attached runtime stays explicitly unprovisioned until a real
-isolated-allocation port, launch-profile binding port, durable operation-intent store, and
-authoritative active-run source are accepted; game-mod contract acceptance, launch-profile
-integration from issue #50, and native host verification remain external gates.
+complete for this slice, and a real filesystem isolated-allocation adapter now exists
+(`FilesystemUserDataPort`) with evidenced containment behavior. The attached runtime still stays
+unprovisioned until an operator configures a durable store path and an isolated user-data root, so
+every mutation continues to fail closed by default. An authoritative active-run source, launch
+adapter wiring into the attached runtime, game-mod contract acceptance, launch-profile integration
+from issue #50, and native host verification remain external gates.
 
 ## Context
 
@@ -80,4 +82,8 @@ with in-memory ports and a synthetic loopback peer. Refusal cases inject the ada
 classification or typed port error rather than traversing a real root, and restart cases reopen a
 shared record store rather than a real durable store file. No game, save, profile, provider, or
 native host is used. Production filesystem allocation and containment, a durable store adapter,
-launch-profile adapter wiring, game-mod readback, and cross-restart durability remain `unverified`.
+launch-profile adapter wiring into the attached runtime, game-mod readback, and cross-restart
+durability through the attached service remain `unverified`. Physical allocation and containment are
+now `verified` at the component level: `FilesystemUserDataPort` is exercised against a real temporary
+root, and an ablation of the symlink refusal makes
+`symlinked_allocation_is_refused_as_an_escape` fail rather than pass incidentally.
