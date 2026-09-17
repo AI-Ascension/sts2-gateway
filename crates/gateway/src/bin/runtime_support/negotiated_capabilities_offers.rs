@@ -53,6 +53,27 @@ pub(super) fn known_lookup_binding_offers(scopes: &[&str]) -> [Value; 2] {
     })
 }
 
+pub(super) fn known_live_observation_bootstrap_offer(
+    scopes: &[&str],
+    max_request_bytes: usize,
+    max_response_bytes: usize,
+) -> Value {
+    json!({
+        "operation": "game_information.live_observation_bootstrap",
+        "revision": super::super::super::game_information_live_observation_bootstrap::PROFILE,
+        "required_scope": "read",
+        "scope": scopes,
+        "wire_limits": {
+            "max_request_bytes": max_request_bytes,
+            "max_response_bytes": max_response_bytes,
+        },
+        "content_limits": {
+            "max_content_bytes": max_response_bytes,
+            "max_page_items": 64,
+        },
+    })
+}
+
 pub(super) fn known_game_information_capabilities_offer(
     capabilities: &super::game_information_forwarder::GameInformationCapabilities,
     scopes: &[&str],

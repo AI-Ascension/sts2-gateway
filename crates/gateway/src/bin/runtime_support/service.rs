@@ -20,10 +20,6 @@ use sts2_gateway::{
 };
 
 use super::auth::{AuthFailure, AuthPolicy, AuthScope};
-use super::coop_native::CoopNativeRoute;
-use super::coop_native_forwarder::CoopNativeForwarder;
-use super::coop_reports::CoopReports;
-use super::forwarder::HttpRuntimeV2Forwarder;
 use super::game_information::GameInformationRoute;
 use super::game_information_forwarder::{
     BoundGameInformationCapabilities, GameInformationForwarder,
@@ -43,6 +39,10 @@ use super::runtime_v4_expert_forwarder::RuntimeV4ExpertForwarder;
 use super::runtime_v4_expert_rest_action::RuntimeV4ExpertRestActionRoute;
 use super::runtime_v4_expert_rest_action_forwarder::RuntimeV4ExpertRestActionForwarder;
 use super::seeded_run_forwarder::HttpSeededRunForwarder;
+use super::{
+    coop_native::CoopNativeRoute, coop_native_forwarder::CoopNativeForwarder,
+    coop_reports::CoopReports, forwarder::HttpRuntimeV2Forwarder,
+};
 use super::{game_information, game_information_forwarder, game_information_payload};
 
 const DEFAULT_LISTEN_ADDRESS: &str = "127.0.0.1:15525";
@@ -56,11 +56,10 @@ const REQUEST_WRITE_TIMEOUT: Duration = Duration::from_secs(2);
 
 #[path = "negotiated_capabilities.rs"]
 pub(super) mod negotiated_capabilities;
+#[rustfmt::skip]
 pub(crate) struct RuntimeService {
-    config: RuntimeConfig,
-    lease_active: bool,
-    lease_revoked: bool,
-    allocation_cleanup_lease_id: Option<String>,
+    config: RuntimeConfig, lease_active: bool,
+    lease_revoked: bool, allocation_cleanup_lease_id: Option<String>,
     shutdown_requested: bool,
     runtime_v2: RuntimeV2Ledger<HttpRuntimeV2Forwarder>,
     runtime_v3: RuntimeV3GameplayForwarder,
@@ -73,7 +72,7 @@ pub(crate) struct RuntimeService {
     runtime_map: RuntimeMapForwarder,
     game_information: GameInformationForwarder,
     game_information_capabilities: Option<BoundGameInformationCapabilities>,
-    game_information_lookup_binding: Option<BoundLookupBinding>,
+    game_information_lookup_binding: Option<BoundLookupBinding>, game_information_live_bootstrap_supported: Option<game_information_forwarder::GameInformationProducerAuthority>, game_information_live_bootstrap_transport_failed: bool,
     runtime_v3_baseline: Option<negotiated_capabilities::BoundRuntimeV3Baseline>,
     game_information_exchange_timeout: Duration,
     game_information_cursor_bindings: BTreeMap<String, Value>,
@@ -123,6 +122,7 @@ struct RuntimeConfig {
     game_information_content_manifest_id: String,
     game_information_run_id: String,
     game_information_locale: String,
+    game_information_live_bootstrap_enabled: bool,
     save_profile_enabled: bool,
 }
 

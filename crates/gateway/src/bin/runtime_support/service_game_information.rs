@@ -20,6 +20,8 @@ use errors::{
     game_information_transport_error,
 };
 
+#[path = "service_game_information_live_observation_bootstrap.rs"]
+mod live_observation_bootstrap;
 #[path = "service_game_information_lookup_binding.rs"]
 mod lookup_binding;
 
@@ -41,6 +43,9 @@ impl RuntimeService {
         }
         if route == GameInformationRoute::LookupBinding {
             return lookup_binding::forward(self, request, cancellation);
+        }
+        if route == GameInformationRoute::LiveObservationBootstrap {
+            return live_observation_bootstrap::forward(self, request, cancellation);
         }
         if !request.content_type_is_json() {
             return (400, json_error("game_information_content_type_required"));

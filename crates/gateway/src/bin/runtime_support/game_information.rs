@@ -6,6 +6,7 @@
 pub(crate) enum GameInformationRoute {
     Capabilities,
     LookupBinding,
+    LiveObservationBootstrap,
     /// Canonical MCP-facing route.  The query envelope selects one of the
     /// fixed producer operations; the URL itself never becomes a downstream
     /// path.
@@ -24,6 +25,7 @@ impl GameInformationRoute {
         match (method, operation) {
             ("GET", "capabilities") => Some(Self::Capabilities),
             ("POST", "lookup-binding") => Some(Self::LookupBinding),
+            ("POST", "live-observation-bootstrap") => Some(Self::LiveObservationBootstrap),
             ("POST", "query") => Some(Self::Query),
             ("POST", "list") => Some(Self::List),
             ("POST", "search") => Some(Self::Search),
@@ -35,12 +37,18 @@ impl GameInformationRoute {
     }
 
     pub(crate) const fn is_query(self) -> bool {
-        !matches!(self, Self::Capabilities | Self::LookupBinding)
+        !matches!(
+            self,
+            Self::Capabilities | Self::LookupBinding | Self::LiveObservationBootstrap
+        )
     }
 
     pub(crate) const fn query_kind(self) -> Option<&'static str> {
         match self {
-            Self::Capabilities | Self::LookupBinding | Self::Query => None,
+            Self::Capabilities
+            | Self::LookupBinding
+            | Self::LiveObservationBootstrap
+            | Self::Query => None,
             Self::List => Some("list"),
             Self::Search => Some("search"),
             Self::Get => Some("get"),
@@ -53,6 +61,7 @@ impl GameInformationRoute {
         match self {
             Self::Capabilities => "/api/v1/game-information/capabilities",
             Self::LookupBinding => "/api/v1/game-information/lookup-binding",
+            Self::LiveObservationBootstrap => "/api/v1/game-information/live-observation-bootstrap",
             // Callers must resolve `Query` with `from_query_kind` before
             // forwarding.  Returning an empty path makes accidental use fail
             // closed at the HTTP transport boundary.

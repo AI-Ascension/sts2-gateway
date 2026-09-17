@@ -30,6 +30,7 @@ pub(super) fn test_service() -> Result<RuntimeService, String> {
         game_information_content_manifest_id: String::from("content-1"),
         game_information_run_id: String::from("run-1"),
         game_information_locale: String::from("en-US"),
+        game_information_live_bootstrap_enabled: false,
         save_profile_enabled: true,
     };
     let binding = RuntimeV2Binding::new(
@@ -120,6 +121,8 @@ pub(super) fn test_service() -> Result<RuntimeService, String> {
         ),
         game_information_capabilities: None,
         game_information_lookup_binding: None,
+        game_information_live_bootstrap_supported: None,
+        game_information_live_bootstrap_transport_failed: false,
         runtime_v3_baseline: None,
         game_information_exchange_timeout: Duration::from_secs(5),
         game_information_cursor_bindings: BTreeMap::new(),
