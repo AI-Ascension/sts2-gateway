@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: MIT
 
-use super::{
-    HttpRequest, MAX_MAP_RESPONSE_BYTES, RuntimeMapForwardError, RuntimeMapRoute, RuntimeService,
-    json_error,
-};
+use super::super::runtime_map_forwarder::RuntimeMapForwardError;
+use super::{HttpRequest, MAX_MAP_RESPONSE_BYTES, RuntimeMapRoute, RuntimeService, json_error};
 
 impl RuntimeService {
     pub(super) fn runtime_map_request(

@@ -4,6 +4,7 @@ use serde_json::json;
 use sts2_gateway::{
     RecoveryLeaseProof, RecoveryOperation, RecoveryOperationState, RecoveryUncertaintyReason,
 };
+use uuid::Uuid;
 
 use super::super::recovery_frame::{
     RecoveryFrame, RecoveryKind, request_frame, response_frame, response_result,
@@ -100,10 +101,11 @@ impl RuntimeService {
             "lease": self.recovery_lease_value(&lease),
             "operation": self.recovery_operation_intent_value(operation),
         });
+        let intent_correlation = host_correlation();
         let intent_frame = request_frame(
             RecoveryKind::OperationIntent,
             &self.config.caller_id,
-            correlation,
+            &intent_correlation,
             Some(&auth_proof),
             intent_payload,
         );
@@ -138,10 +140,11 @@ impl RuntimeService {
             "lease": self.recovery_lease_value(&lease),
             "operation": self.recovery_operation_ref_value(operation),
         });
+        let dispatch_correlation = host_correlation();
         let dispatch_frame = request_frame(
             RecoveryKind::OperationDispatch,
             &self.config.caller_id,
-            correlation,
+            &dispatch_correlation,
             Some(&auth_proof),
             dispatch_payload,
         );
@@ -247,4 +250,8 @@ impl RuntimeService {
             ),
         )
     }
+}
+
+fn host_correlation() -> String {
+    Uuid::new_v4().to_string()
 }

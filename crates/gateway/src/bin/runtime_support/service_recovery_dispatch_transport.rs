@@ -71,6 +71,13 @@ impl RuntimeService {
             operation.operation_id,
             operation.payload_digest,
         );
+        #[cfg(test)]
+        if let Some(secret) = self.recovery_test_bootstrap_secret.as_ref() {
+            return Some(urlsafe_hmac_sha256(
+                secret,
+                &format!("operation-submit\n{bytes}"),
+            ));
+        }
         secret_proof("STS2_RUNTIME_BOOTSTRAP_SECRET", "operation-submit", &bytes)
     }
 

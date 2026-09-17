@@ -7,6 +7,12 @@ use sts2_gateway::{RecoveryBootContext, RecoveryBootState, RecoveryHostFence, Re
 
 use super::RuntimeService;
 
+pub(super) struct RecoveryClock {
+    pub(super) started: Instant,
+    pub(super) wall_millis: u64,
+    pub(super) last_now_millis: u64,
+}
+
 impl RuntimeService {
     pub(super) fn current_boot_from_wire(&self, value: &Value) -> Option<RecoveryBootContext> {
         let current = self.recovery_boot.as_ref()?.clone();
@@ -86,13 +92,14 @@ impl RuntimeService {
     pub(super) fn recovery_now_millis(&mut self) -> u64 {
         let wall = super::unix_millis();
         let elapsed = self
-            .recovery_clock_started
+            .recovery_clock
+            .started
             .elapsed()
             .as_millis()
             .min(u128::from(u64::MAX)) as u64;
-        let monotonic = self.recovery_clock_wall_millis.saturating_add(elapsed);
-        let now = wall.max(monotonic).max(self.recovery_last_now_millis);
-        self.recovery_last_now_millis = now;
+        let monotonic = self.recovery_clock.wall_millis.saturating_add(elapsed);
+        let now = wall.max(monotonic).max(self.recovery_clock.last_now_millis);
+        self.recovery_clock.last_now_millis = now;
         now
     }
 }
