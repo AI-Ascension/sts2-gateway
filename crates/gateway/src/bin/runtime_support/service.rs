@@ -56,44 +56,9 @@ const REQUEST_WRITE_TIMEOUT: Duration = Duration::from_secs(2);
 
 #[path = "negotiated_capabilities.rs"]
 pub(super) mod negotiated_capabilities;
-#[rustfmt::skip]
-pub(crate) struct RuntimeService {
-    config: RuntimeConfig, lease_active: bool,
-    lease_revoked: bool, allocation_cleanup_lease_id: Option<String>,
-    shutdown_requested: bool,
-    runtime_v2: RuntimeV2Ledger<HttpRuntimeV2Forwarder>,
-    runtime_v3: RuntimeV3GameplayForwarder,
-    coop_native: CoopNativeForwarder,
-    coop_native_peer_binding: Option<CoopNativePeerBinding>,
-    coop_native_pending: Option<CoopNativePendingOperation>,
-    recovery_catalog: recovery_catalog::RecoveryCatalogCache,
-    runtime_v4_expert: RuntimeV4ExpertForwarder,
-    runtime_v4_expert_rest_action: RuntimeV4ExpertRestActionForwarder,
-    runtime_map: RuntimeMapForwarder,
-    game_information: GameInformationForwarder,
-    game_information_capabilities: Option<BoundGameInformationCapabilities>,
-    game_information_lookup_binding: Option<BoundLookupBinding>, game_information_live_bootstrap_supported: Option<game_information_forwarder::GameInformationProducerAuthority>, game_information_live_bootstrap_transport_failed: bool,
-    runtime_v3_baseline: Option<negotiated_capabilities::BoundRuntimeV3Baseline>,
-    game_information_exchange_timeout: Duration,
-    game_information_cursor_bindings: BTreeMap<String, Value>,
-    save_profile: service_save_profile::SaveProfileRuntime,
-    save_profile_active_run: SaveProfileActiveRun,
-    seeded_run: SeededRunLedger<HttpSeededRunForwarder>,
-    journal_path: Option<PathBuf>,
-    _journal_lock: Option<journal::JournalLock>,
-    metrics: RuntimeMetrics,
-    coop_reports: Option<CoopReports>,
-    recovery: Option<GatewayRecoveryStore>,
-    recovery_boot: Option<RecoveryBootContext>,
-    recovery_fence: Option<RecoveryHostFence>,
-    recovery_lease: Option<RecoveryLease>,
-    recovery_lease_deadline: Option<Instant>,
-    recovery_lease_deadline_lease_id: Option<String>,
-    recovery_host_grant: Option<HostLeaseGrant>,
-    recovery_clock: recovery_state::RecoveryClock,
-    #[cfg(test)]
-    recovery_test_bootstrap_secret: Option<Vec<u8>>,
-}
+#[path = "service_state.rs"]
+mod state;
+pub(crate) use state::RuntimeService;
 
 struct RuntimeConfig {
     listen_address: String,
