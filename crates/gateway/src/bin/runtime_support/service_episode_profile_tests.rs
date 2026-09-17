@@ -215,7 +215,7 @@ fn completion_reopens_admission_and_drops_the_released_lease_identity() -> Resul
     let mut bound = bound_service()?;
     bound.service.lease_revoked = true;
     bound.service.episode_profile = None;
-    bound.service.commit_completed_episode(3);
+    bound.service.commit_completed_episode(3, false);
     assert!(
         bound.service.lease_revoked,
         "completion without a bound profile must stay permanently closed"
@@ -223,7 +223,7 @@ fn completion_reopens_admission_and_drops_the_released_lease_identity() -> Resul
 
     let mut bound = bound_service()?;
     bound.service.lease_revoked = true;
-    bound.service.commit_completed_episode(3);
+    bound.service.commit_completed_episode(3, false);
     assert!(
         !bound.service.lease_revoked,
         "a bound completion must reopen exactly one admission context"
@@ -249,10 +249,54 @@ fn completion_under_a_rotated_boot_keeps_admission_closed() -> Result<(), String
     let mut bound = bound_service()?;
     bound.service.recovery_boot = Some(boot("boot-2", "incarnation-1", 5));
     bound.service.lease_revoked = true;
-    bound.service.commit_completed_episode(3);
+    bound.service.commit_completed_episode(3, false);
     assert!(
         bound.service.lease_revoked,
         "a profile that no longer binds the boot must not reopen admission"
     );
+    Ok(())
+}
+
+#[test]
+fn completion_with_a_stop_already_in_force_keeps_admission_closed() -> Result<(), String> {
+    let mut bound = bound_service()?;
+    bound.service.lease_revoked = true;
+    bound.service.commit_completed_episode(3, true);
+    assert!(
+        bound.service.lease_revoked,
+        "a stop captured before the release must dominate the profile"
+    );
+    assert_eq!(
+        bound
+            .service
+            .episode_profile
+            .as_ref()
+            .ok_or_else(|| String::from("profile missing"))?
+            .released_epoch,
+        None,
+        "a stop-tainted completion must not advance the admission floor"
+    );
+    Ok(())
+}
+
+#[test]
+fn stop_in_force_reads_any_closed_admission_state() -> Result<(), String> {
+    let mut service = test_service()?;
+    service.lease_active = false;
+    assert!(
+        service.stop_is_already_in_force(),
+        "an inactive lease reads as a stop"
+    );
+    service.lease_active = true;
+    assert!(
+        !service.lease_revoked && !service.shutdown_requested,
+        "the fixture must start live for this comparison"
+    );
+    assert!(!service.stop_is_already_in_force());
+    service.lease_revoked = true;
+    assert!(service.stop_is_already_in_force());
+    service.lease_revoked = false;
+    service.shutdown_requested = true;
+    assert!(service.stop_is_already_in_force());
     Ok(())
 }

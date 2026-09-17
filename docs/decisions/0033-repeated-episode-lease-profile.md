@@ -39,6 +39,14 @@ completed-episode floor.
 - **Legacy default.** A release without the header is byte-identical to the
   previous behavior: the response body is unchanged and the deployment stays
   permanently revoked. No profile is recorded.
+- **Stop precedence.** A release may reopen admission only for a *live* episode,
+  and the stop state is captured *before* the release durably revokes the lease.
+  A release that arrives while a stop is already in force — an operator revoke
+  whose host acknowledgment was lost, a shutdown, or an allocation-cleanup
+  retry — completes the pending revoke but never clears the permanent flag and
+  never arms the profile. Because the release path sets the permanent flag
+  unconditionally, reading it after the revoke could not distinguish the two, so
+  the reopen decision uses the entry state.
 - **Every other stop path keeps the permanent flag.** Operator revoke, explicit
   revoke, shutdown, an unresolved or rejected host revoke acknowledgment, a
   stale lease fence, a wrong caller or session, and a restart before a release
@@ -56,6 +64,13 @@ completed-episode floor.
   authority fails closed with `episode_profile_boot_required` rather than
   silently degrading to the single-episode default, and an unsupported profile
   value is rejected with `episode_profile_unsupported` before any durable write.
+
+## Known limitations
+
+- The witness is reported only for a release that negotiated a profile on that
+  request. The stored profile persists to enforce the completed-epoch floor, but
+  it is never echoed onto a header-less release, so the legacy body stays
+  byte-identical even after an earlier profiled episode.
 
 ## Compatibility
 

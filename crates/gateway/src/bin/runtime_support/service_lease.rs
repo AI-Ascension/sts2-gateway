@@ -115,6 +115,10 @@ impl RuntimeService {
         if !pending_revoke_retry && let Err(error) = self.check_lease(request) {
             return error;
         }
+        // Capture the entry state before this request mutates anything. The
+        // revoke below sets the permanent flag unconditionally, so a later read
+        // could not tell a live episode from a stop already in force.
+        let stop_already_in_force = self.stop_is_already_in_force();
         self.allocation_cleanup_lease_id = None;
         // Negotiate before any durable write so an unsupported or
         // unsatisfiable profile can never half-apply. A rejected negotiation
@@ -129,6 +133,10 @@ impl RuntimeService {
             Err(error) => return error,
         };
         let profiled = negotiated.is_some();
+        // A profile is *accepted* only for a live episode. A release that only
+        // retried a stop must neither arm the profile nor report a witness for
+        // one, and a header-less release never reports an earlier episode's.
+        let profile_accepted = profiled && !stop_already_in_force;
         if self.recovery.is_some() {
             let Some(lease) = self.recovery_lease.clone() else {
                 return (409, json_error("lease_not_active"));
@@ -142,17 +150,15 @@ impl RuntimeService {
                 return error.body();
             }
             // Only an explicitly profiled release of a live episode may reopen
-            // admission, and only after the host confirmed the revoke. A stop
-            // already in force (operator revoke, shutdown) or a rotated boot
-            // keeps the permanent flag set. The host frame keeps its closed
-            // reason vocabulary; the completion decision stays gateway-local.
-            if let Some(profile) = negotiated {
-                // Bind the negotiated profile before the completion decision so
-                // the epoch floor and witness below observe it.
+            // admission, and only after the host confirmed the revoke. A stop in
+            // force at entry (operator revoke, shutdown, an unresolved host
+            // revoke, a cleanup retry) and a rotated boot keep the permanent
+            // flag set. A stop retry must not arm the profile at all.
+            if let Some(profile) = negotiated.filter(|_| profile_accepted) {
                 self.episode_profile = Some(profile);
             }
-            if profiled && !self.shutdown_requested {
-                self.commit_completed_episode(lease.lease_epoch);
+            if profiled {
+                self.commit_completed_episode(lease.lease_epoch, stop_already_in_force);
             }
         }
         self.lease_active = false;
@@ -164,10 +170,12 @@ impl RuntimeService {
         }
         (
             200,
-            json_bytes(&match self.episode_profile_witness() {
+            json_bytes(&match self.negotiated_profile_witness(profile_accepted) {
                 // The profiled body is additive: the legacy default stays
                 // byte-identical because the witness appears only when a
-                // profile was accepted on this release.
+                // profile was accepted on *this* release. A header-less release
+                // must not echo an earlier episode's stored profile, or the
+                // legacy body would silently change after any profiled episode.
                 Some(witness) => json!({
                     "status": "released",
                     "instance_id": self.config.instance_id,
