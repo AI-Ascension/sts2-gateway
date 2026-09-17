@@ -156,15 +156,22 @@ fn unknown_duplicate_replays_original_binding_before_missing_cache() -> Result<(
 
 #[test]
 fn runtime_v3_non_uuid_correlation_uses_uuid_host_frames() -> Result<(), String> {
-    run_runtime_v3_translation(true)
+    run_runtime_v3_translation_case(true, STATE, 2, Duration::ZERO, false)
 }
 
 #[test]
 fn runtime_v3_settled_translation_query_failure_is_unknown() -> Result<(), String> {
-    run_runtime_v3_translation(false)
+    run_runtime_v3_translation_case(false, STATE, 2, Duration::ZERO, false)
 }
 
-fn run_runtime_v3_translation(state_ok: bool) -> Result<(), String> {
+
+pub(super) fn run_runtime_v3_translation_case(
+    state_ok: bool,
+    witness_state_id: &str,
+    witness_generation: u64,
+    state_delay: Duration,
+    expire_during_query: bool,
+) -> Result<(), String> {
     let (mut service, lease, path) = super::super::runtime_v3_catalog_tests::
         recovery_service_with_caller("00000000-0000-4000-8000-000000000008")?;
     let mut dispatch = super::super::runtime_v3_catalog_tests::dispatch_envelope(
@@ -195,6 +202,7 @@ fn run_runtime_v3_translation(state_ok: bool) -> Result<(), String> {
         .local_addr()
         .map_err(|error| error.to_string())?
         .to_string();
+    let witness_matches = witness_state_id == STATE && witness_generation == 2;
     let fence_id = service
         .recovery_fence
         .as_ref()
@@ -328,6 +336,7 @@ fn run_runtime_v3_translation(state_ok: bool) -> Result<(), String> {
                 .map_err(|error| error.to_string())?;
             return Ok(correlations);
         }
+        thread::sleep(state_delay);
         let mut state = super::super::runtime_v3_catalog_tests::fixture("state-response.json")?;
         for field in [
             "correlation_id",
@@ -338,10 +347,10 @@ fn run_runtime_v3_translation(state_ok: bool) -> Result<(), String> {
         ] {
             state[field] = state_request[field].clone();
         }
-        state["generation"] = 2.into();
+        state["generation"] = witness_generation.into();
         state["state_id"] = STATE.into();
         state["observation"]["state_id"] = STATE.into();
-        state["observation"]["generation"] = 2.into();
+        state["observation"]["generation"] = witness_generation.into();
         state["legal_actions"] = json!([]);
         super::super::super::http::write_response(
             &mut stream,
@@ -352,6 +361,9 @@ fn run_runtime_v3_translation(state_ok: bool) -> Result<(), String> {
         Ok(correlations)
     });
     service.config.mod_address = address;
+    if expire_during_query {
+        service.recovery_lease_deadline = Some(Instant::now() + Duration::from_millis(100));
+    }
     let (status, body) = service.runtime_v3_recovery_dispatch(
         &request,
         RuntimeV3GameplayRoute::DispatchAction,
@@ -368,7 +380,7 @@ fn run_runtime_v3_translation(state_ok: bool) -> Result<(), String> {
     })?;
     let response: Value = serde_json::from_slice(&body).map_err(|error| error.to_string())?;
     assert_eq!(response["correlation_id"], "3");
-    if state_ok {
+    if state_ok && witness_matches && !expire_during_query {
         assert_eq!(status, 200, "body={}", String::from_utf8_lossy(&body));
         assert_eq!(response["kind"], "dispatch_action_response");
         assert_eq!(response["status"], "settled");
@@ -381,7 +393,8 @@ fn run_runtime_v3_translation(state_ok: bool) -> Result<(), String> {
         assert_eq!(status, 503);
         assert_eq!(response["kind"], "dispatch_action_response");
         assert_eq!(response["status"], "unknown");
-        assert_eq!(response["error_code"], "settlement_observation_unavailable");
+        let expected_error = translation_negative_tests::expected_error(state_ok, witness_matches);
+        assert_eq!(response["error_code"], expected_error);
     }
     assert_eq!(correlations.len(), 2);
     assert_ne!(correlations[0], "3");
@@ -389,3 +402,6 @@ fn run_runtime_v3_translation(state_ok: bool) -> Result<(), String> {
     super::super::runtime_v3_catalog_tests::cleanup(service, &path);
     Ok(())
 }
+
+#[path = "service_recovery_v3_translation_negative_tests.rs"]
+mod translation_negative_tests;
