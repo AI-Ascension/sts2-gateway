@@ -22,6 +22,9 @@ use self::support::{
     allocation_body, retire_fixture_lease, runtime_request_for, spawn_signed_ack_server,
 };
 
+#[path = "service_episode_stop_precedence_tests.rs"]
+mod stop_precedence;
+
 fn release_request(
     service: &RuntimeService,
     lease: &sts2_gateway::RecoveryLease,

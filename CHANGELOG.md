@@ -20,6 +20,17 @@ host compatibility and release publication.
   See
   [ADR 0033](docs/decisions/0033-repeated-episode-lease-profile.md), refs #67.
 
+- Fix stop precedence over the repeated-episode lease profile. A release that
+  arrives while a stop is already in force (an operator revoke whose host
+  acknowledgment was lost, a shutdown, or an allocation-cleanup retry) completes
+  the pending revoke but no longer clears the permanent stop flag or arms the
+  profile, and a header-less release no longer echoes an earlier episode's
+  stored witness. The reopen decision now uses the admission state captured
+  before the release revoked the lease, because the revoke sets the permanent
+  flag unconditionally. Regression coverage lives in
+  `service_episode_stop_precedence_tests.rs`. See
+  [ADR 0033](docs/decisions/0033-repeated-episode-lease-profile.md), refs #78.
+
 - Add the authenticated, fixed `game-information-live-observation-bootstrap-v1`
   route. The Gateway pins schema digest
   `6041a282ffda8757af4e3eb6ab551e082f136fe53138ab8ac17db9fab52765c2`, requires a

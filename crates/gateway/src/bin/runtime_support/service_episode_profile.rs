@@ -164,6 +164,17 @@ impl RuntimeService {
         profile.matches_boot(boot) && !profile.admits_epoch(lease_epoch)
     }
 
+    /// Whether a stop is already in force before this request mutates anything.
+    ///
+    /// `check_lease` admits only the live state, so a release that reaches the
+    /// completion decision with a stop in force arrived by retrying a stop
+    /// (the pending-revoke bypass), not by completing a live episode.
+    /// `revoke_host_lease` sets the permanent flag unconditionally, so the
+    /// reopen decision must be captured here instead of read after the revoke.
+    pub(super) fn stop_is_already_in_force(&self) -> bool {
+        self.lease_revoked || self.shutdown_requested || !self.lease_active
+    }
+
     /// Refuses a fresh allocation that would reuse or precede a completed
     /// episode.
     ///
@@ -193,14 +204,21 @@ impl RuntimeService {
     /// identity, and invalidates the released episode's observed catalog so the
     /// next episode cannot consume it.
     ///
-    /// A profile that no longer binds the current boot authority keeps the
-    /// permanent stop flag set rather than reopening admission.
-    pub(super) fn commit_completed_episode(&mut self, released_epoch: u64) {
+    /// A profile that no longer binds the current boot authority, or a release
+    /// that arrived with a stop already in force, keeps the permanent stop flag
+    /// set rather than reopening admission. The stop must be the value captured
+    /// before this request revoked the lease, because the revoke sets the flag
+    /// unconditionally and would otherwise mask a live episode.
+    pub(super) fn commit_completed_episode(
+        &mut self,
+        released_epoch: u64,
+        stop_already_in_force: bool,
+    ) {
         let bound = match (self.recovery_boot.as_ref(), self.episode_profile.as_ref()) {
             (Some(boot), Some(profile)) => profile.matches_boot(boot),
             _ => false,
         };
-        if !bound {
+        if !bound || stop_already_in_force {
             self.lease_revoked = true;
             return;
         }
@@ -220,6 +238,17 @@ impl RuntimeService {
     /// The negotiated profile witness for a response body, if any.
     pub(super) fn episode_profile_witness(&self) -> Option<Value> {
         self.episode_profile.as_ref().map(EpisodeProfile::witness)
+    }
+
+    /// The profile witness for a release response.
+    ///
+    /// The stored profile persists across episodes so the next allocation can
+    /// enforce the completed-epoch floor, but it is *reported* only for a
+    /// release that actually negotiated one. A header-less release therefore
+    /// keeps the legacy body byte-identical even after an earlier profiled
+    /// episode, which is what the ADR promises.
+    pub(super) fn negotiated_profile_witness(&self, negotiated: bool) -> Option<Value> {
+        negotiated.then(|| self.episode_profile_witness()).flatten()
     }
 }
 
