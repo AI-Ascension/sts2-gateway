@@ -58,25 +58,29 @@ impl RuntimeService {
         let Some(generation) = state["generation"].as_u64() else {
             return runtime_v3_unknown_response(self, request, "settlement_observation_invalid");
         };
-        if status == "SETTLED"
+        let settled = status == "SETTLED";
+        if settled
             && (operation["witness"]["state_id"].as_str() != Some(state_id)
                 || operation["witness"]["generation"].as_u64() != Some(generation))
         {
             return runtime_v3_unknown_response(self, request, "settlement_witness_mismatch");
         }
-        if status == "SETTLED" && generation <= request["generation"].as_u64().unwrap_or(u64::MAX) {
+        if settled && generation <= request["generation"].as_u64().unwrap_or(u64::MAX) {
             return runtime_v3_unknown_response(self, request, "settlement_generation_invalid");
         }
         let mut response = state;
         response["kind"] = json!("dispatch_action_response");
         response["operation_id"] = request["operation_id"].clone();
-        response["status"] = json!(if status == "SETTLED" {
-            "settled"
+        response["status"] = json!(if settled { "settled" } else { "rejected" });
+        // The canonical schema requires a non-null `error_code` for a rejected
+        // outcome. The host refusal is a typed terminal rejection, not an
+        // uncertainty, so it must not degrade to the unknown fallback.
+        response["error_code"] = if settled {
+            Value::Null
         } else {
-            "rejected"
-        });
-        response["error_code"] = Value::Null;
-        response["transition"] = if status == "SETTLED" {
+            json!("recovery_operation_rejected")
+        };
+        response["transition"] = if settled {
             json!({
                 "from_generation": request["generation"],
                 "to_generation": response["generation"],
@@ -101,14 +105,7 @@ impl RuntimeService {
         {
             return runtime_v3_unknown_response(self, request, "settlement_response_invalid");
         }
-        (
-            if status == "SETTLED" {
-                200
-            } else {
-                host_status
-            },
-            encoded,
-        )
+        (if settled { 200 } else { host_status }, encoded)
     }
 
     fn runtime_v3_post_recovery_state(
