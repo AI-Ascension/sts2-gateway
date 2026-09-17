@@ -28,8 +28,19 @@ pub(super) fn fixture(name: &str) -> Result<Value, String> {
         .map_err(|error| error.to_string())
 }
 
-pub(super) fn recovery_service() -> Result<(RuntimeService, RecoveryLease, PathBuf), String> {
+type RecoveryFixture = Result<(RuntimeService, RecoveryLease, PathBuf), String>;
+
+pub(super) fn recovery_service() -> RecoveryFixture {
+    recovery_service_for_caller(None)
+}
+
+pub(super) fn recovery_service_with_caller(caller_id: &str) -> RecoveryFixture {
+    recovery_service_for_caller(Some(caller_id))
+}
+
+fn recovery_service_for_caller(caller_id: Option<&str>) -> RecoveryFixture {
     let mut service = test_service()?;
+    if let Some(caller_id) = caller_id { service.config.caller_id = caller_id.to_owned(); }
     service.config.instance_id = INSTANCE.to_owned();
     service.config.recovery_deployment_id = Some(DEPLOYMENT.to_owned());
     let suffix = SystemTime::now()
@@ -99,8 +110,9 @@ pub(super) fn recovery_service() -> Result<(RuntimeService, RecoveryLease, PathB
             now.saturating_add(4),
         )
         .map_err(|error| error.to_string())?;
+    let ready_boot = store.current_boot().map_err(|error| error.to_string())?;
     service.recovery = Some(store);
-    service.recovery_boot = Some(boot);
+    service.recovery_boot = Some(ready_boot);
     service.recovery_fence = Some(fence);
     service.recovery_lease_deadline =
         Some(std::time::Instant::now() + Duration::from_secs(lease.ttl_seconds));
@@ -399,7 +411,11 @@ fn unknown_wait_forward_does_not_invent_freshness() -> Result<(), String> {
     let dispatch_request = runtime_request(&service, &lease, "action", dispatch)?;
     let (status, body) = service.handle_request(&dispatch_request);
     assert_eq!(status, 503);
-    assert_eq!(json_body(&body)?["payload"]["result"]["status"], "UNKNOWN");
+    let response = json_body(&body)?;
+    assert_eq!(response["kind"], "dispatch_action_response");
+    assert_eq!(response["status"], "unknown");
+    assert_eq!(response["error_code"], "receipt_missing");
+    assert_eq!(response["operation_id"], DISPATCH_OPERATION);
     cleanup(service, &path);
     Ok(())
 }

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-use serde_json::Value;
+use serde_json::{Value, json};
 use sts2_gateway::{
     RUNTIME_V3_SCHEMA_DIGEST, RecoveryIntentResult, RecoveryLeaseProof, RecoveryOperation,
     RecoveryOperationIntent, RecoveryOperationState, canonicalize_recovery_action, sha256_hex,
@@ -78,7 +78,9 @@ impl RuntimeService {
                         Err(error) => return super::recovery_wire::recovery_store_error(error),
                     };
                 let _ = store;
-                return self.forward_recovery_operation(&proof, &operation, correlation, None);
+                let operation_response =
+                    self.forward_recovery_operation(&proof, &operation, correlation, None);
+                return operation_response;
             }
             // UNKNOWN and every other non-intent state are replay-only.  In
             // particular, uncertainty is never converted into a second host
@@ -173,3 +175,5 @@ fn operation_matches_v3_retry(
         && operation.expected_state_id == state_id
         && operation.expected_generation == generation
 }
+
+include!("service_recovery_v3_translation.rs");

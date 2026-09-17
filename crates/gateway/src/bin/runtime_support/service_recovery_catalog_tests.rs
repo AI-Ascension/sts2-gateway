@@ -259,7 +259,11 @@ fn accepted_replay_rejects_delayed_same_key_catalog_for_new_operation() -> Resul
     let dispatch_request = runtime_request(&service, &lease, "action", dispatch.clone())?;
     let (status, body) = service.handle_request(&dispatch_request);
     assert_eq!(status, 503);
-    assert_eq!(json_body(&body)?["payload"]["result"]["status"], "ACCEPTED");
+    let response = json_body(&body)?;
+    assert_eq!(response["kind"], "dispatch_action_response");
+    assert_eq!(response["status"], "unknown");
+    assert_eq!(response["error_code"], "recovery_operation_pending");
+    assert_eq!(response["operation_id"], DISPATCH_OPERATION);
 
     let mut new_dispatch = dispatch;
     new_dispatch["operation_id"] = "00000000-0000-4000-8000-000000000008".into();
