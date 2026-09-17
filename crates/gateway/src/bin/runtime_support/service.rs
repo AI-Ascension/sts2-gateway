@@ -171,6 +171,8 @@ mod coop;
 mod coop_native_return;
 #[path = "service_coop_native.rs"]
 mod coop_native_service;
+#[path = "service_episode_profile.rs"]
+mod episode_profile;
 #[path = "service_game_information.rs"]
 mod game_information_service;
 #[path = "service_host_lease.rs"]

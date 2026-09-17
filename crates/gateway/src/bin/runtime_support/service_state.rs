@@ -40,6 +40,9 @@ pub(crate) struct RuntimeService {
     pub(super) recovery_lease_deadline: Option<Instant>,
     pub(super) recovery_lease_deadline_lease_id: Option<String>,
     pub(super) recovery_host_grant: Option<HostLeaseGrant>,
+    /// Negotiated repeated-episode profile, if the caller opted in on a release.
+    /// Absence keeps the single-episode permanent-stop default.
+    pub(super) episode_profile: Option<episode_profile::EpisodeProfile>,
     pub(super) recovery_clock: recovery_state::RecoveryClock,
     #[cfg(test)]
     pub(super) recovery_test_bootstrap_secret: Option<Vec<u8>>,

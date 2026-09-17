@@ -174,6 +174,7 @@ impl RuntimeService {
             recovery_lease_deadline: None,
             recovery_lease_deadline_lease_id: None,
             recovery_host_grant: None,
+            episode_profile: None,
             recovery_clock: recovery_state::RecoveryClock {
                 started: recovery_clock_started,
                 wall_millis: recovery_clock_wall_millis,

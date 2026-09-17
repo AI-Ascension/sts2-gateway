@@ -7,6 +7,8 @@ mod admission_tests;
 
 #[path = "service_allocation_cleanup_tests.rs"]
 mod allocation_cleanup_tests;
+#[path = "service_episode_consecutive_tests.rs"]
+mod episode_consecutive_tests;
 #[path = "service_allocation_failure_tests.rs"]
 mod allocation_failure_tests;
 #[path = "service_allocation_negative_regression_tests.rs"]
