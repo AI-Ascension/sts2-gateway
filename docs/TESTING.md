@@ -165,6 +165,36 @@ compatibility, isolation, authentication enforcement, or effect settlement. Runt
 include exact revision, contract versions/digests, instance/lease identities, clock/seed,
 disposable fixture status, sanitized logs, and cleanup result.
 
+## Spawned-process gateway checks
+
+`crates/gateway/tests/gateway_real_process_episode.rs` spawns the built
+`sts2-gateway-runtime` binary with `std::process::Command::new`, clears its
+environment, and drives it over real loopback sockets. Because the decisions are
+made by the served process — its listener, request parser, authorization policy,
+durable SQLite store, and signed host sideband — this is the **spawned-process**
+evidence class rather than an in-process library call.
+
+The suite covers the repeated-episode lease profile (ADR 0033). One test
+completes two consecutive episodes on one deployment and asserts that episode two
+shares episode one's boot authority, lands on a distinct lease identity and a
+strictly higher epoch, cannot dispatch episode one's receipt or resolve it under
+an episode-two context, and leaves the fenced episode-one headers refused. It
+also asserts the fail-closed default: a header-less completion stays permanently
+revoking, and the next acquisition is refused with `lease_context_revoked`. The
+second test restarts the process on the same durable store and asserts that the
+boot authority rotates, no earlier epoch is reused, and the restarted process —
+which never negotiated the profile — reports no witness and reopens nothing.
+
+The signed host fake terminates the real `POST /api/v1/runtime/recovery` hop and
+reproduces the HCJ1 canonicalization and HMAC-SHA256 acknowledgment proof, so the
+observed request sequence is what the served gateway actually sent. This remains
+component evidence: no native game, provider, deployment, or 24-hour soak is
+established, and the downstream soak in `ascension-watchdog#58` stays separate.
+
+The profile is gateway-local process state and is deliberately not durable, so a
+restart discards it. Any operator procedure that relies on repeated episodes must
+account for that single-process lifetime limit.
+
 ## Runtime adapter checks
 
 The standalone runtime binary has bounded HTTP parser tests and builds with the pinned Rust
