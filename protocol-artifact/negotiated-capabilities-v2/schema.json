@@ -1,0 +1,441 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Gateway negotiated capabilities v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "gateway_revision",
+    "correlation_id",
+    "instance_id",
+    "caller_id",
+    "session_id",
+    "mcp_session_id",
+    "lease_id",
+    "lease_epoch",
+    "caller_scopes",
+    "producer",
+    "lookup_binding_witness",
+    "runtime_v3_baseline_witness",
+    "offers"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "sts2-gateway-negotiated-capabilities-v2"
+    },
+    "gateway_revision": {
+      "const": "sts2-gateway-negotiated-capabilities-v2"
+    },
+    "correlation_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "instance_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "caller_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "mcp_session_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "lease_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "lease_epoch": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "caller_scopes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "items": {
+        "enum": [
+          "read",
+          "mutate",
+          "control"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profile",
+        "schema_digest",
+        "content_manifest_id",
+        "run_id"
+      ],
+      "properties": {
+        "profile": {
+          "const": "game-information-query-v1"
+        },
+        "schema_digest": {
+          "const": "376845b0c86b4afcd2c79ffba753eb7e7e416f5410da26b4dae970cfee2221d9"
+        },
+        "content_manifest_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "run_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      }
+    },
+    "offers": {
+      "type": "array",
+      "maxItems": 15,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "operation",
+          "revision",
+          "required_scope",
+          "scope",
+          "wire_limits",
+          "content_limits"
+        ],
+        "properties": {
+          "operation": {
+            "enum": [
+              "game_information.capabilities",
+              "game_information.list",
+              "game_information.search",
+              "game_information.get",
+              "game_information.detail",
+              "game_information.availability",
+              "game_information.lookup_binding.discovery",
+              "game_information.lookup_binding.observe",
+              "runtime_v3.state",
+              "runtime_v3.legal_actions",
+              "runtime_v3.dispatch_action",
+              "runtime_v3.wait",
+              "runtime_v3.reobserve",
+              "runtime_v3.recover",
+              "game_information.live_observation_bootstrap"
+            ]
+          },
+          "revision": {
+            "enum": [
+              "game-information-query-v1",
+              "game-information-lookup-binding-v1",
+              "runtime-v3-gameplay",
+              "game-information-live-observation-bootstrap-v1"
+            ]
+          },
+          "required_scope": {
+            "enum": [
+              "read",
+              "mutate",
+              "control"
+            ]
+          },
+          "scope": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 3,
+            "items": {
+              "enum": [
+                "read",
+                "mutate",
+                "control"
+              ]
+            },
+            "uniqueItems": true
+          },
+          "wire_limits": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "max_request_bytes",
+              "max_response_bytes"
+            ],
+            "properties": {
+              "max_request_bytes": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 262144
+              },
+              "max_response_bytes": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 262144
+              }
+            }
+          },
+          "content_limits": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "max_content_bytes",
+              "max_page_items"
+            ],
+            "properties": {
+              "max_content_bytes": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 262144
+              },
+              "max_page_items": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 4096
+              }
+            }
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "operation": {
+                  "enum": [
+                    "game_information.capabilities",
+                    "game_information.list",
+                    "game_information.search",
+                    "game_information.get",
+                    "game_information.detail",
+                    "game_information.availability"
+                  ]
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "revision": {
+                  "const": "game-information-query-v1"
+                },
+                "required_scope": {
+                  "const": "read"
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "operation": {
+                  "enum": [
+                    "game_information.lookup_binding.discovery",
+                    "game_information.lookup_binding.observe"
+                  ]
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "revision": {
+                  "const": "game-information-lookup-binding-v1"
+                },
+                "required_scope": {
+                  "const": "read"
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "operation": {
+                  "enum": [
+                    "runtime_v3.state",
+                    "runtime_v3.legal_actions",
+                    "runtime_v3.wait",
+                    "runtime_v3.reobserve"
+                  ]
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "revision": {
+                  "const": "runtime-v3-gameplay"
+                },
+                "required_scope": {
+                  "const": "read"
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "operation": {
+                  "const": "runtime_v3.dispatch_action"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "revision": {
+                  "const": "runtime-v3-gameplay"
+                },
+                "required_scope": {
+                  "const": "mutate"
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "operation": {
+                  "const": "runtime_v3.recover"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "revision": {
+                  "const": "runtime-v3-gameplay"
+                },
+                "required_scope": {
+                  "const": "control"
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "operation": {
+                  "const": "game_information.live_observation_bootstrap"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "revision": {
+                  "const": "game-information-live-observation-bootstrap-v1"
+                },
+                "required_scope": {
+                  "const": "read"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "lookup_binding_witness": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "profile",
+        "schema_digest",
+        "binding_id",
+        "content_manifest_id",
+        "authority_epoch"
+      ],
+      "properties": {
+        "profile": {
+          "const": "game-information-lookup-binding-v1"
+        },
+        "schema_digest": {
+          "const": "f10f9af01d6be1de104069ba842e7971971e88f27553e782e81174ee7aa1cd58"
+        },
+        "binding_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "content_manifest_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "authority_epoch": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "runtime_v3_baseline_witness": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "profile",
+        "schema_digest",
+        "configured_state_probe",
+        "recovery_kinds"
+      ],
+      "properties": {
+        "profile": {
+          "const": "runtime-v3-gameplay"
+        },
+        "schema_digest": {
+          "const": "8e99cea36b7ede97532348fd8efe302ca79260895265a7bf14ddf7e006d8ff63"
+        },
+        "configured_state_probe": {
+          "const": true
+        },
+        "recovery_kinds": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "prefixItems": [
+            {
+              "const": "reobserve"
+            },
+            {
+              "const": "reconcile"
+            }
+          ],
+          "items": false
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "offers": {
+            "contains": {
+              "properties": {
+                "operation": {
+                  "const": "game_information.live_observation_bootstrap"
+                }
+              },
+              "required": [
+                "operation"
+              ]
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "lookup_binding_witness": {
+            "type": "object"
+          }
+        }
+      }
+    }
+  ]
+}

@@ -257,3 +257,6 @@ fn stale_or_wrong_scope_is_rejected_before_a_producer_connection() -> Result<(),
     ));
     Ok(())
 }
+
+#[path = "service_game_information_live_observation_bootstrap_tests.rs"]
+mod live_observation_bootstrap_tests;

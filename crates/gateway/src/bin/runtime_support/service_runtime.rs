@@ -157,6 +157,8 @@ impl RuntimeService {
             ),
             game_information_capabilities: None,
             game_information_lookup_binding: None,
+            game_information_live_bootstrap_supported: None,
+            game_information_live_bootstrap_transport_failed: false,
             runtime_v3_baseline: None,
             game_information_exchange_timeout: Duration::from_secs(5),
             game_information_cursor_bindings: BTreeMap::new(),

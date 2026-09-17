@@ -5,6 +5,16 @@ host compatibility and release publication.
 
 ## [Unreleased]
 
+- Add the authenticated, fixed `game-information-live-observation-bootstrap-v1`
+  route. The Gateway pins schema digest
+  `6041a282ffda8757af4e3eb6ab551e082f136fe53138ab8ac17db9fab52765c2`, requires a
+  current lookup-binding scope and lease fence, validates parent and per-entity
+  snapshot identity and response bounds, and preserves an explicit native
+  `not_observable` refusal. The negotiated offer is gated by the explicit
+  `STS2_GAME_INFORMATION_LIVE_BOOTSTRAP_ENABLED` installed-handler setting and
+  current binding witness; native Mod production remains separate. See
+  [ADR 0032](docs/decisions/0032-game-information-live-observation-bootstrap-route.md).
+
 - Add the authenticated `exact_restore` Gateway transport for the frozen
   exact-restore neutral protocol and MCP wrapper. Five fixed routes validate the
   configured principal, capability, complete current owner fence, request and

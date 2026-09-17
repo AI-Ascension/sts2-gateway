@@ -60,6 +60,10 @@ impl RuntimeConfig {
         if !valid_locale(&game_information_locale) {
             return Err(String::from("STS2_GAME_INFORMATION_LOCALE is invalid"));
         }
+        let game_information_live_bootstrap_enabled = parse_bool(
+            "STS2_GAME_INFORMATION_LIVE_BOOTSTRAP_ENABLED",
+            env_or_default("STS2_GAME_INFORMATION_LIVE_BOOTSTRAP_ENABLED", "false")?.as_str(),
+        )?;
         let operation_capacity = parse_operation_capacity(&env_or_default(
             "STS2_RUNTIME_V2_OPERATION_CAPACITY",
             DEFAULT_OPERATION_CAPACITY,
@@ -232,6 +236,7 @@ impl RuntimeConfig {
             game_information_content_manifest_id,
             game_information_run_id,
             game_information_locale,
+            game_information_live_bootstrap_enabled,
             save_profile_enabled,
         })
     }

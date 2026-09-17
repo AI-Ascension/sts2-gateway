@@ -31,11 +31,11 @@ pub(crate) struct BoundLookupBinding {
 /// later observation is for the exact discovery binding before Gateway I/O.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct LookupBindingScope {
-    project_id: String,
-    run_id: String,
-    episode_id: String,
-    agent_id: String,
-    authority_epoch: u64,
+    pub(crate) project_id: String,
+    pub(crate) run_id: String,
+    pub(crate) episode_id: String,
+    pub(crate) agent_id: String,
+    pub(crate) authority_epoch: u64,
 }
 
 pub(crate) fn discovery_witness(

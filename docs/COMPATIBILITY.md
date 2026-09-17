@@ -398,6 +398,21 @@ compares the complete normalized query and does not provide cross-instance, cros
 cross-locale, cross-run, cross-epoch, or cross-scope fallback. See
 [ADR 0024](decisions/0024-game-information-query-routing.md).
 
+## Game-information live-observation bootstrap visibility row
+
+The additive `game-information-live-observation-bootstrap-v1` consumer is pinned to protocol
+merge `63dfbab0dcc9d24ba69dafde7c18ca00965cd426` and schema digest
+`6041a282ffda8757af4e3eb6ab551e082f136fe53138ab8ac17db9fab52765c2`.
+
+| Surface | Producer pin | Current evidence | Result |
+| --- | --- | --- | --- |
+| `game-information-live-observation-bootstrap-v1` artifact and route | `POST /v1/instances/{instance_id}/game-information/live-observation-bootstrap` to fixed `POST /api/v1/game-information/live-observation-bootstrap` | copied manifest/schema/checksums, explicit installed-handler setting, lookup-binding owner fence, attested parent/per-entity identity, stale/foreign/native-unavailable HTTP tests, and negotiated-offer gating | Gateway source/component transport confirmed; native Mod producer, MCP startup, Harness execution, deployment, and release unverified |
+
+The route is disabled by default and is advertised only when
+`STS2_GAME_INFORMATION_LIVE_BOOTSTRAP_ENABLED=true` and a current lookup-binding witness exists.
+The setting asserts the pinned handler is installed; it does not infer native snapshot support.
+Typed `not_observable` responses remain explicit and carry no fabricated observation.
+
 ## Proposed retained receipt query
 
 The proposed `coop-receipt-query-v1` profile adds one read-only route:

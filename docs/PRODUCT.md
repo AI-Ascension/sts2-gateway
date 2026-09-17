@@ -106,6 +106,13 @@ protocol source `34f68b182c09472c3a0573ff478e17e6ed53c91f` and schema digest
 snapshot freshness, MCP consumers (#51/#52), harness, deployment, and release remain
 unverified. See [ADR 0024](decisions/0024-game-information-query-routing.md).
 
+The additive `game-information-live-observation-bootstrap-v1` route provides the first
+schema-validated parent observation and bounded visible entity references for a live query. It
+requires the current lookup-binding witness and the explicit
+`STS2_GAME_INFORMATION_LIVE_BOOTSTRAP_ENABLED` installed-handler setting. A native-unavailable
+producer response remains typed and carries no fabricated state; native observation, MCP startup,
+and Harness execution remain separate concerns. See [ADR 0032](decisions/0032-game-information-live-observation-bootstrap-route.md).
+
 ## Save-profile component
 
 The proposed save-profile surface is gateway transport and isolation control, not save authority.

@@ -9,6 +9,8 @@ use serde_json::{Value, json};
 use super::*;
 
 pub(crate) const SCHEMA_VERSION: &str = "sts2-gateway-negotiated-capabilities-v1";
+pub(crate) const SCHEMA_VERSION_V2: &str = "sts2-gateway-negotiated-capabilities-v2";
+pub(crate) const CAPABILITIES_VERSION_HEADER: &str = "x-sts2-capabilities-version";
 pub(crate) const MAX_RESPONSE_BYTES: usize = 16 * 1024;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -40,6 +42,28 @@ impl RuntimeService {
         }
         if let Err(error) = self.check_lease(request) {
             return error;
+        }
+        let v2 = match request
+            .headers
+            .get(CAPABILITIES_VERSION_HEADER)
+            .map(String::as_str)
+        {
+            None | Some(SCHEMA_VERSION) => false,
+            Some(SCHEMA_VERSION_V2) => true,
+            Some(_) => {
+                return (
+                    406,
+                    json_error("negotiated_capabilities_version_unsupported"),
+                );
+            }
+        };
+        let authority = self.game_information_authority();
+        if self.game_information_live_bootstrap_supported.as_ref() != Some(&authority) {
+            self.game_information_live_bootstrap_supported = self
+                .config
+                .game_information_live_bootstrap_enabled
+                .then_some(authority.clone());
+            self.game_information_live_bootstrap_transport_failed = false;
         }
         // Capability discovery is part of the authenticated startup path. Refresh a
         // missing or authority-stale cache through the same validated producer
@@ -112,6 +136,21 @@ impl RuntimeService {
             });
         if lookup_binding.is_some() {
             offers.extend(known_lookup_binding_offers(&scopes));
+            if self
+                .game_information_live_bootstrap_supported
+                .as_ref()
+                .is_some_and(|support| {
+                    support == &self.game_information_authority()
+                        && !self.game_information_live_bootstrap_transport_failed
+                })
+                && v2
+            {
+                offers.push(known_live_observation_bootstrap_offer(
+                    &scopes,
+                    super::super::game_information_live_observation_bootstrap::MAX_REQUEST_BYTES,
+                    super::super::game_information_live_observation_bootstrap::MAX_BOOTSTRAP_RESPONSE_BYTES,
+                ));
+            }
         }
         let lookup_binding_witness = lookup_binding.map(|bound| {
             json!({
@@ -123,8 +162,8 @@ impl RuntimeService {
             })
         });
         let value = json!({
-            "schema_version": SCHEMA_VERSION,
-            "gateway_revision": SCHEMA_VERSION,
+            "schema_version": if v2 { SCHEMA_VERSION_V2 } else { SCHEMA_VERSION },
+            "gateway_revision": if v2 { SCHEMA_VERSION_V2 } else { SCHEMA_VERSION },
             "correlation_id": correlation_id,
             "instance_id": capability_authority.instance_id,
             "caller_id": capability_authority.caller_id,
@@ -216,12 +255,16 @@ fn runtime_v3_state_request(
 mod offers;
 use offers::{
     known_game_information_capabilities_offer, known_game_information_offer,
-    known_lookup_binding_offers, known_runtime_v3_baseline_offers,
+    known_live_observation_bootstrap_offer, known_lookup_binding_offers,
+    known_runtime_v3_baseline_offers,
 };
 
 #[cfg(test)]
 #[path = "negotiated_capabilities_baseline_tests.rs"]
 mod baseline_tests;
+#[cfg(test)]
+#[path = "negotiated_capabilities_live_bootstrap_tests.rs"]
+mod live_bootstrap_tests;
 #[cfg(test)]
 #[path = "negotiated_capabilities_manifest_tests.rs"]
 mod manifest_tests;

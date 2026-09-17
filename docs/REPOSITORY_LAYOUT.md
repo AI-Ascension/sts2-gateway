@@ -69,6 +69,11 @@ crates/gateway/src/bin/runtime_support/game_information*  fixed route, forwarder
 crates/gateway/src/bin/runtime_support/service_game_information*  lease-fenced HTTP dispatch and tests
 ```
 
+The live-observation bootstrap profile is copied under
+`protocol-artifact/game-information-live-observation-bootstrap-v1/` with its schema mirror and
+fixtures. Its Gateway consumer is the fixed bootstrap route and validator; native observation
+production remains in the game-mod boundary.
+
 The artifact remains protocol-owned inert data. The gateway owns only the authenticated route,
 producer transport, authority/lease/snapshot binding, and bounded validation; game-information
 meaning, extraction, MCP tools, and harness behavior stay with their named owners.
