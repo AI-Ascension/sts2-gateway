@@ -18,7 +18,9 @@ fn pinned_dependencies_preserve_shared_schema_and_sha256_semantics() -> Result<(
         .as_str()
         .ok_or("missing SHA-256 input")?;
     let expected = corpus["sha256"].as_str().ok_or("missing SHA-256 digest")?;
-    if format!("{:x}", Sha256::digest(input.as_bytes())) != expected {
+    let digest = Sha256::digest(input.as_bytes());
+    let actual: String = digest.iter().map(|byte| format!("{byte:02x}")).collect();
+    if actual != expected {
         return Err(String::from("SHA-256 semantic vector mismatch"));
     }
     let validator =
