@@ -15,6 +15,15 @@ pub(crate) const SCHEMA_DIGEST: &str =
 pub(crate) const PROFILE: &str = "game-information-live-observation-bootstrap-v1";
 pub(crate) const MAX_REQUEST_BYTES: usize = MAX_BODY_BYTES;
 pub(crate) const MAX_BOOTSTRAP_RESPONSE_BYTES: usize = MAX_RESPONSE_BYTES;
+
+/// The maxima the pinned bootstrap schema declares for the `limits` object.
+///
+/// These bound the *request's* declared limits, so they must track the schema rather than the
+/// gateway's response framing: `MAX_RESPONSE_BYTES` is a transport ceiling and is deliberately
+/// smaller than the message ceiling the protocol allows.
+pub(crate) const MAX_VISIBLE_ENTITIES: u64 = 64;
+pub(crate) const MAX_ITEM_BYTES: u64 = 65_536;
+pub(crate) const MAX_MESSAGE_BYTES: u64 = 262_144;
 const SCHEMA: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../protocol-artifact/game-information-live-observation-bootstrap-v1/schema.json"
@@ -185,15 +194,15 @@ fn request_limits_valid(value: &Value) -> bool {
     limits
         .get("max_visible_entities")
         .and_then(Value::as_u64)
-        .is_some_and(|value| value <= 64)
+        .is_some_and(|value| value <= MAX_VISIBLE_ENTITIES)
         && limits
             .get("max_item_bytes")
             .and_then(Value::as_u64)
-            .is_some_and(|value| value <= MAX_RESPONSE_BYTES as u64)
+            .is_some_and(|value| value <= MAX_ITEM_BYTES)
         && limits
             .get("max_message_bytes")
             .and_then(Value::as_u64)
-            .is_some_and(|value| value <= MAX_RESPONSE_BYTES as u64)
+            .is_some_and(|value| value <= MAX_MESSAGE_BYTES)
 }
 
 fn limits_within(response: &Value, request: &Value) -> bool {

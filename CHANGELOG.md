@@ -5,6 +5,17 @@ host compatibility and release publication.
 
 ## [Unreleased]
 
+- Fix the live-observation bootstrap request-limit check: `request_limits_valid` compared the
+  request's declared `max_item_bytes` and `max_message_bytes` against `MAX_RESPONSE_BYTES`, the
+  131072-byte transport framing ceiling, instead of the maxima the pinned bootstrap schema declares
+  (65536 and 262144). The pinned golden request declares the schema's 262144 message ceiling, so it
+  was rejected as invalid before any producer call and the harness observed the bootstrap as
+  unavailable. The ceilings now live in named constants next to the profile, and two tests bind them
+  to the schema and to the untouched golden request so the pair cannot drift again; the bootstrap
+  tests previously rewrote the golden's `max_message_bytes` down to 131072, which hid the drift, and
+  no longer do. This is source/component evidence; native host behavior and integrated readiness
+  remain unverified.
+
 - Add a real filesystem isolated-allocation adapter for save-profile provisioning
   (`FilesystemUserDataPort`). The adapter binds one canonical, server-configured root and allocates
   exactly one `run-<identity>` directory per opaque identity, recording gateway provenance inside
