@@ -5,6 +5,8 @@ host compatibility and release publication.
 
 ## [Unreleased]
 
+- Stop a parallel-load flake in the runtime-v3 recovery translation test helper: `run_runtime_v3_translation_case_with_host_status` created one 3-second `accept` deadline before its wait loop and shared it across all three waits, and required a `/api/v3/runtime/state` probe even in the case that deliberately expires the recovery lease mid-query, where the gateway may legitimately never issue one. Each wait now carries its own budget, deadline exhaustion reports a named timeout instead of a bare socket error, and the probe is optional exactly when the lease is expected to have expired. The case still fails when the deadline enforcement is removed.
+
 - Fix the live-observation bootstrap request-limit check: `request_limits_valid` compared the
   request's declared `max_item_bytes` and `max_message_bytes` against `MAX_RESPONSE_BYTES`, the
   131072-byte transport framing ceiling, instead of the maxima the pinned bootstrap schema declares

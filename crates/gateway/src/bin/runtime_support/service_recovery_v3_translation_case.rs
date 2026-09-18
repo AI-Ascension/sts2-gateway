@@ -63,8 +63,13 @@ pub(super) fn run_runtime_v3_translation_case_with_host_status(
         .as_ref()
         .map(|fence| fence.host_fence_id.clone())
         .ok_or_else(|| String::from("recovery fence missing"))?;
+    // The gateway only issues the `/api/v3/runtime/state` probe while the recovery lease is
+    // still live. This case deliberately expires the lease mid-query, so whether the probe is
+    // issued at all is a race against that deadline; both orderings must produce the same typed
+    // rejection, and the caller asserts that. Requiring the probe unconditionally turned the
+    // race into a spurious failure under parallel load.
+    let state_probe_expected = !expire_during_query;
     let worker = thread::spawn(move || -> Result<Vec<String>, String> {
-        let deadline = Instant::now() + Duration::from_secs(3);
         let mut correlations = Vec::new();
         let mut intent_operation = None;
         for (index, kind) in [
@@ -74,6 +79,10 @@ pub(super) fn run_runtime_v3_translation_case_with_host_status(
         .into_iter()
         .enumerate()
         {
+            // Each wait carries its own budget. A single deadline created before the loop is
+            // shared by every wait, so a slow sibling under parallel load could exhaust it and
+            // surface as a bare `Resource temporarily unavailable` instead of a named timeout.
+            let deadline = Instant::now() + Duration::from_secs(3);
             let (mut stream, _) = loop {
                 match listener.accept() {
                     Ok(pair) => break pair,
@@ -82,6 +91,11 @@ pub(super) fn run_runtime_v3_translation_case_with_host_status(
                             && Instant::now() < deadline =>
                     {
                         thread::sleep(Duration::from_millis(1));
+                    }
+                    Err(error) if error.kind() == ErrorKind::WouldBlock => {
+                        return Err(format!(
+                            "accept {index}: the {kind:?} frame did not arrive within 3s"
+                        ));
                     }
                     Err(error) => return Err(format!("accept {index}: {error}")),
                 }
@@ -165,16 +179,26 @@ pub(super) fn run_runtime_v3_translation_case_with_host_status(
             super::super::super::super::http::write_response(&mut stream, 200, &response)
                 .map_err(|error| error.to_string())?;
         }
-        let (mut stream, _) = loop {
+        let deadline = Instant::now() + Duration::from_secs(3);
+        let probe = loop {
             match listener.accept() {
-                Ok(pair) => break pair,
+                Ok(pair) => break Some(pair),
                 Err(error)
                     if error.kind() == ErrorKind::WouldBlock && Instant::now() < deadline =>
                 {
                     thread::sleep(Duration::from_millis(1));
                 }
+                Err(error) if error.kind() == ErrorKind::WouldBlock => break None,
                 Err(error) => return Err(format!("state accept: {error}")),
             }
+        };
+        let Some((mut stream, _)) = probe else {
+            if state_probe_expected {
+                return Err(String::from(
+                    "state accept: the state probe was expected but did not arrive within 3s",
+                ));
+            }
+            return Ok(correlations);
         };
         let state_request = super::super::super::super::http::read_request(&mut stream)
             .map_err(|error| format!("{error:?}"))?;
