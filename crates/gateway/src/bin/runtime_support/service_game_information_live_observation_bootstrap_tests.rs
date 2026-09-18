@@ -3,6 +3,7 @@
 use super::super::super::game_information_forwarder::{
     BoundGameInformationCapabilities, GameInformationCapabilities, GameInformationLimits,
 };
+use super::super::super::game_information_live_observation_bootstrap as bootstrap;
 use super::super::super::game_information_lookup_binding::{
     BoundLookupBinding, LookupBindingScope,
 };
@@ -23,6 +24,10 @@ const RESPONSE: &[u8] = include_bytes!(concat!(
 const UNAVAILABLE: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../protocol-artifact/game-information-live-observation-bootstrap-v1/golden/error-native-unavailable.json"
+));
+const SCHEMA: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../protocol-artifact/game-information-live-observation-bootstrap-v1/schema.json"
 ));
 
 fn prepare(service: &mut RuntimeService) {
@@ -46,8 +51,7 @@ fn prepare(service: &mut RuntimeService) {
 }
 
 fn request() -> Result<HttpRequest, String> {
-    let mut value: Value = serde_json::from_slice(REQUEST).map_err(|error| error.to_string())?;
-    value["limits"]["max_message_bytes"] = json!(131_072);
+    let value: Value = serde_json::from_slice(REQUEST).map_err(|error| error.to_string())?;
     let mut request = authenticated_request(
         "/v1/instances/instance-1/game-information/live-observation-bootstrap",
     );
@@ -67,9 +71,6 @@ fn request() -> Result<HttpRequest, String> {
 fn response_with_limit(template: &[u8], correlation: &str) -> Result<Vec<u8>, String> {
     let mut value: Value = serde_json::from_slice(template).map_err(|error| error.to_string())?;
     value["correlation_id"] = json!(correlation);
-    if value["kind"] == "bootstrap_response" {
-        value["limits"]["max_message_bytes"] = json!(131_072);
-    }
     serde_json::to_vec(&value).map_err(|error| error.to_string())
 }
 
@@ -193,7 +194,6 @@ fn stale_generation_response_is_rejected_after_forwarding() -> Result<(), String
     let mut response: Value =
         serde_json::from_slice(RESPONSE).map_err(|error| error.to_string())?;
     response["correlation_id"] = json!("corr-bootstrap-1");
-    response["limits"]["max_message_bytes"] = json!(131_072);
     response["visible_entities"][0]["snapshot_ref"]["state_generation"] = json!(41);
     let worker = serve_http_sequence(
         listener,
@@ -250,6 +250,60 @@ fn unsupported_handler_withdraws_offer_for_current_authority() -> Result<(), Str
             .map_err(|_| String::from("producer panicked"))??
             .len(),
         1
+    );
+    Ok(())
+}
+
+/// The request-limit ceilings must be the ones the pinned schema declares.
+///
+/// `request_limits_valid` compares a request's declared `limits` against constants in
+/// `game_information_live_observation_bootstrap`. Those constants previously pointed at
+/// `MAX_RESPONSE_BYTES`, a transport framing ceiling of 131072, which is *smaller* than the
+/// 262144 message ceiling the schema allows. Every test hid the drift by rewriting the golden
+/// request's `max_message_bytes` down to 131072, so the real golden was rejected as invalid and
+/// the harness observed the bootstrap as unavailable. This asserts the constants against the
+/// schema itself, so the two cannot drift again without failing here.
+#[test]
+fn request_limit_ceilings_match_the_pinned_schema() -> Result<(), String> {
+    let schema: Value = serde_json::from_slice(SCHEMA).map_err(|error| error.to_string())?;
+    let properties = &schema["$defs"]["limits"]["properties"];
+    let declared = |field: &str| -> Result<u64, String> {
+        properties[field]["maximum"]
+            .as_u64()
+            .ok_or_else(|| format!("schema does not declare a maximum for {field}"))
+    };
+    assert_eq!(
+        declared("max_visible_entities")?,
+        bootstrap::MAX_VISIBLE_ENTITIES,
+        "max_visible_entities ceiling drifted from the schema"
+    );
+    assert_eq!(
+        declared("max_item_bytes")?,
+        bootstrap::MAX_ITEM_BYTES,
+        "max_item_bytes ceiling drifted from the schema"
+    );
+    assert_eq!(
+        declared("max_message_bytes")?,
+        bootstrap::MAX_MESSAGE_BYTES,
+        "max_message_bytes ceiling drifted from the schema"
+    );
+    Ok(())
+}
+
+/// The pinned golden request must be forwarded verbatim, limits included.
+#[test]
+fn golden_request_limits_are_not_rewritten() -> Result<(), String> {
+    let golden: Value = serde_json::from_slice(REQUEST).map_err(|error| error.to_string())?;
+    assert_eq!(
+        golden["limits"]["max_message_bytes"].as_u64(),
+        Some(bootstrap::MAX_MESSAGE_BYTES),
+        "the golden bootstrap request must carry the schema's message ceiling"
+    );
+    let forwarded = request()?;
+    let sent: Value = serde_json::from_slice(&forwarded.body).map_err(|error| error.to_string())?;
+    assert_eq!(
+        sent, golden,
+        "the test request must forward the golden bootstrap request unchanged"
     );
     Ok(())
 }
