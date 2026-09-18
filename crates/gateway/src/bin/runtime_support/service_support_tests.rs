@@ -129,6 +129,7 @@ pub(super) fn test_service() -> Result<RuntimeService, String> {
         save_profile,
         save_profile_active_run: SaveProfileActiveRun::UNCONFIGURED,
         seeded_run,
+        process_lifecycle: service_process_lifecycle::ProcessLifecycleRuntime::unconfigured(),
         journal_path: None,
         _journal_lock: None,
         metrics: super::super::metrics::RuntimeMetrics::default(),

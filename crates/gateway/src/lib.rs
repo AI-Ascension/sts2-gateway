@@ -9,6 +9,7 @@ mod forwarding;
 mod identity;
 mod lifecycle;
 mod maintenance;
+mod port_forwarding;
 mod ports;
 mod process_adapter;
 mod process_identity;

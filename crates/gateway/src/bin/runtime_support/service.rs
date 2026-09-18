@@ -187,6 +187,8 @@ mod lease;
 mod lease_transport;
 #[path = "service_map.rs"]
 mod map;
+#[path = "process_lifecycle_wire.rs"]
+mod process_lifecycle_wire;
 #[path = "service_receipt_query.rs"]
 mod receipt_query;
 #[path = "service_recovery.rs"]
@@ -213,12 +215,24 @@ mod recovery_state;
 mod recovery_v3;
 #[path = "service_recovery_wire.rs"]
 mod recovery_wire;
+#[path = "service_route_dispatch.rs"]
+mod route_dispatch;
 #[path = "service_routes.rs"]
 mod routes;
 #[path = "service_runtime.rs"]
 mod runtime;
 #[path = "service_seeded_run.rs"]
 mod seeded_run;
+#[path = "service_process_lifecycle.rs"]
+mod service_process_lifecycle;
+#[path = "service_process_lifecycle_config.rs"]
+mod service_process_lifecycle_config;
+#[path = "service_process_lifecycle_fence.rs"]
+mod service_process_lifecycle_fence;
+#[path = "service_process_lifecycle_identity.rs"]
+mod service_process_lifecycle_identity;
+#[path = "service_process_lifecycle_requests.rs"]
+mod service_process_lifecycle_requests;
 #[path = "service_save_profile.rs"]
 mod service_save_profile;
 #[path = "service_save_profile_composition.rs"]

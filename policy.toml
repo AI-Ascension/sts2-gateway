@@ -33,6 +33,7 @@ required_files = [
   "docs/decisions/0002-sixth-target-protocol-boundary.md",
   "docs/decisions/0003-foundation-preparation-and-evidence.md",
   "docs/decisions/0012-runtime-v3-and-coop-boundaries.md",
+  "docs/decisions/0035-attached-process-lifecycle-route-surface.md",
   "crates/gateway/Cargo.toml",
   "crates/gateway/src/control.rs",
   "crates/gateway/src/fencing.rs",

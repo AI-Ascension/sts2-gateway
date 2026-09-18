@@ -91,6 +91,21 @@ A launch response is `Starting` until a separate readiness adapter reports ready
 confirmed gateway source/component outcomes from synthetic ports and stores; they do not launch an
 OS process, exercise game readiness, or establish harness/provider/native compatibility.
 
+The attached process-lifecycle route surface is covered by `service_process_lifecycle_tests`, which
+drives the real HTTP entry point (`handle_request`) rather than calling route handlers directly, so
+authorization, lease fencing, routing, and dispatch are exercised as they ship. The fixture composes
+through the production path (`ProcessLifecycleRuntime::compose`), so the catalog build, the durable
+SQLite store open, the capacity-budget validation, and the coordinator construction are real; only
+the process port is a deterministic synthetic adapter. The tests prove unconfigured refusal before
+any port call, distinct `unconfigured`/`adapter_absent` reporting, capability listing only
+configured profile ids, duplicate-operation replay that does not launch twice, stale-epoch,
+unknown-profile, unowned-attach, and malformed/conflicting submission rejection each before any
+process effect, retained-versus-absent operation lookup, the configured lease fence, the authorized
+scope on both read and mutate routes, and deterministic domain-separated identity bridging. These
+tests found and fixed four real defects: an inverted action field guard, unvalidated profile
+entries, an instantly expired bound lease, and a digest that overflowed the store's `i64` key.
+They are source-component evidence and do not launch a native game process.
+
 The process-supervisor fixture proves that restart replaces ownership only after the old handle
 is force-stopped, while its identity-bearing resolved methods reject drift and foreign descendants.
 Live restart/recovery remains unverified. HTTP tests additionally cover absolute deadlines, stalled

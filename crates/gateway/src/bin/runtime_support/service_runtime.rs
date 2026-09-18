@@ -2,9 +2,28 @@
 
 use super::*;
 
+/// Composes the lifecycle surface from configuration.
+///
+/// The concrete OS process adapter ADR 0024 defers is not installed here, so a configured
+/// deployment validates its catalog and store path and then reports the surface unavailable for
+/// effects. That is the fail-closed default: no route can reach a process port this build does not
+/// own, and no caller can substitute one. Installing a reviewed adapter is a deployment change
+/// that composes `ProcessLifecycleRuntime::compose`, which already exists and is exercised by the
+/// focused tests.
+fn process_lifecycle_from_environment()
+-> Result<service_process_lifecycle::ProcessLifecycleRuntime, String> {
+    match service_process_lifecycle_config::from_environment()? {
+        Some(deployment) => {
+            service_process_lifecycle::ProcessLifecycleRuntime::configured(&deployment)
+        }
+        None => Ok(service_process_lifecycle::ProcessLifecycleRuntime::unconfigured()),
+    }
+}
+
 impl RuntimeService {
     pub(crate) fn from_environment() -> Result<Self, String> {
         let config = RuntimeConfig::from_environment()?;
+        let process_lifecycle = process_lifecycle_from_environment()?;
         let coop_reports = configuration::coop_reports_from_environment()?;
         if coop_reports.is_some() && config.lease_epoch > 9_007_199_254_740_991 {
             return Err("co-op lease epoch exceeds the wire bound".to_owned());
@@ -165,6 +184,7 @@ impl RuntimeService {
             save_profile,
             save_profile_active_run: SaveProfileActiveRun::UNCONFIGURED,
             seeded_run,
+            process_lifecycle,
             metrics: RuntimeMetrics::default(),
             coop_reports,
             recovery,

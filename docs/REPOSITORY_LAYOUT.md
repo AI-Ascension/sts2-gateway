@@ -123,3 +123,31 @@ The in-memory stores and loopback peer are deterministic source/component fixtur
 runtime injects none of the allocation, launch-profile, durable-intent, or active-run dependencies
 and refuses mutations until a real adapter is accepted. A future filesystem or launch-profile
 adapter must remain behind the named ports and an accepted contract.
+
+## Process-lifecycle route additions
+
+```text
+crates/gateway/src/port_forwarding.rs            blanket forwarding for boxed/shared port handles
+crates/gateway/src/bin/runtime_support/process_lifecycle_wire.rs
+                                                 fixed route parsing and closed action schema
+crates/gateway/src/bin/runtime_support/service_process_lifecycle.rs
+                                                 composition state and startup validation
+crates/gateway/src/bin/runtime_support/service_process_lifecycle_requests.rs
+                                                 lease-fenced HTTP dispatch for the three routes
+crates/gateway/src/bin/runtime_support/service_process_lifecycle_config.rs
+                                                 server-owned catalog and capacity configuration
+crates/gateway/src/bin/runtime_support/service_process_lifecycle_identity.rs
+                                                 string-to-numeric identity bridge
+crates/gateway/src/bin/runtime_support/service_process_lifecycle_fence.rs
+                                                 exact lease-identity fence port
+crates/gateway/src/bin/runtime_support/service_process_lifecycle_tests.rs
+                                                 boundary tests over the real HTTP entry point
+crates/gateway/src/bin/runtime_support/service_route_dispatch.rs
+                                                 legacy fixed method/path table
+```
+
+The configuration module is the only place a profile identity is resolved, and it accepts bounded
+numeric fields only: no path, command, URL, environment, or user-data location is representable.
+The shipped binary validates that configuration but composes no concrete OS process adapter, so the
+surface reports `process_lifecycle_adapter_absent` and refuses every effect. See
+[ADR 0035](decisions/0035-attached-process-lifecycle-route-surface.md).

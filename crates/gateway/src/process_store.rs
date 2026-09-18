@@ -257,3 +257,53 @@ pub trait LifecycleRecordStore {
         Err(LifecycleStoreError::Unsupported)
     }
 }
+
+/// A boxed store forwards every read and mutation to the same durable implementation.
+///
+/// Composition needs `Box<dyn LifecycleRecordStore + Send>` so the attached runtime can choose its
+/// store at startup. Forwarding rather than reimplementing keeps the fail-closed ownership default
+/// with the concrete store: a boxed legacy store still reports `Unsupported` for ownership
+/// mutation, so boxing can never upgrade a store's authority.
+impl<T: LifecycleRecordStore + ?Sized> LifecycleRecordStore for Box<T> {
+    fn get(
+        &self,
+        key: LifecycleRecordKey,
+    ) -> Result<Option<LifecycleOperation>, LifecycleStoreError> {
+        (**self).get(key)
+    }
+
+    fn insert(&mut self, operation: LifecycleOperation) -> Result<(), LifecycleStoreError> {
+        (**self).insert(operation)
+    }
+
+    fn update(&mut self, operation: LifecycleOperation) -> Result<(), LifecycleStoreError> {
+        (**self).update(operation)
+    }
+
+    fn list(&self) -> Result<Vec<LifecycleOperation>, LifecycleStoreError> {
+        (**self).list()
+    }
+
+    fn count(&self) -> Result<usize, LifecycleStoreError> {
+        (**self).count()
+    }
+
+    fn list_ownership(&self) -> Result<Vec<LifecycleOwnership>, LifecycleStoreError> {
+        (**self).list_ownership()
+    }
+
+    fn set_ownership(&mut self, ownership: LifecycleOwnership) -> Result<(), LifecycleStoreError> {
+        (**self).set_ownership(ownership)
+    }
+
+    fn clear_ownership_if(
+        &mut self,
+        ownership: &LifecycleOwnership,
+    ) -> Result<(), LifecycleStoreError> {
+        (**self).clear_ownership_if(ownership)
+    }
+
+    fn clear_ownership(&mut self, instance_id: InstanceId) -> Result<(), LifecycleStoreError> {
+        (**self).clear_ownership(instance_id)
+    }
+}
