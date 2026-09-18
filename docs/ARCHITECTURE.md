@@ -81,7 +81,16 @@ implementation commits each operation transition before invoking the process por
 exclusive coordinator lock for the store lifetime, and transactionally fences ownership and
 operation admission with a durable coordinator token. The attached runtime owns its bounded
 optional journal adapter and its process-lifetime exclusive journal lock
-at the process boundary; it is not wired to the profile lifecycle component. The
+at the process boundary. It reaches the profile lifecycle component through three fixed,
+lease-fenced routes (`sts2-gateway-process-lifecycle-v1`): a capability read, a retained-operation
+lookup, and one closed-schema submission carrying only an opaque operation id, an authority epoch,
+and one action. Caller identity is never taken from the body; the gateway's configured string
+instance/caller/session/lease values are bridged to the coordinator's numeric identity space by a
+deterministic, domain-separated digest, and lease liveness stays the HTTP gate's decision while the
+lifecycle fence port decides identity only. The shipped binary validates the configured catalog,
+capacity budget, and durable store at startup but composes no concrete OS process adapter, so the
+surface reports `process_lifecycle_adapter_absent` and refuses every effect until one is installed.
+See [ADR 0035](decisions/0035-attached-process-lifecycle-route-surface.md). The
 POC and Runtime-v2 checks verify checked-in copies of their protocol artifacts as inert data; no
 protocol implementation path dependency is present. See
 [ADR 0001](decisions/0001-gateway-ownership-and-dependencies.md),

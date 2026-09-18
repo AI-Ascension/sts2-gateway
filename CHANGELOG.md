@@ -5,6 +5,37 @@ host compatibility and release publication.
 
 ## [Unreleased]
 
+- Wire the approved-profile process lifecycle into the attached runtime through three fixed,
+  lease-fenced, authorization-scoped routes: `POST /v1/instances/{instance}/process-lifecycle/operations`
+  (`Mutate`), `GET /v1/instances/{instance}/process-lifecycle` (`Read`), and
+  `GET /v1/instances/{instance}/process-lifecycle/operations/{id}` (`Read`), contract
+  `sts2-gateway-process-lifecycle-v1`. Before this, `service_routes.rs` had no dispatch for the
+  lifecycle component at all, so an attached deployment could compose a coordinator and still have
+  no route that authenticated, fenced, and dispatched an operation — the named contract gate for
+  `sts2-gateway#50` items 2 and 4 and for `sts2-harness#101`. A submission body carries only an
+  opaque operation id, an authority epoch, and one closed action: instance, caller, session, lease,
+  and lease epoch come from gateway configuration, and executable/install/image/user-data/process
+  policy are never expressible on the wire, because the server-owned catalog resolves an opaque
+  profile id. Configured string identities are bridged to the coordinator's numeric identity space
+  by a deterministic, domain-separated SHA-256 truncation masked to 63 bits, because the durable
+  store keys records by `i64`. Lease liveness stays the HTTP gate's decision while the lifecycle
+  fence port decides identity only, so the two cannot disagree about expiry. The shipped binary
+  validates the configured catalog, capacity budget, and durable store at startup but composes no
+  concrete OS process adapter (ADR 0024 defers it), so a configured deployment advertises
+  `available: false` and refuses every effect with `503 process_lifecycle_adapter_absent`, while an
+  unconfigured deployment stays byte-identical and falls through to `404 route_not_found`. The
+  change is additive: no existing route, body, protocol artifact, MCP frame, or game-mod contract
+  changes, and `ProcessLifecycle::bind_attached_lease` is a new public method while `Lease::new`
+  remains `pub(crate)`. Four real defects were found and fixed by the focused tests: an inverted
+  per-action field guard that rejected valid launches, profile entries that bypassed the component
+  validators, a bound lease whose expiry was derived from the request rather than stated explicitly
+  (unsafe under any expiry-checking fence port, including the crate's own default), and an identity
+  digest that overflowed the store's `i64` key. The first, second, and fourth are pinned by mutation
+  probes; the third is pinned from the HTTP gate's side, since the attached fence port deliberately
+  never reads the expiry field. See
+  [ADR 0035](docs/decisions/0035-attached-process-lifecycle-route-surface.md). Native OS process
+  launch/stop evidence (`#50` AC5) and the harness-side client mapping (`#101`) remain `unverified`.
+
 - Stop a parallel-load flake in the runtime-v3 recovery translation test helper: `run_runtime_v3_translation_case_with_host_status` created one 3-second `accept` deadline before its wait loop and shared it across all three waits, and required a `/api/v3/runtime/state` probe even in the case that deliberately expires the recovery lease mid-query, where the gateway may legitimately never issue one. Each wait now carries its own budget, deadline exhaustion reports a named timeout instead of a bare socket error, and the probe is optional exactly when the lease is expected to have expired. The case still fails when the deadline enforcement is removed.
 
 - Fix the live-observation bootstrap request-limit check: `request_limits_valid` compared the

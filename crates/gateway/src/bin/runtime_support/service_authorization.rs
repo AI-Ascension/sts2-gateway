@@ -107,6 +107,17 @@ pub(super) fn required_scope(request: &HttpRequest, instance_id: &str) -> AuthSc
             AuthScope::Read
         };
     }
+    if let Some(route) = super::process_lifecycle_wire::LifecycleRoute::parse(
+        &request.method,
+        &request.path,
+        instance_id,
+    ) {
+        return if route.is_read() {
+            AuthScope::Read
+        } else {
+            AuthScope::Mutate
+        };
+    }
     let seeded_start_path = format!("/v2/instances/{instance_id}/seeded-run");
     let seeded_operation_prefix = format!("/v2/instances/{instance_id}/seeded-operations/");
     if request.method == "POST" && request.path == seeded_start_path {

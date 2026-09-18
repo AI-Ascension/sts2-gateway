@@ -31,8 +31,13 @@ These are scope decisions for the public product boundary. The package implement
 core, an approved opaque launch-profile catalog, durable lifecycle operation records with bounded
 no-eviction retention and authoritative per-instance ownership reservations, and deterministic
 process-port fixtures. The profile lifecycle component is a gateway-local
-source/component contract; the separately documented attached runtime adapter remains a fixed
-single-instance route/identity oracle and is not wired to native process launch.
+source/component contract. The attached runtime now reaches it through three fixed, lease-fenced,
+authorization-scoped routes (a capability read, a retained-operation lookup, and one closed-schema
+submission that carries only an opaque operation id, an authority epoch, and one action). The
+deployment validates its configured catalog, capacity budget, and durable store at startup, but no
+concrete OS process adapter is installed, so a configured deployment advertises the surface as
+unavailable and refuses every effect. The adapter remains a fixed single-instance route/identity
+oracle and is not wired to native process launch.
 
 ## Consumers and non-goals
 

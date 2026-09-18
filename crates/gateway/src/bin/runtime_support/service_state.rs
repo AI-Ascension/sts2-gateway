@@ -29,6 +29,8 @@ pub(crate) struct RuntimeService {
     pub(super) save_profile: service_save_profile::SaveProfileRuntime,
     pub(super) save_profile_active_run: SaveProfileActiveRun,
     pub(super) seeded_run: SeededRunLedger<HttpSeededRunForwarder>,
+    /// Attached approved-profile process lifecycle, or the fail-closed unconfigured default.
+    pub(super) process_lifecycle: service_process_lifecycle::ProcessLifecycleRuntime,
     pub(super) journal_path: Option<PathBuf>,
     pub(super) _journal_lock: Option<journal::JournalLock>,
     pub(super) metrics: RuntimeMetrics,

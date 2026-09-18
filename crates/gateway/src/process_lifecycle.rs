@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 
-use crate::identity::{AuthorityEpoch, InstanceId, Lease, LeaseProof, OperationId};
+use crate::identity::{AuthorityEpoch, InstanceId, Lease, LeaseProof, OperationId, Tick};
 use crate::process_profile::ApprovedLaunchProfiles;
 use crate::process_store::{LifecycleOperation, LifecycleRecordKey, LifecycleRecordStore};
 use crate::{
@@ -105,6 +105,33 @@ where
             .entry(instance_id)
             .or_insert(AuthorityEpoch::new(1));
         Ok(())
+    }
+
+    /// Binds the already-authenticated lease context of an attached adapter.
+    ///
+    /// The attached runtime authenticates every lifecycle request with the same
+    /// instance/caller/session/lease/epoch fence it passes here, so this method grants no new
+    /// authority: it converts a proof the caller already holds into the lease value
+    /// [`Self::authenticate`] compares against. A caller cannot obtain a [`LeaseProof`] without
+    /// first presenting that identity fence, and the proof's own fence is re-checked on every
+    /// operation.
+    ///
+    /// `expires_at` is explicit because the attached adapter's lease liveness is its own
+    /// `lease_active` gate rather than a wall-clock deadline; an adapter without an independent
+    /// expiry states that here instead of having one invented for it.
+    pub fn bind_attached_lease(
+        &mut self,
+        proof: LeaseProof,
+        expires_at: Tick,
+    ) -> Result<(), LifecycleError> {
+        self.bind_lease(Lease::new(
+            proof.instance_id(),
+            proof.caller_id(),
+            proof.session_id(),
+            proof.lease_id(),
+            proof.epoch(),
+            expires_at,
+        ))
     }
 
     pub fn authorize_lease(&mut self, lease: Lease) -> Result<(), LifecycleError> {

@@ -101,6 +101,20 @@ Active instances cannot reuse the same approved user-data namespace; ambiguous l
 read-only recovery proves the outcome. The SQLite lifecycle store fences competing coordinators
 with an exclusive process-lifetime lock, a durable coordinator token, and transactional ownership
 admission. These guarantees are source/component behavior only.
+
+The attached runtime now exposes that component through three fixed routes
+(`sts2-gateway-process-lifecycle-v1`): `POST /v1/instances/{instance}/process-lifecycle/operations`
+(`Mutate`), `GET /v1/instances/{instance}/process-lifecycle` (`Read`), and
+`GET /v1/instances/{instance}/process-lifecycle/operations/{id}` (`Read`). A submission body carries
+only an opaque operation id, an authority epoch, and one closed action; instance, caller, session,
+lease, and lease epoch come from configuration, and executable/install/image/user-data/process
+policy are never expressible on the wire. Every `LifecycleError` maps to one fixed status and code.
+The change is additive: an unconfigured deployment falls through to the existing
+`404 route_not_found`, and no existing route, body, protocol artifact, MCP frame, or game-mod
+contract changes. Because no concrete OS process adapter is installed, a configured deployment
+advertises `available: false` and refuses every effect with `503 process_lifecycle_adapter_absent`.
+`ProcessLifecycle::bind_attached_lease` is an additive public method; `Lease::new` remains
+`pub(crate)`, so callers still cannot construct a lease they were not granted.
 Native launch, host readiness, harness workflow mapping, and disposable-process acceptance remain
 `unverified`.
 

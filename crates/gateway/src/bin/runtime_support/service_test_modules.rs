@@ -29,6 +29,12 @@ mod runtime_v3_catalog_tests;
 mod runtime_v3_receipt_tests;
 #[path = "service_support_tests.rs"]
 mod test_support;
+#[path = "service_process_lifecycle_tests.rs"]
+mod process_lifecycle_tests;
+#[path = "service_process_lifecycle_fixtures.rs"]
+mod process_lifecycle_fixtures;
+#[path = "service_process_lifecycle_config_tests.rs"]
+mod process_lifecycle_config_tests;
 #[path = "service_save_profile_tests.rs"]
 mod save_profile_tests;
 
