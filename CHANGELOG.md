@@ -5,6 +5,32 @@ host compatibility and release publication.
 
 ## [Unreleased]
 
+- Add the missing gateway hop for the whole-manifest read. `sts2-game-mod` already serializes the
+  complete `game-information-content-manifest-v1` catalog and serves it from its fixed owner route,
+  but the gateway and MCP hops were absent, so no authenticated, fenced surface exposed the manifest
+  at all — the blocker this change removes. `GET /v1/instances/{instance_id}/game-information/content-manifest`
+  is now admitted as a bodyless `Read` and forwarded only to the fixed
+  `GET /api/v1/game-information/content-manifest`, reusing the existing game-information
+  authorization, instance fence, and caller-disconnect cancellation because those paths already key
+  off the shared route parse. The pinned profile permits a 16 MiB message while this route's framing
+  ceiling is 128 KiB, so the route advertises its own smaller bound and refuses a larger declared
+  exchange from the declaration alone with the pinned profile's own
+  `result_limit_exceeded`/`serialized_payload_too_large` arm: a prefix of a catalog is a different,
+  plausible catalog, so the manifest is never shortened. Responses are validated for strict JSON
+  without duplicate keys, protocol version, schema digest, exact provenance, the pinned schema
+  itself (whose copied bytes are re-hashed against the pin before use), correlation equality, kind,
+  and kind/status pairing; a configured 64-hex `STS2_GAME_INFORMATION_CONTENT_MANIFEST_ID` also
+  fences `inventory_revision` with `409 game_information_content_manifest_scope_rejected`, while a
+  non-digest label pins nothing. A body-borne `GET`, a missing or out-of-alphabet correlation, and
+  every lease, authority, or contract failure fail closed before or instead of relaying catalog
+  bytes, and a typed producer error keeps its status and body without fabricating a manifest. This
+  slice deliberately adds no operator enablement flag and no negotiated-capabilities offer, because
+  those closed artifacts' `operation` enums would have to change. See
+  [ADR 0036](docs/decisions/0036-game-information-content-manifest-route.md); the producer's own
+  side is `sts2-game-mod#83`. Additive only: no existing route, body, artifact, MCP frame, or
+  game-mod contract changes. Native Mod production, MCP registration, Harness use, deployment, and
+  release remain `unverified`.
+
 - Admit the refused-launch-contract recovery code on the legal-action read. The game-mod answers a
   refused launch contract with `503 launch_contract_refused`, or the prefix, `_`, and one bounded
   reason token (`sts2-game-mod#185`, `#187`), while this validator admitted only

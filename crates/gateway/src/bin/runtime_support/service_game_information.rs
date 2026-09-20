@@ -20,6 +20,8 @@ use errors::{
     game_information_transport_error,
 };
 
+#[path = "service_game_information_content_manifest.rs"]
+mod content_manifest;
 #[path = "service_game_information_live_observation_bootstrap.rs"]
 mod live_observation_bootstrap;
 #[path = "service_game_information_lookup_binding.rs"]
@@ -40,6 +42,9 @@ impl RuntimeService {
         }
         if route == GameInformationRoute::Capabilities {
             return self.game_information_capabilities(request, cancellation);
+        }
+        if route == GameInformationRoute::ContentManifest {
+            return content_manifest::forward(self, request, cancellation);
         }
         if route == GameInformationRoute::LookupBinding {
             return lookup_binding::forward(self, request, cancellation);

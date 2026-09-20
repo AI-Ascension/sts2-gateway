@@ -118,6 +118,17 @@ requires the current lookup-binding witness and the explicit
 producer response remains typed and carries no fabricated state; native observation, MCP startup,
 and Harness execution remain separate concerns. See [ADR 0032](decisions/0032-game-information-live-observation-bootstrap-route.md).
 
+The additive `game-information-content-manifest-v1` read exposes one complete content catalog at
+`GET /v1/instances/{instance_id}/game-information/content-manifest`, forwarded to the game-mod's
+fixed owner path as a bodyless `Read`. Gateway admits the whole manifest or refuses it: this route's
+128 KiB framing bound is advertised instead of the profile's 16 MiB message ceiling, and a larger
+exchange is declined with the protocol's own `result_limit_exceeded` arm, because a shortened
+catalog would be a different, plausible catalog rather than the producer's. Correlation, schema
+digest, provenance, and — when the deployment pins a manifest digest — `inventory_revision` are all
+fenced before any catalog byte reaches a consumer, and gateway retains no catalog. See
+[ADR 0036](decisions/0036-game-information-content-manifest-route.md). Native Mod production, MCP
+registration, Harness use, deployment, and release remain `unverified`.
+
 ## Save-profile component
 
 The proposed save-profile surface is gateway transport and isolation control, not save authority.

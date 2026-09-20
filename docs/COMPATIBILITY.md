@@ -427,6 +427,24 @@ The route is disabled by default and is advertised only when
 The setting asserts the pinned handler is installed; it does not infer native snapshot support.
 Typed `not_observable` responses remain explicit and carry no fabricated observation.
 
+## Game-information content-manifest visibility row
+
+The additive `game-information-content-manifest-v1` consumer is pinned to schema digest
+`416a39769445e6e462c5d5b5504f29010c255e2116a73094e55c7268e47f2ba6`, verified by the copied
+artifact's own checksum inventory and re-derived from the copied schema bytes before the pin is
+trusted.
+
+| Surface | Producer pin | Current evidence | Result |
+| --- | --- | --- | --- |
+| `game-information-content-manifest-v1` artifact and route | `GET /v1/instances/{instance_id}/game-information/content-manifest` to fixed `GET /api/v1/game-information/content-manifest` | copied manifest/schema/checksums and two goldens, bodyless `Read` admission with no query envelope, exact fixed path and forwarded identity headers, correlation and schema-digest and provenance checks, JSON-Schema validation, declared-oversize refusal, pinned-`inventory_revision` fence, typed producer error relay, and pre-forward rejection with zero producer I/O | Gateway source/component transport confirmed; native Mod producer, MCP registration, Harness use, deployment, and release unverified |
+
+The route admits the gateway's 128 KiB response bound rather than the profile's 16 MiB message
+ceiling, and refuses a larger declared exchange with the pinned profile's own
+`result_limit_exceeded`/`serialized_payload_too_large` arm, because a shortened manifest would be a
+different, plausible catalog. There is no operator enablement flag and no negotiated-capabilities
+offer in this slice. See
+[ADR 0036](decisions/0036-game-information-content-manifest-route.md).
+
 ## Proposed retained receipt query
 
 The proposed `coop-receipt-query-v1` profile adds one read-only route:

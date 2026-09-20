@@ -5,6 +5,9 @@
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum GameInformationRoute {
     Capabilities,
+    /// The whole-manifest read.  It carries no caller selector, so it is a bodyless `GET` like
+    /// capabilities rather than one of the canonical query operations.
+    ContentManifest,
     LookupBinding,
     LiveObservationBootstrap,
     /// Canonical MCP-facing route.  The query envelope selects one of the
@@ -24,6 +27,7 @@ impl GameInformationRoute {
         let operation = path.strip_prefix(&prefix)?;
         match (method, operation) {
             ("GET", "capabilities") => Some(Self::Capabilities),
+            ("GET", "content-manifest") => Some(Self::ContentManifest),
             ("POST", "lookup-binding") => Some(Self::LookupBinding),
             ("POST", "live-observation-bootstrap") => Some(Self::LiveObservationBootstrap),
             ("POST", "query") => Some(Self::Query),
@@ -39,13 +43,17 @@ impl GameInformationRoute {
     pub(crate) const fn is_query(self) -> bool {
         !matches!(
             self,
-            Self::Capabilities | Self::LookupBinding | Self::LiveObservationBootstrap
+            Self::Capabilities
+                | Self::ContentManifest
+                | Self::LookupBinding
+                | Self::LiveObservationBootstrap
         )
     }
 
     pub(crate) const fn query_kind(self) -> Option<&'static str> {
         match self {
             Self::Capabilities
+            | Self::ContentManifest
             | Self::LookupBinding
             | Self::LiveObservationBootstrap
             | Self::Query => None,
@@ -60,6 +68,7 @@ impl GameInformationRoute {
     pub(crate) const fn downstream_path(self) -> &'static str {
         match self {
             Self::Capabilities => "/api/v1/game-information/capabilities",
+            Self::ContentManifest => "/api/v1/game-information/content-manifest",
             Self::LookupBinding => "/api/v1/game-information/lookup-binding",
             Self::LiveObservationBootstrap => "/api/v1/game-information/live-observation-bootstrap",
             // Callers must resolve `Query` with `from_query_kind` before
