@@ -11,6 +11,7 @@ mod dependency_semantics_tests;
 mod forwarder;
 mod game_information;
 mod game_information_capabilities;
+mod game_information_content_manifest;
 mod game_information_forwarder;
 mod game_information_live_observation_bootstrap;
 mod game_information_lookup_binding;

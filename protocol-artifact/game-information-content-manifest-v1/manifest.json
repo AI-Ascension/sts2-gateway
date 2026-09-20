@@ -1,0 +1,31 @@
+{
+  "artifact": "sts2-protocol/game-information-content-manifest-v1",
+  "protocol_version": "game-information-content-manifest-v1",
+  "schema": "schema.json",
+  "schema_digest": "416a39769445e6e462c5d5b5504f29010c255e2116a73094e55c7268e47f2ba6",
+  "provenance": {
+    "source": "schemas/game-information-content-manifest-v1.schema.json",
+    "generator": "hand-authored",
+    "license": "MIT"
+  },
+  "consumers": [
+    "sts2-game-mod",
+    "sts2-gateway",
+    "sts2-mcp-server",
+    "sts2-harness"
+  ],
+  "goldens": [
+    "golden/canonical-manifest-response.json",
+    "golden/access-denied-error-response.json"
+  ],
+  "fixtures": [
+    "../../conformance/fixtures/game-information-content-manifest-v1/valid/canonical-manifest-response.json",
+    "../../conformance/fixtures/game-information-content-manifest-v1/valid/access-denied-error-response.json"
+  ],
+  "negative_fixtures": [
+    "../../conformance/fixtures/game-information-content-manifest-v1/invalid"
+  ],
+  "conformance": "../../conformance/cases/game-information-content-manifest-v1.json",
+  "checksums": "SHA256SUMS",
+  "max_message_bytes": 16777216
+}
