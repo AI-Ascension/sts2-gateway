@@ -116,15 +116,48 @@ impl RuntimeV3GameplayForwarder {
         object.len() == 3
             && value["correlation_id"] == request["correlation_id"]
             && value["recovery"].as_str() == Some("reobserve")
-            && matches!(
-                (status, value["error_code"].as_str()),
-                (409, Some("stale_generation"))
-                    | (
-                        503,
-                        Some("host_not_configured" | "host_observation_unavailable")
-                    )
-            )
+            && admits_recovery_code(status, value["error_code"].as_str())
     }
+}
+
+/// The recovery codes the legal-action route admits, paired with the status each arrives with.
+///
+/// A refused launch contract reaches this route as `503` carrying a code the mod composes from its
+/// own refusal prefix plus an optional bounded reason token (`sts2-game-mod#185`, `#187`). The set
+/// here is the producer's vocabulary, not a second one: see [`is_launch_contract_refusal`].
+fn admits_recovery_code(status: u16, code: Option<&str>) -> bool {
+    match (status, code) {
+        (409, Some("stale_generation")) => true,
+        (503, Some("host_not_configured" | "host_observation_unavailable")) => true,
+        (503, Some(code)) => is_launch_contract_refusal(code),
+        _ => false,
+    }
+}
+
+/// True for the recovery code a refused launch contract carries.
+///
+/// The mod answers the bare prefix (`launch_contract_refused`) when a reason cannot be named on the
+/// wire, and otherwise the prefix, `_`, and one reason token. The token rule is mirrored from the
+/// producer so a code it cannot emit is refused here too: widening this set must not admit a
+/// neighbouring string that merely starts the same way.
+fn is_launch_contract_refusal(code: &str) -> bool {
+    const PREFIX: &str = "launch_contract_refused";
+    /// Bounded exactly as the producer bounds it, so neither side can compose an unbounded code.
+    const MAX_REASON_BYTES: usize = 64;
+    let Some(reason) = code.strip_prefix(PREFIX) else {
+        return false;
+    };
+    if reason.is_empty() {
+        return true;
+    }
+    let Some(token) = reason.strip_prefix('_') else {
+        return false;
+    };
+    !token.is_empty()
+        && token.len() <= MAX_REASON_BYTES
+        && token
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'-')
 }
 
 fn legal_actions_response_matches_request(request: &Value, response: &Value) -> bool {

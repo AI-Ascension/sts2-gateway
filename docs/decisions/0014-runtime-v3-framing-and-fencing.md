@@ -44,9 +44,14 @@ misrepresented as a valid catalog or observation.
 The legal-action route also admits one explicit host-owned HTTP refusal, not a canonical catalog:
 an object with exactly `correlation_id` (matching the request), `error_code`, and
 `recovery: "reobserve"`, at most1024bytes and no duplicate keys. HTTP409 permits only
-`stale_generation`; HTTP503 permits only `host_not_configured` or `host_observation_unavailable`.
-All other statuses, keys, codes, correlations or routes fail validation. These errors are relayed
-as failures so the caller can deliberately reobserve; no observation, catalog or admission is inferred.
+`stale_generation`; HTTP503 permits `host_not_configured`, `host_observation_unavailable`, or a
+refused-launch-contract code. A refused launch contract is a distinct failure from a lane that never
+declared one, and it arrives as the mod's own refusal prefix `launch_contract_refused` either alone
+(when no reason can be named on the wire) or followed by `_` and one reason token of 1 to 64 ASCII
+alphanumerics, `_` or `-` — the exact vocabulary the producer composes, so a string the producer
+cannot emit is refused here rather than admitted as a neighbouring code. All other statuses, keys,
+codes, correlations or routes fail validation. These errors are relayed as failures so the caller can
+deliberately reobserve; no observation, catalog or admission is inferred.
 
 ## Deterministic oracle
 

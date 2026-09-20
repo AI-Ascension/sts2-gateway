@@ -5,6 +5,21 @@ host compatibility and release publication.
 
 ## [Unreleased]
 
+- Admit the refused-launch-contract recovery code on the legal-action read. The game-mod answers a
+  refused launch contract with `503 launch_contract_refused`, or the prefix, `_`, and one bounded
+  reason token (`sts2-game-mod#185`, `#187`), while this validator admitted only
+  `host_not_configured` and `host_observation_unavailable`, so a refusal was relayed as a generic
+  failure and the mod's vocabulary never reached a consumer on this route. The admitted set is now
+  the producer's own rule rather than a second list: the bare prefix, or the prefix, `_`, and a
+  token of 1 to 64 ASCII alphanumerics, `_`, or `-`. A code the mod cannot compose — a trailing
+  separator, a dot, a slash, a space, a non-ASCII byte, a 65-byte token, or a neighbouring string
+  that merely starts the same way — still fails closed, as do every other status, route, key set,
+  correlation mismatch, duplicate key, and oversized body. See
+  [ADR 0014](docs/decisions/0014-runtime-v3-framing-and-fencing.md), refs #85. The two consumers
+  that mirror the same three-code set — `sts2-mcp-server` `catalog_reobserve.rs`, and `sts2-harness`
+  `runtime_v3_wire.rs` with its ADR 0010 — are deliberately unchanged here and remain `unverified`
+  on this route.
+
 - Wire the approved-profile process lifecycle into the attached runtime through three fixed,
   lease-fenced, authorization-scoped routes: `POST /v1/instances/{instance}/process-lifecycle/operations`
   (`Mutate`), `GET /v1/instances/{instance}/process-lifecycle` (`Read`), and

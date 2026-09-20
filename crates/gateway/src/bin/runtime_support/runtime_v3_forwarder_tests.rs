@@ -2,6 +2,9 @@
 
 use super::*;
 
+#[path = "runtime_v3_gameplay_refusal_tests.rs"]
+mod refusal_tests;
+
 fn fixture(name: &str) -> Result<Value, Box<dyn std::error::Error>> {
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../protocol-artifact/runtime-v3-gameplay/golden")
@@ -334,6 +337,11 @@ fn catalog_recovery_errors_are_explicit_narrow_and_correlated()
         (409, "stale_generation"),
         (503, "host_not_configured"),
         (503, "host_observation_unavailable"),
+        // A refused launch contract answers 503 with the mod's refusal code rather than the
+        // never-declared code, and it must reach the caller the same way (sts2-gateway#85).
+        (503, "launch_contract_refused"),
+        (503, "launch_contract_refused_isolated_user_dir_mismatch"),
+        (503, "launch_contract_refused_campaign_required"),
     ] {
         let original = serde_json::json!({"correlation_id": request["correlation_id"],
             "error_code": code, "recovery": "reobserve"});
