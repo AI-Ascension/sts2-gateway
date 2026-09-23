@@ -35,7 +35,8 @@
       "save_quit",
       "proceed",
       "confirm_selection",
-      "cancel_selection"
+      "cancel_selection",
+      "continue_run"
     ],
     "outcomes": [
       "accepted",

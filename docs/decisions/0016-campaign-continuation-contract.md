@@ -7,7 +7,7 @@
 ## Decision
 
 Consume protocol PR #14 revision `a81ec64d7d14bdb3079b8c7dc3c75e5c88693dfd`.
-Its schema digest is `8e99cea36b7ede97532348fd8efe302ca79260895265a7bf14ddf7e006d8ff63`.
+Its schema digest is `daa216902d3211b9537924105b27e7718dd93dec82969a3c550131a27147c06b`.
 The complete MIT artifact, source schema and conformance companions are copied verbatim.
 The revision adds `proceed`, `confirm_selection` and `cancel_selection`.
 Producer and consumers migrate together; earlier digests remain rejected.
