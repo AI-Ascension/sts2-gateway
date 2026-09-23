@@ -192,7 +192,8 @@
         { "type": "object", "additionalProperties": false, "required": ["kind", "reward_id"], "properties": { "kind": { "const": "choose_reward" }, "reward_id": { "$ref": "#/$defs/identity" } } },
         { "type": "object", "additionalProperties": false, "required": ["kind", "item_id"], "properties": { "kind": { "const": "shop_purchase" }, "item_id": { "$ref": "#/$defs/identity" } } },
         { "type": "object", "additionalProperties": false, "required": ["kind", "card_id"], "properties": { "kind": { "enum": ["shop_remove", "smith", "select_card"] }, "card_id": { "$ref": "#/$defs/identity" } } },
-        { "type": "object", "additionalProperties": false, "required": ["kind", "choice_id"], "properties": { "kind": { "const": "event_choice" }, "choice_id": { "$ref": "#/$defs/identity" } } }
+        { "type": "object", "additionalProperties": false, "required": ["kind", "choice_id"], "properties": { "kind": { "const": "event_choice" }, "choice_id": { "$ref": "#/$defs/identity" } } },
+        { "type": "object", "additionalProperties": false, "required": ["kind"], "properties": { "kind": { "const": "continue_run" }, "run_id": { "$ref": "#/$defs/identity" } } }
       ]
     },
     "legal_action": {

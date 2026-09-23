@@ -13,7 +13,7 @@ const V2_SCHEMA: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../protocol-artifact/negotiated-capabilities-v2/schema.json"
 ));
-const V2_SCHEMA_DIGEST: &str = "848ecaf673645a42e09357d3014c812a826d7938f4b723beeef19a81b3b8341a";
+const V2_SCHEMA_DIGEST: &str = "c6453f1a760675c7492261eb7b50be76cf87d8c7d4762a070d26693b15225b7f";
 
 fn install_live_binding(service: &mut super::super::RuntimeService) {
     let authority = service.game_information_authority();
