@@ -76,9 +76,8 @@ impl RuntimeService {
     }
 
     pub(super) fn recovery_ops_lookup(&mut self, frame: &RecoveryFrame) -> (u16, Vec<u8>) {
-        let Some((operation_id, payload_digest, original)) =
-            parse_operation_ref(&frame.payload()["operation"])
-        else {
+        let operation_ref = &frame.payload()["operation"];
+        let Some((operation_id, payload_digest, original)) = parse_operation_ref(operation_ref) else {
             return (400, json_error("recovery_operation_ref_invalid"));
         };
         if frame.payload()["lookup_scope"].as_str() != Some("historical_read") {
@@ -97,7 +96,7 @@ impl RuntimeService {
         let Some(operation) = operation else {
             return self.recovery_ops_not_found(RecoveryKind::OperationLookup, frame.correlation());
         };
-        if !operation_ref_matches(&original, &operation) {
+        if !operation_ref_matches(operation_ref, &operation) {
             return (409, json_error("recovery_operation_context_mismatch"));
         };
         let Some(proof) = self.recovery_historical_read_proof(&operation) else {
@@ -171,9 +170,8 @@ impl RuntimeService {
     }
 
     pub(super) fn recovery_ops_reconcile(&mut self, frame: &RecoveryFrame) -> (u16, Vec<u8>) {
-        let Some((operation_id, payload_digest, original)) =
-            parse_operation_ref(&frame.payload()["operation"])
-        else {
+        let operation_ref = &frame.payload()["operation"];
+        let Some((operation_id, payload_digest, original)) = parse_operation_ref(operation_ref) else {
             return (400, json_error("recovery_operation_ref_invalid"));
         };
         let Some(fence) = self.current_fence_from_wire(&frame.payload()["current_fence"]) else {
@@ -200,7 +198,7 @@ impl RuntimeService {
             }
             Err(error) => return super::recovery_wire::recovery_store_error(error),
         };
-        if !operation_ref_matches(&original, &operation) {
+        if !operation_ref_matches(operation_ref, &operation) {
             return (409, json_error("recovery_operation_context_mismatch"));
         }
         let Some(proof) = self.recovery_reconcile_proof(&operation, strategy, &fence) else {
