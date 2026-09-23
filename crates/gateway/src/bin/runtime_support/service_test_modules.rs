@@ -21,6 +21,8 @@ mod auth_tests;
 mod legacy_tests;
 #[path = "service_recovery_catalog_tests.rs"]
 mod recovery_catalog_tests;
+#[path = "service_recovery_ops_ref_tests.rs"]
+mod recovery_ops_ref_tests;
 #[path = "service_routes_tests.rs"]
 mod routes_tests;
 #[path = "service_v3_catalog_tests.rs"]
