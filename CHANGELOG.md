@@ -5,6 +5,21 @@ host compatibility and release publication.
 
 ## [Unreleased]
 
+- Retire the gateway's undeclared, never-compiled `service_config_identity.rs` and gate the class
+  durably. `crates/gateway/src/bin/runtime_support/service_config_identity.rs` defined
+  `configured_mcp_session`, but no `mod`, `#[path]`, `include!`, or manifest target reached it, so
+  rustc never compiled or type-checked it while it sat beside its declared siblings. Its body
+  duplicated the live `service_config_values.rs` copy, which `service_config.rs` re-exports and calls
+  on the `STS2_MCP_SESSION_ID` admission path; that surviving copy is confirmed authoritative and the
+  orphan is deleted. The durable half is `RUST002` in `repo-policy`: a module-reachability check that
+  mirrors rustc's filename resolution — `mod x;` to `DIR/x.rs`/`DIR/x/mod.rs`, crate roots from
+  `[lib]`/`[[bin]]` and the `src/bin`/`tests`/`examples`/`benches` target conventions, `#[path]`- and
+  `include!`-loaded files keeping their children in their own directory, `#[cfg_attr]` paths,
+  `mod.rs` child lookup, and one directory level per inline `mod` block — and fails `--strict` when a
+  tracked `.rs` file in a compiled package is reachable from no crate root. Unit tests cover an
+  orphaned file, the repository's own `#[path]` siblings and `[[bin]] path` targets, and the real
+  tree. Policy and documentation only; no gateway behavior, contract, or native effect. Closes #98.
+
 - Repair the gateway crate's one dangling intra-doc link and gate the class durably. The `host_lease`
   child of `recovery::recovery_store` linked a bare `[`RecoveryLease`]`, but a bare link resolves only
   against the file's own scope: the parent module's private `use super::recovery_types::{…}` does not

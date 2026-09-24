@@ -6,11 +6,21 @@
 `tools/repo-policy` is a small governance checker, not gateway product code. It checks the exact
 target-relative required-file list, path-safe exemptions, source language, file budgets, Markdown
 local links, MIT license/header rules, Rust workspace/toolchain declarations, and GitHub workflow
-safety.
+safety. It also checks Rust module reachability: every tracked `.rs` file in a compiled package must
+be reachable from a crate root, so a lost `mod`, `#[path]`, or `include!` turns `--strict` red
+instead of silently dropping a file from the build.
 
 The policy is deliberately stricter than a formatting check: workflows need explicit permissions,
 must not use `pull_request_target`, `continue-on-error: true`, or `|| true`, and every external
 action must be pinned to an immutable commit or digest. The target has no policy exemptions.
+
+The reachability check (`RUST002`) mirrors rustc's own filename resolution rather than a name scan,
+because a `mod` declaration only sometimes points at `DIR/STEM.rs`: crate roots and `mod.rs` files
+look beside themselves, an ordinary `STEM.rs` file looks in a `STEM/` subdirectory, and a
+`#[path]`-loaded or `include!`-ed file keeps its children in its own directory. It also follows
+`#[cfg_attr(..., path = "...")]` paths and one directory level per inline `mod` block. Crate roots
+are `[lib].path`/`src/lib.rs`, `[[bin]].path`/`src/main.rs`/`src/bin/*.rs`/`src/bin/*/main.rs`, and
+the `tests/`, `examples/`, and `benches/` target conventions.
 
 ## Local entrypoint
 
