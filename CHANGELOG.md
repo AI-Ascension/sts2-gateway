@@ -5,6 +5,18 @@ host compatibility and release publication.
 
 ## [Unreleased]
 
+- Repair the gateway crate's one dangling intra-doc link and gate the class durably. The `host_lease`
+  child of `recovery::recovery_store` linked a bare `[`RecoveryLease`]`, but a bare link resolves only
+  against the file's own scope: the parent module's private `use super::recovery_types::{…}` does not
+  count, and this file's own import list omits the type, so the link resolved to nothing while the
+  crate still built, linted and tested green. `RecoveryLease` is real — it is the `pub struct` at
+  `recovery_types.rs:164` — so this was a pure scope/path defect, fixed by qualifying the link to
+  `super::super::recovery_types::RecoveryLease` (the same pattern `sts2-harness#474` used for the
+  identical class). The durable half is a `cargo doc` step in the `rust` job with
+  `RUSTDOCFLAGS="-D rustdoc::broken_intra_doc_links --document-private-items"`, because a default
+  rustdoc run skips this private module entirely; no workflow had run `cargo doc`/`rustdoc` here, so
+  nothing owned the class. Documentation and gate only; no code, contract or native effect. Refs #96.
+
 - Add the missing gateway hop for the whole-manifest read. `sts2-game-mod` already serializes the
   complete `game-information-content-manifest-v1` catalog and serves it from its fixed owner route,
   but the gateway and MCP hops were absent, so no authenticated, fenced surface exposed the manifest

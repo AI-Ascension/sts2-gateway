@@ -4,7 +4,7 @@
 //!
 //! The lease table keeps only protected grant material (the existing token
 //! digest and the non-secret identity fields).  The plaintext token remains
-//! in the caller's in-memory [`RecoveryLease`] for the duration of one
+//! in the caller's in-memory [`RecoveryLease`](super::super::recovery_types::RecoveryLease) for the duration of one
 //! process lifetime.  Every method in this module is a commit boundary: a
 //! pending state is durable before the caller is allowed to write a host
 //! frame, and mutation readiness is restored only by an identity-matching
