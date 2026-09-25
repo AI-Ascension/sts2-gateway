@@ -336,6 +336,70 @@ fn unnested_inline_path_attribute_uses_the_carrying_files_directory() -> Result<
     Ok(())
 }
 
+/// A `#[path]` written *inside* an inline block anchors at the directory that
+/// block contributed, not the carrying file's. `rustc` 1.97.1 compiles
+/// `src/thread/other.rs` for the first case and `src/a/x.rs` for the second,
+/// reading neither `src/other.rs` nor `src/x.rs`, so reporting the live file —
+/// or crediting the orphan — is the delete-a-live-file direction.
+#[test]
+fn a_path_inside_an_inline_block_anchors_at_that_blocks_directory() -> Result<(), String> {
+    for (case, blocks, live, orphan) in [
+        (
+            "dir-path-then-file-path",
+            "#[path = \"thread\"]\nmod m {\n    #[path = \"other.rs\"]\n    pub mod n;\n}\n",
+            "src/thread/other.rs",
+            "src/other.rs",
+        ),
+        (
+            "plain-block-then-file-path",
+            "pub mod a {\n    #[path = \"x.rs\"]\n    pub mod m;\n}\n",
+            "src/a/x.rs",
+            "src/x.rs",
+        ),
+    ] {
+        let scratch = Scratch::new(case)?;
+        scratch.write("Cargo.toml", "[package]\nname = \"scratch\"\n")?;
+        scratch.write("src/lib.rs", blocks)?;
+        scratch.write(live, "pub fn live() {}\n")?;
+        scratch.write(orphan, "not rust at all\n")?;
+
+        let found = findings(&scratch.root, &scratch.files()?);
+        let paths: Vec<&str> = found.iter().map(|finding| finding.path.as_str()).collect();
+        assert_eq!(
+            paths,
+            vec![orphan],
+            "{case}: only the never-read file is orphaned: {found:?}"
+        );
+    }
+    Ok(())
+}
+
+/// An inline block owns no file at all, `#[path]` or not: for
+/// `mod m { mod child; }`, `rustc` 1.97.1 compiles `src/m/child.rs` and reads
+/// none of `src/m.rs`, `src/m/mod.rs`, or `src/m/m.rs` (all three poisoned,
+/// build still exits 0). So the sibling `src/m/m.rs` must stay an orphan rather
+/// than being credited because the block's own name was folded into its base.
+#[test]
+fn a_plain_inline_block_owns_no_file_of_any_spelling() -> Result<(), String> {
+    let scratch = Scratch::new("inline-owns-nothing")?;
+    scratch.write("Cargo.toml", "[package]\nname = \"scratch\"\n")?;
+    scratch.write("src/lib.rs", "mod m {\n    mod child;\n}\n")?;
+    scratch.write("src/m/child.rs", "pub fn child() {}\n")?;
+    scratch.write("src/m.rs", "pub fn file() {}\n")?;
+    scratch.write("src/m/mod.rs", "pub fn directory() {}\n")?;
+    scratch.write("src/m/m.rs", "pub fn sibling() {}\n")?;
+
+    let found = findings(&scratch.root, &scratch.files()?);
+    let mut paths: Vec<&str> = found.iter().map(|finding| finding.path.as_str()).collect();
+    paths.sort_unstable();
+    assert_eq!(
+        paths,
+        vec!["src/m.rs", "src/m/m.rs", "src/m/mod.rs"],
+        "an inline block owns no file: {found:?}"
+    );
+    Ok(())
+}
+
 /// The rule must not be silenced by the fix: a genuine orphan in the same tree
 /// is still reported, and a **semicolon** `#[path]` targeting a directory must
 /// not be treated as reaching `DIR/mod.rs`. `rustc` rejects that tree outright

@@ -5,20 +5,17 @@ host compatibility and release publication.
 
 ## [Unreleased]
 
-- Stop `RUST002` reporting the whole subtree of an inline `mod` whose `#[path]` value names a
-  **directory**. `rustc` reads no file there (`#[path = "thread"] pub mod m { pub mod child; }`
-  compiles `src/thread/child.rs`, never `src/thread/mod.rs`), so the old arm queued nothing and then
-  suppressed the name-based fallback, reporting files the build needs. The base is now folded across
-  enclosing inline blocks, because the two families disagree and the wrong choice is a false
-  negative: markers in every candidate show `mod a { #[path = "t"] pub mod b { pub mod child; } }` in
-  `src/x.rs` compiles `src/x/a/t/child.rs`, while the same block unnested in that file compiles
-  `src/t/child.rs`. The semicolon arm is unchanged: a directory value there is a `rustc` error
-  (`couldn't read 'src/nest': Is a directory`), so `DIR/mod.rs` must not be credited by it. Five
-  regression tests pin both families, the trailing-slash spelling, a nested `child/mod.rs` child, and
-  the still-reported genuine orphan; all five failed before the fix, and two fixtures were corrected
-  against `rustc` after encoding trees it rejects (`E0761`; a directory-valued semicolon path).
-  Latent here (248 `#[path]` sites, none inline) but the same arm is vendored into `sts2-harness`,
-  whose copy this does not fix. Policy only; no gateway behavior, contract, or native effect.
+- Stop `RUST002` reporting module files that `rustc` compiles. An inline `mod` block owns no file at
+  all, `#[path]` or not — the value names the *directory* its children live in — so a declaration
+  inside one must resolve against the directory its enclosing blocks have folded to, not the carrying
+  file's own. The old arm joined the file's directory instead, which reported live files and missed
+  orphans wherever a `#[path]` sat inside an inline block. `rustc` 1.97.1 dep-info pins the folds:
+  `mod a { #[path = "x.rs"] pub mod m; }` reads `src/a/x.rs`, and a `#[path]` inside a `#[path]`-named
+  block reads `src/thread/other.rs` rather than `src/other.rs`. Differential over 21 shapes: 13 rule
+  errors before, 12 fixed, 0 regressions, the remainder the documented `cfg_attr` both-branches
+  policy. Five regression tests fail on the previous revision and pass here.
+  Latent in this tree (no inline `#[path]` site); `sts2-harness#499` vendored the same fold and
+  `#501` tracks its own coverage gap. Policy only; no gateway behavior, contract, or native effect.
   Closes #105.
 
 - Deny `rustdoc::private_intra_doc_links` and `rustdoc::redundant_explicit_links` in the doc gate,

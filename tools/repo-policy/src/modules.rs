@@ -9,17 +9,17 @@
 //! every `.rs` file in a compiled package that no crate root reaches.
 //!
 //! Resolution rules implemented here (verified against `rustc` 1.97.1):
-//! - roots are `[lib].path`/`src/lib.rs`, `[[bin]].path`/`src/main.rs`/
-//!   `src/bin/*.rs`/`src/bin/*/main.rs`, and the `tests/`, `examples/`, and
-//!   `benches/` target conventions;
-//! - a plain `mod x;` resolves to `DIR/x.rs` or `DIR/x/mod.rs`, where `DIR` is
+//! - roots are `[lib].path`/`src/lib.rs`, `[[bin]].path`/`src/main.rs` and the
+//!   `src/bin/`, `tests/`, `examples/`, and `benches/` target conventions;
+//! - a plain `mod x;` resolves to `DIR/x.rs` or `DIR/x/mod.rs` (where `DIR` is
 //!   the crate root or `mod.rs` directory, and a `STEM/` subdirectory for any
-//!   other file;
-//! - a `#[path = "..."]`-loaded file (and its `#[cfg_attr]` variant) keeps its
-//!   children in its own directory, named relative to the file that loads it;
-//! - an `include!`-ed file is compiled in place and keeps its children in its
-//!   own directory;
-//! - an inline `mod x { ... }` block nests its file children one level deeper.
+//!   other file);
+//! - a `#[path = "..."]` file (and its `#[cfg_attr]` variant) keeps its children
+//!   in its own directory; the value resolves against an enclosing inline
+//!   block's `#[path]` directory, or else the carrying file's own;
+//! - an `include!`-ed file is compiled in place, keeping its own directory;
+//! - an inline block owns no file, nests its children one level deeper, and its
+//!   own `#[path]`, if any, names their directory outright.
 
 use std::collections::{BTreeSet, VecDeque};
 use std::fs;
@@ -207,8 +207,8 @@ fn reach(package: &Path, roots: &BTreeSet<PathBuf>, reachable: &mut BTreeSet<Pat
 /// itself would have contributed. `rustc` 1.97.1, markers in every candidate:
 /// `mod a { #[path = "t"] pub mod b { pub mod child; } }` in `src/x.rs` compiles
 /// `src/x/a/t/child.rs`, while the same block unnested in `src/x.rs` compiles
-/// `src/t/child.rs` — the file's own directory, not its `x/` module directory.
-/// That pair is why both terms exist rather than one.
+/// `src/t/child.rs` — the file's own directory, not its `x/` module directory,
+/// which is why both terms exist rather than one.
 fn bases(declaration: &Declaration, module_dir: &Path, file_dir: &Path) -> Vec<Base> {
     let mut states = vec![Base {
         path: module_dir.to_path_buf(),
@@ -251,21 +251,26 @@ fn resolve(
     file_dir: &Path,
     queue: &mut VecDeque<(PathBuf, PathBuf)>,
 ) {
+    // An inline block owns no file: `rustc` reads none for it, `#[path]` or
+    // not, because the value names the *directory* its children live in.
+    if !declaration.semi {
+        return;
+    }
+    // A `#[path]` value is relative to the directory the enclosing blocks have
+    // folded to, and to the carrying file's own directory until one has.
+    let anchor = if base.contributed {
+        base.path.as_path()
+    } else {
+        file_dir
+    };
     for path in &declaration.paths {
-        let target = normalise(&file_dir.join(path));
+        let target = normalise(&anchor.join(path));
         if target.is_file() {
             queue.push_back((
                 target.clone(),
                 target.parent().unwrap_or(file_dir).to_path_buf(),
             ));
         }
-    }
-    // An inline module's `#[path]` names a directory, not a file: rustc reads
-    // nothing there, so the declaration owns no file of its own. The base the
-    // children resolve under already carries the value, so the name-based
-    // fallback must not run on top of it.
-    if !declaration.paths.is_empty() && !declaration.semi {
-        return;
     }
     if !declaration.paths.is_empty() && !declaration.conditional {
         return;
