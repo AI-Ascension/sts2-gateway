@@ -22,7 +22,7 @@ look beside themselves, an ordinary `STEM.rs` file looks in a `STEM/` subdirecto
 are `[lib].path`/`src/lib.rs`, `[[bin]].path`/`src/main.rs`/`src/bin/*.rs`/`src/bin/*/main.rs`, and
 the `tests/`, `examples/`, and `benches/` target conventions.
 
-Three consequences of that fidelity are easy to get wrong, so they are pinned by tests rather than
+Four consequences of that fidelity are easy to get wrong, so they are pinned by tests rather than
 left to review:
 
 - A raw identifier is resolved through its ordinary name. `mod r#move;` loads `move.rs`, and an
@@ -35,6 +35,11 @@ left to review:
 - Every attribute group directly above the item is read, not just the one nearest it. An unrelated
   `#[allow(dead_code)]`, or a second `#[cfg_attr(..., path = "...")]` branch, must not hide a
   `#[path]` that rustc honours.
+- An inline `mod` block owns no file, `#[path]` or not. Its `#[path]` value names the **directory**
+  its children live in, so a file spelled exactly at that value is dead text and is reported while
+  the children still resolve there; a `#[path]` written inside a block anchors at the directory the
+  enclosing block contributed, not the carrying file's own. The semicolon spelling is the opposite:
+  a directory value is a `rustc` error outright, so `DIR/mod.rs` is not credited by it.
 
 Because a false finding would block a legitimate build, the check must never report a reachable
 file; each resolution rule above is covered by a control that fails if the rule regresses.
