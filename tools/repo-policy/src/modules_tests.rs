@@ -191,10 +191,9 @@ fn resolves_a_parent_relative_path_attribute() -> Result<(), String> {
     Ok(())
 }
 
-/// The two counter-intuitive ground truths are pinned so a future "cleanup"
-/// cannot quietly reverse them: children of an inline `mod r#type { ... }`
-/// resolve in the *unprefixed* `type/` directory, and only the unprefixed
-/// spelling compiles.
+/// Two counter-intuitive ground truths, pinned so a future "cleanup" cannot
+/// reverse them: children of an inline `mod r#type { ... }` resolve in the
+/// *unprefixed* `type/` directory, and only that spelling compiles.
 #[test]
 fn inline_raw_identifier_module_nests_in_the_unprefixed_directory() -> Result<(), String> {
     let scratch = Scratch::new("inline-raw-ident")?;
@@ -213,9 +212,8 @@ fn inline_raw_identifier_module_nests_in_the_unprefixed_directory() -> Result<()
     Ok(())
 }
 
-/// The repository's own controls: after the deleted orphan, the real tree must
-/// be green, and the files exercising each resolution rule must be present so
-/// the green result is not vacuous.
+/// The repository's own controls: the real tree must be green, and the files
+/// exercising each resolution rule must be present so it is not vacuous.
 #[test]
 fn the_repository_tree_is_green() -> Result<(), String> {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
@@ -248,12 +246,10 @@ fn the_repository_tree_is_green() -> Result<(), String> {
     Ok(())
 }
 
-/// An inline module whose `#[path]` names a **directory** keeps its children in
-/// that directory, and owns no file itself. `rustc` 1.97.1 compiles
-/// `src/thread/child.rs` (exit 0) and fails `E0583` naming it if it is moved, so
-/// reporting it is a false positive. The decoy at `src/thread/child` spelled
-/// under the declaration's own name proves the lookup uses the `#[path]` target
-/// and not a stem derived from `m`.
+/// An inline module whose `#[path]` names a **directory** keeps its children
+/// there and owns no file itself: `rustc` 1.97.1 compiles `src/thread/child.rs`,
+/// so reporting it is a false positive. The decoy under the declaration's own
+/// name proves the lookup uses the `#[path]` target, not a stem derived from `m`.
 #[test]
 fn inline_path_attribute_names_its_childrens_directory() -> Result<(), String> {
     let scratch = Scratch::new("inline-path-dir")?;
@@ -271,11 +267,9 @@ fn inline_path_attribute_names_its_childrens_directory() -> Result<(), String> {
     Ok(())
 }
 
-/// The same shape with the trailing-slash spelling, and with the child written
-/// as a nested `child/mod.rs`: `rustc` loads `src/thread/child/mod.rs` (exit 0),
-/// so the ordinary `NAME.rs`-then-`NAME/mod.rs` lookup must run *inside* the
-/// directory the value names — a raw join would leave `thread//child/mod.rs`
-/// and report the file as unreachable.
+/// The same shape with the trailing-slash spelling and a nested `child/mod.rs`
+/// child: `rustc` loads `src/thread/child/mod.rs`, so the ordinary
+/// `NAME.rs`-then-`NAME/mod.rs` lookup must run *inside* the named directory.
 #[test]
 fn inline_path_attribute_keeps_the_ordinary_child_lookup() -> Result<(), String> {
     let scratch = Scratch::new("inline-path-nested")?;
@@ -336,20 +330,81 @@ fn unnested_inline_path_attribute_uses_the_carrying_files_directory() -> Result<
     Ok(())
 }
 
-/// The rule must not be silenced by the fix: a genuine orphan in the same tree
-/// is still reported, and a **semicolon** `#[path]` targeting a directory must
-/// not be treated as reaching `DIR/mod.rs`. `rustc` rejects that tree outright
-/// (`couldn't read 'src/nest': Is a directory (os error 21)`), so nothing
-/// validates `src/nest/mod.rs` and it stays reported rather than being credited
-/// by a directory-valued path.
+/// An inline block owns no file, `#[path]` or not, so a file spelled where one
+/// might be is dead text, and a `#[path]` written inside a block anchors at the
+/// directory that block contributed. `rustc` 1.97.1 reads neither
+/// `src/thread/other.rs`'s sibling `src/other.rs` nor `src/m.rs`,
+/// `src/m/mod.rs`, or `src/m/m.rs` for `mod m { mod child; }` (all poisoned,
+/// exit 0), nor any file at an inline `#[path = "t.rs"]`'s own value — the last
+/// is `sts2-gateway#107`. Reporting a live file or crediting an orphan is the
+/// delete-a-live-file direction.
+#[test]
+fn an_inline_block_owns_no_file_of_any_spelling() -> Result<(), String> {
+    for (case, source, files, orphans) in [
+        (
+            "dir-path-then-file-path",
+            "#[path = \"thread\"]\nmod m {\n    #[path = \"other.rs\"]\n    pub mod n;\n}\n",
+            &[
+                ("src/thread/other.rs", "pub fn live() {}\n"),
+                ("src/other.rs", "not rust at all\n"),
+            ][..],
+            &["src/other.rs"][..],
+        ),
+        (
+            "plain-block-then-file-path",
+            "pub mod a {\n    #[path = \"x.rs\"]\n    pub mod m;\n}\n",
+            &[
+                ("src/a/x.rs", "pub fn live() {}\n"),
+                ("src/x.rs", "not rust at all\n"),
+            ][..],
+            &["src/x.rs"][..],
+        ),
+        (
+            "plain-inline",
+            "mod m {\n    mod child;\n}\n",
+            &[
+                ("src/m/child.rs", "pub fn child() {}\n"),
+                ("src/m.rs", "pub fn file() {}\n"),
+                ("src/m/mod.rs", "pub fn directory() {}\n"),
+                ("src/m/m.rs", "pub fn sibling() {}\n"),
+            ][..],
+            &["src/m.rs", "src/m/m.rs", "src/m/mod.rs"][..],
+        ),
+        (
+            "path-at-value",
+            "#[path = \"t.rs\"]\nmod m {}\n",
+            &[("src/t.rs", "not rust at all\n")][..],
+            &["src/t.rs"][..],
+        ),
+    ] {
+        let scratch = Scratch::new(case)?;
+        scratch.write("Cargo.toml", "[package]\nname = \"scratch\"\n")?;
+        scratch.write("src/lib.rs", source)?;
+        for (path, body) in files {
+            scratch.write(path, body)?;
+        }
+        let found = findings(&scratch.root, &scratch.files()?);
+        let mut paths: Vec<&str> = found.iter().map(|finding| finding.path.as_str()).collect();
+        paths.sort_unstable();
+        assert_eq!(
+            paths, orphans,
+            "{case}: an inline block owns nothing: {found:?}"
+        );
+    }
+    Ok(())
+}
+
+/// The rule must not be silenced by the fix: a genuine orphan is still reported,
+/// and a **semicolon** `#[path]` targeting a directory must not be treated as
+/// reaching `DIR/mod.rs`. `rustc` rejects that tree outright (`couldn't read
+/// 'src/nest': Is a directory`), so nothing validates `src/nest/mod.rs`.
 ///
-/// The inline block is deliberately written here inside `src/lib.rs`'s own
-/// `m2`, so rustc compiles `src/m2/thread/child.rs` — verified with a marker:
-/// a deliberate syntax error in that file fails the build, and the same error in
-/// `src/thread/child.rs` is never read. This test predates that check in the
-/// wrong form and reported a file rustc does not compile, which is exactly the
-/// false-positive class `#105` is about; the fixture is corrected rather than
-/// the assertion.
+/// The inline block sits inside `src/lib.rs`'s own `m2`, so rustc compiles
+/// `src/m2/thread/child.rs` — marker-verified: an error there fails the build,
+/// the same error in `src/thread/child.rs` is never read. This test predates
+/// that check and reported a file rustc does not compile, exactly the
+/// false-positive class `#105` is about; the fixture is corrected, not the
+/// assertion.
 #[test]
 fn inline_path_support_keeps_true_orphans_and_the_semicolon_arm() -> Result<(), String> {
     let scratch = Scratch::new("inline-path-orphan")?;
