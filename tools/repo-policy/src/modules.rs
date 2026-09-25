@@ -32,13 +32,37 @@ use crate::rust_source::{declarations, include_paths};
 
 const RULE: &str = "RUST002";
 
-/// A file module declaration: `mod NAME;` under some number of inline blocks,
-/// with any `#[path]` values and whether the path came from a `cfg_attr`.
+/// A module declaration: `mod NAME;` or `mod NAME { ... }` under some number of
+/// inline blocks, with any `#[path]` values and whether one came from a
+/// `cfg_attr`.
+#[derive(Clone)]
 pub(crate) struct Declaration {
     pub(crate) name: String,
-    pub(crate) inline: Vec<String>,
+    /// `true` for `mod NAME;`, `false` for `mod NAME { ... }`.
+    pub(crate) semi: bool,
+    pub(crate) inline: Vec<Inline>,
     pub(crate) paths: Vec<String>,
     pub(crate) conditional: bool,
+}
+
+/// An enclosing inline `mod NAME { ... }` block and the `#[path]` it was
+/// written with: on an inline block that attribute names the directory its
+/// children live in, so it is part of their resolution base, not a file.
+#[derive(Clone)]
+pub(crate) struct Inline {
+    pub(crate) name: String,
+    pub(crate) paths: Vec<String>,
+    pub(crate) conditional: bool,
+}
+
+/// Where a declaration's children resolve, one entry per `#[cfg_attr]` branch.
+struct Base {
+    /// The directory the enclosing blocks have contributed so far.
+    path: PathBuf,
+    /// Whether any enclosing block contributed it. Until one does, a `#[path]`
+    /// value is relative to the *file's* own directory (`src/` for `src/x.rs`,
+    /// not the `src/x/` its ordinary children use).
+    contributed: bool,
 }
 
 /// Reports every `.rs` file under a compiled package that no crate root reaches.
@@ -159,11 +183,9 @@ fn reach(package: &Path, roots: &BTreeSet<PathBuf>, reachable: &mut BTreeSet<Pat
         };
         let file_dir = file.parent().unwrap_or(package).to_path_buf();
         for declaration in declarations(&text) {
-            let mut base = module_dir.clone();
-            for name in &declaration.inline {
-                base.push(name);
+            for base in bases(&declaration, &module_dir, &file_dir) {
+                resolve(&declaration, &base, &file_dir, &mut queue);
             }
-            resolve(&declaration, &base, &file_dir, &mut queue);
         }
         for target in include_paths(&text) {
             let included = file_dir.join(target);
@@ -175,9 +197,57 @@ fn reach(package: &Path, roots: &BTreeSet<PathBuf>, reachable: &mut BTreeSet<Pat
     }
 }
 
+/// Every resolution base for a declaration, one per `#[cfg_attr]` branch of
+/// every enclosing inline block, outermost first.
+///
+/// A plain inline `mod name { ... }` nests its children one directory deeper.
+/// A block carrying `#[path = "..."]` names its children's directory outright
+/// (rustc reads no file there, so the block owns nothing itself) and the value
+/// supersedes enclosing names, being resolved against the directory the file
+/// itself would have contributed. `rustc` 1.97.1, markers in every candidate:
+/// `mod a { #[path = "t"] pub mod b { pub mod child; } }` in `src/x.rs` compiles
+/// `src/x/a/t/child.rs`, while the same block unnested in `src/x.rs` compiles
+/// `src/t/child.rs` — the file's own directory, not its `x/` module directory.
+/// That pair is why both terms exist rather than one.
+fn bases(declaration: &Declaration, module_dir: &Path, file_dir: &Path) -> Vec<Base> {
+    let mut states = vec![Base {
+        path: module_dir.to_path_buf(),
+        contributed: false,
+    }];
+    for block in &declaration.inline {
+        states = states
+            .into_iter()
+            .flat_map(|state| {
+                let by_name = Base {
+                    path: state.path.join(&block.name),
+                    contributed: true,
+                };
+                // `cfg`/`cfg_attr` gates are treated as always taken, so a path
+                // that came from one keeps the name-based branch as well: only a
+                // file reachable under *no* gate may be reported.
+                let mut branches = Vec::new();
+                if block.paths.is_empty() || block.conditional {
+                    branches.push(by_name);
+                }
+                let base = if state.contributed {
+                    state.path.as_path()
+                } else {
+                    file_dir
+                };
+                branches.extend(block.paths.iter().map(|path| Base {
+                    path: normalise(&base.join(path)),
+                    contributed: true,
+                }));
+                branches
+            })
+            .collect();
+    }
+    states
+}
+
 fn resolve(
     declaration: &Declaration,
-    base: &Path,
+    base: &Base,
     file_dir: &Path,
     queue: &mut VecDeque<(PathBuf, PathBuf)>,
 ) {
@@ -186,15 +256,22 @@ fn resolve(
         if target.is_file() {
             queue.push_back((
                 target.clone(),
-                target.parent().unwrap_or(base).to_path_buf(),
+                target.parent().unwrap_or(file_dir).to_path_buf(),
             ));
         }
+    }
+    // An inline module's `#[path]` names a directory, not a file: rustc reads
+    // nothing there, so the declaration owns no file of its own. The base the
+    // children resolve under already carries the value, so the name-based
+    // fallback must not run on top of it.
+    if !declaration.paths.is_empty() && !declaration.semi {
+        return;
     }
     if !declaration.paths.is_empty() && !declaration.conditional {
         return;
     }
-    let nested = base.join(&declaration.name);
-    let direct = base.join(format!("{}.rs", declaration.name));
+    let nested = base.path.join(&declaration.name);
+    let direct = base.path.join(format!("{}.rs", declaration.name));
     if direct.is_file() {
         queue.push_back((direct, nested));
     } else {

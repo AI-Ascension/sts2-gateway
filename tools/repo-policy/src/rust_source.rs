@@ -43,7 +43,7 @@ pub(crate) fn declarations(text: &str) -> Vec<Declaration> {
     let bytes = code.as_bytes();
     let mut found = Vec::new();
     let mut depth = 0usize;
-    let mut stack: Vec<(usize, String)> = Vec::new();
+    let mut stack: Vec<(usize, crate::modules::Inline)> = Vec::new();
     let mut index = 0;
     while index < bytes.len() {
         match bytes[index] {
@@ -66,16 +66,24 @@ pub(crate) fn declarations(text: &str) -> Vec<Declaration> {
                 if &code[start..index] != "mod" {
                     continue;
                 }
-                let Some((name, body, next)) = read_module(&code, index) else {
+                let Some((name, semi, next)) = read_module(&code, index) else {
                     continue;
                 };
                 let attributes = attribute_text(&kept, start);
-                if body {
-                    stack.push((depth + 1, name.clone()));
+                if !semi {
+                    stack.push((
+                        depth + 1,
+                        crate::modules::Inline {
+                            name: name.clone(),
+                            paths: attribute_paths(&attributes),
+                            conditional: attributes.contains("cfg_attr"),
+                        },
+                    ));
                 }
                 found.push(Declaration {
                     name,
-                    inline: stack.iter().map(|(_, name)| name.clone()).collect(),
+                    semi,
+                    inline: stack.iter().map(|(_, block)| block.clone()).collect(),
                     paths: attribute_paths(&attributes),
                     conditional: attributes.contains("cfg_attr"),
                 });
@@ -131,6 +139,9 @@ pub(crate) fn include_paths(text: &str) -> Vec<String> {
 }
 
 /// Reads `mod NAME;` or `mod NAME {` starting after the `mod` keyword.
+///
+/// The flag is `true` for the semicolon form, which always names a *file*, and
+/// `false` for the inline form, whose `#[path]` names a *directory*.
 fn read_module(code: &str, mut index: usize) -> Option<(String, bool, usize)> {
     let bytes = code.as_bytes();
     index = skip_space(bytes, index);
@@ -139,8 +150,8 @@ fn read_module(code: &str, mut index: usize) -> Option<(String, bool, usize)> {
     index = next;
     index = skip_space(bytes, index);
     match bytes.get(index) {
-        Some(b'{') => Some((name, true, index)),
-        Some(b';') => Some((name, false, index)),
+        Some(b'{') => Some((name, false, index)),
+        Some(b';') => Some((name, true, index)),
         _ => None,
     }
 }

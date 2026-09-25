@@ -247,3 +247,129 @@ fn the_repository_tree_is_green() -> Result<(), String> {
     assert!(found.is_empty(), "unexpected findings: {found:?}");
     Ok(())
 }
+
+/// An inline module whose `#[path]` names a **directory** keeps its children in
+/// that directory, and owns no file itself. `rustc` 1.97.1 compiles
+/// `src/thread/child.rs` (exit 0) and fails `E0583` naming it if it is moved, so
+/// reporting it is a false positive. The decoy at `src/thread/child` spelled
+/// under the declaration's own name proves the lookup uses the `#[path]` target
+/// and not a stem derived from `m`.
+#[test]
+fn inline_path_attribute_names_its_childrens_directory() -> Result<(), String> {
+    let scratch = Scratch::new("inline-path-dir")?;
+    scratch.write("Cargo.toml", "[package]\nname = \"scratch\"\n")?;
+    scratch.write(
+        "src/lib.rs",
+        "#[path = \"thread\"]\npub mod m {\n    pub mod child;\n}\n",
+    )?;
+    scratch.write("src/thread/child.rs", "pub fn child() {}\n")?;
+    scratch.write("src/m/child.rs", "pub fn decoy() {}\n")?;
+
+    let found = findings(&scratch.root, &scratch.files()?);
+    assert_eq!(found.len(), 1, "expected only the decoy: {found:?}");
+    assert_eq!(found[0].path, "src/m/child.rs");
+    Ok(())
+}
+
+/// The same shape with the trailing-slash spelling, and with the child written
+/// as a nested `child/mod.rs`: `rustc` loads `src/thread/child/mod.rs` (exit 0),
+/// so the ordinary `NAME.rs`-then-`NAME/mod.rs` lookup must run *inside* the
+/// directory the value names — a raw join would leave `thread//child/mod.rs`
+/// and report the file as unreachable.
+#[test]
+fn inline_path_attribute_keeps_the_ordinary_child_lookup() -> Result<(), String> {
+    let scratch = Scratch::new("inline-path-nested")?;
+    scratch.write("Cargo.toml", "[package]\nname = \"scratch\"\n")?;
+    scratch.write(
+        "src/lib.rs",
+        "#[path = \"thread/\"]\npub mod m {\n    pub mod child;\n}\n",
+    )?;
+    scratch.write("src/thread/child/mod.rs", "pub fn child() {}\n")?;
+    scratch.write("src/orphan.rs", "pub fn orphan() {}\n")?;
+
+    let found = findings(&scratch.root, &scratch.files()?);
+    assert_eq!(found.len(), 1, "expected only the orphan: {found:?}");
+    assert_eq!(found[0].path, "src/orphan.rs");
+    Ok(())
+}
+
+/// An inline `#[path]` inside another inline module resolves against its
+/// enclosing directory: `rustc` compiles `src/x/a/thread/child.rs` for this
+/// tree, not `src/thread/child.rs`. Both decoys are asserted, because a base
+/// folded the wrong way still reports *a* finding — just the wrong one.
+#[test]
+fn nested_inline_path_attribute_keeps_its_enclosing_directories() -> Result<(), String> {
+    let scratch = Scratch::new("nested-inline-path")?;
+    scratch.write("Cargo.toml", "[package]\nname = \"scratch\"\n")?;
+    scratch.write("src/lib.rs", "mod x;\n")?;
+    scratch.write(
+        "src/x.rs",
+        "mod a {\n    #[path = \"thread\"]\n    pub mod b {\n        pub mod child;\n    }\n}\n",
+    )?;
+    scratch.write("src/x/a/thread/child.rs", "pub fn child() {}\n")?;
+    scratch.write("src/thread/child.rs", "pub fn decoy() {}\n")?;
+
+    let found = findings(&scratch.root, &scratch.files()?);
+    assert_eq!(found.len(), 1, "expected only the decoy: {found:?}");
+    assert_eq!(found[0].path, "src/thread/child.rs");
+    Ok(())
+}
+
+/// An inline `#[path]` in a *non-root* file resolves against that file's own
+/// directory, not its `x/` module directory: `rustc` compiles `src/thread/child.rs`
+/// and never `src/x/thread/child.rs`.
+#[test]
+fn unnested_inline_path_attribute_uses_the_carrying_files_directory() -> Result<(), String> {
+    let scratch = Scratch::new("unnested-inline-path")?;
+    scratch.write("Cargo.toml", "[package]\nname = \"scratch\"\n")?;
+    scratch.write("src/lib.rs", "mod x;\n")?;
+    scratch.write(
+        "src/x.rs",
+        "#[path = \"thread\"]\npub mod m {\n    pub mod child;\n}\n",
+    )?;
+    scratch.write("src/thread/child.rs", "pub fn child() {}\n")?;
+    scratch.write("src/x/thread/child.rs", "pub fn decoy() {}\n")?;
+
+    let found = findings(&scratch.root, &scratch.files()?);
+    assert_eq!(found.len(), 1, "expected only the decoy: {found:?}");
+    assert_eq!(found[0].path, "src/x/thread/child.rs");
+    Ok(())
+}
+
+/// The rule must not be silenced by the fix: a genuine orphan in the same tree
+/// is still reported, and a **semicolon** `#[path]` targeting a directory must
+/// not be treated as reaching `DIR/mod.rs`. `rustc` rejects that tree outright
+/// (`couldn't read 'src/nest': Is a directory (os error 21)`), so nothing
+/// validates `src/nest/mod.rs` and it stays reported rather than being credited
+/// by a directory-valued path.
+///
+/// The inline block is deliberately written here inside `src/lib.rs`'s own
+/// `m2`, so rustc compiles `src/m2/thread/child.rs` — verified with a marker:
+/// a deliberate syntax error in that file fails the build, and the same error in
+/// `src/thread/child.rs` is never read. This test predates that check in the
+/// wrong form and reported a file rustc does not compile, which is exactly the
+/// false-positive class `#105` is about; the fixture is corrected rather than
+/// the assertion.
+#[test]
+fn inline_path_support_keeps_true_orphans_and_the_semicolon_arm() -> Result<(), String> {
+    let scratch = Scratch::new("inline-path-orphan")?;
+    scratch.write("Cargo.toml", "[package]\nname = \"scratch\"\n")?;
+    scratch.write(
+        "src/lib.rs",
+        "mod semi;\npub mod m2 {\n    #[path = \"thread\"]\n    pub mod m {\n        pub mod child;\n    }\n}\n",
+    )?;
+    scratch.write("src/m2/thread/child.rs", "pub fn child() {}\n")?;
+    scratch.write("src/orphan.rs", "pub fn orphan() {}\n")?;
+    scratch.write("src/semi.rs", "#[path = \"nest\"]\nmod inner;\n")?;
+    scratch.write("src/nest/mod.rs", "pub fn inner() {}\n")?;
+
+    let found = findings(&scratch.root, &scratch.files()?);
+    let mut paths: Vec<&str> = found.iter().map(|finding| finding.path.as_str()).collect();
+    paths.sort_unstable();
+    assert_eq!(
+        paths,
+        vec!["src/nest/mod.rs", "src/orphan.rs"],
+        "expected the two genuine orphans: {found:?}"
+    );
+    Ok(())
+}
