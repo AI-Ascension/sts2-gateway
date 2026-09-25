@@ -5,21 +5,22 @@ host compatibility and release publication.
 
 ## [Unreleased]
 
-- Stop `RUST002` reporting the whole subtree of an inline `mod` whose `#[path]` value names a
-  **directory**. `rustc` reads no file there (`#[path = "thread"] pub mod m { pub mod child; }`
-  compiles `src/thread/child.rs`, never `src/thread/mod.rs`), so the old arm queued nothing and then
-  suppressed the name-based fallback, reporting files the build needs. The base is now folded across
-  enclosing inline blocks, because the two families disagree and the wrong choice is a false
-  negative: markers in every candidate show `mod a { #[path = "t"] pub mod b { pub mod child; } }` in
-  `src/x.rs` compiles `src/x/a/t/child.rs`, while the same block unnested in that file compiles
-  `src/t/child.rs`. The semicolon arm is unchanged: a directory value there is a `rustc` error
-  (`couldn't read 'src/nest': Is a directory`), so `DIR/mod.rs` must not be credited by it. Five
-  regression tests pin both families, the trailing-slash spelling, a nested `child/mod.rs` child, and
-  the still-reported genuine orphan; all five failed before the fix, and two fixtures were corrected
-  against `rustc` after encoding trees it rejects (`E0761`; a directory-valued semicolon path).
-  Latent here (248 `#[path]` sites, none inline) but the same arm is vendored into `sts2-harness`,
-  whose copy this does not fix. Policy only; no gateway behavior, contract, or native effect.
-  Closes #105.
+- Resolve a `#[path]` value against the enclosing module directory once a block contributed one
+  (`mod a { #[path = "t.rs"] mod n; }` reads `src/a/t.rs`). The old arm joined every value against
+  the carrying file, naming the **live** file unreachable on that shape and crediting the value's
+  own file for an inline declaration that reads no file there. Three regression tests pin both
+  arms and fail pre-change. Policy only; no gateway behavior, contract, or native effect.
+  Closes #107.
+
+- Stop `RUST002` reporting the whole subtree of an inline `mod` whose `#[path]` names a
+  **directory**: `rustc` reads no file there (`#[path = "thread"] pub mod m { pub mod child; }`
+  compiles `src/thread/child.rs`, never `src/thread/mod.rs`), so the old arm queued nothing and
+  suppressed the name-based fallback, naming files the build needs. The base is now folded across
+  enclosing inline blocks, since the families disagree and the wrong choice is a false negative:
+  the nested form compiles `src/x/a/t/child.rs` in `src/x.rs`, the unnested one `src/t/child.rs`.
+  The semicolon arm is unchanged (a directory there is a `rustc` error). Five regression tests pin
+  both families and the still-reported orphan, failing pre-fix; two fixtures were corrected against
+  `rustc`. Latent here but vendored into `sts2-harness`, whose copy this does not fix. Closes #105.
 
 - Deny `rustdoc::private_intra_doc_links` and `rustdoc::redundant_explicit_links` in the doc gate,
   and repair the one link they were passing over. The gate denied only

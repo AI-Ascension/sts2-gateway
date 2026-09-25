@@ -53,6 +53,65 @@ impl Drop for Scratch {
 }
 
 #[test]
+fn an_inline_path_attribute_does_not_reach_the_file_it_names() -> Result<(), String> {
+    let scratch = Scratch::new("inline-path-file")?;
+    scratch.write("Cargo.toml", "[package]\nname = \"scratch\"\n")?;
+    scratch.write("src/lib.rs", "#[path = \"x.rs\"]\npub mod m {}\n")?;
+    scratch.write("src/x.rs", "pub fn dead() {}\n")?;
+
+    let found = findings(&scratch.root, &scratch.files()?);
+    let mut paths: Vec<&str> = found.iter().map(|finding| finding.path.as_str()).collect();
+    paths.sort_unstable();
+    assert_eq!(
+        paths,
+        vec!["src/x.rs"],
+        "an inline `#[path]` reads no file there, so the value's own file stays an orphan: {found:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_semicolon_path_attribute_nested_in_an_inline_module_keeps_its_directory() -> Result<(), String>
+{
+    let scratch = Scratch::new("semicolon-path-nested")?;
+    scratch.write("Cargo.toml", "[package]\nname = \"scratch\"\n")?;
+    scratch.write(
+        "src/lib.rs",
+        "pub mod a {\n    #[path = \"x.rs\"]\n    pub mod m;\n}\n",
+    )?;
+    scratch.write("src/a/x.rs", "pub fn live() {}\n")?;
+    scratch.write("src/x.rs", "pub fn orphan() {}\n")?;
+
+    let found = findings(&scratch.root, &scratch.files()?);
+    let mut paths: Vec<&str> = found.iter().map(|finding| finding.path.as_str()).collect();
+    paths.sort_unstable();
+    assert_eq!(
+        paths,
+        vec!["src/x.rs"],
+        "rustc reads src/a/x.rs (marker fires) and never src/x.rs: {found:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_semicolon_path_attribute_unnested_in_a_root_file_uses_its_directory() -> Result<(), String> {
+    let scratch = Scratch::new("semicolon-path-unnested")?;
+    scratch.write("Cargo.toml", "[package]\nname = \"scratch\"\n")?;
+    scratch.write("src/lib.rs", "#[path = \"x.rs\"]\nmod x;\n")?;
+    scratch.write("src/x.rs", "pub fn live() {}\n")?;
+
+    let found = findings(&scratch.root, &scratch.files()?);
+    let mut paths: Vec<&str> = found.iter().map(|finding| finding.path.as_str()).collect();
+    paths.sort_unstable();
+    assert_eq!(
+        paths,
+        Vec::<&str>::new(),
+        "an unnested semicolon `#[path]` still reaches its file: {found:?}"
+    );
+    Ok(())
+}
+
+#[test]
 fn flags_a_module_that_no_root_reaches() -> Result<(), String> {
     let scratch = Scratch::new("orphan")?;
     scratch.write("Cargo.toml", "[package]\nname = \"scratch\"\n")?;

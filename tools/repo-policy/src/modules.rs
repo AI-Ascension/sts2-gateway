@@ -251,12 +251,17 @@ fn resolve(
     file_dir: &Path,
     queue: &mut VecDeque<(PathBuf, PathBuf)>,
 ) {
-    for path in &declaration.paths {
-        let target = normalise(&file_dir.join(path));
+    // A `#[path]` value is relative to the contributed directory once one exists;
+    // only otherwise is it relative to the carrying file. `rustc`, marker-checked.
+    let nested_dir = base.path.as_path();
+    let contributed = base.contributed;
+    let anchor = if contributed { nested_dir } else { file_dir };
+    for path in declaration.paths.iter().filter(|_| declaration.semi) {
+        let target = normalise(&anchor.join(path));
         if target.is_file() {
             queue.push_back((
                 target.clone(),
-                target.parent().unwrap_or(file_dir).to_path_buf(),
+                target.parent().unwrap_or(anchor).to_path_buf(),
             ));
         }
     }
