@@ -5,6 +5,18 @@ host compatibility and release publication.
 
 ## [Unreleased]
 
+- Deny `rustdoc::private_intra_doc_links` and `rustdoc::redundant_explicit_links` in the doc gate,
+  and repair the one link they were passing over. The gate denied only
+  `rustdoc::broken_intra_doc_links`, so it exited 0 and reported success while printing a
+  `private_intra_doc_links` warning on `bind_attached_lease`: the doc comment linked
+  `[Self::authenticate]`, which resolves only because the gate itself always passes
+  `--document-private-items` and therefore breaks for every reader who does not.
+  `crates/gateway/src/process_lifecycle.rs:115` now keeps the prose with a code span instead of the
+  link, the same remedy `sts2-harness#492` used for the equivalent sites. Non-vacuity was measured,
+  not assumed: with the link re-introduced the tightened gate aborts on the private item and exits
+  101, and with the fix in place the same flags exit 0 with zero warnings. Policy and documentation
+  only; no gateway behavior, contract, or native effect. Closes #100.
+
 - Stop `RUST002` reporting four rustc-valid module shapes as unreachable, since a false finding
   invites deleting a file the build needs. The declaration parser now reads raw identifiers through
   their ordinary name (`mod r#move;` loads `move.rs`, and an inline `mod r#type { ... }` nests in the

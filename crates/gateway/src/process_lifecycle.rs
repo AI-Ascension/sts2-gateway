@@ -112,7 +112,7 @@ where
     /// The attached runtime authenticates every lifecycle request with the same
     /// instance/caller/session/lease/epoch fence it passes here, so this method grants no new
     /// authority: it converts a proof the caller already holds into the lease value
-    /// [`Self::authenticate`] compares against. A caller cannot obtain a [`LeaseProof`] without
+    /// `Self::authenticate` compares against. A caller cannot obtain a [`LeaseProof`] without
     /// first presenting that identity fence, and the proof's own fence is re-checked on every
     /// operation.
     ///
