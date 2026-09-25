@@ -6,6 +6,35 @@
 use crate::modules::Declaration;
 use crate::rust_text::{is_ident_continue, is_ident_start, skip_space, strip};
 
+/// Reads a Rust identifier at `index`, accepting the raw `r#name` form.
+///
+/// The returned name never carries the `r#` prefix, because `rustc` resolves a
+/// raw identifier through the ordinary name: `mod r#move;` loads `move.rs`, and
+/// an inline `mod r#type { ... }` nests its children in `type/`.
+fn read_ident(code: &str, index: usize) -> Option<(&str, usize)> {
+    let bytes = code.as_bytes();
+    if !bytes.get(index).is_some_and(|byte| is_ident_start(*byte)) {
+        return None;
+    }
+    let start = index;
+    let mut cursor = index;
+    while cursor < bytes.len() && is_ident_continue(bytes[cursor]) {
+        cursor += 1;
+    }
+    if &code[start..cursor] == "r" && bytes.get(cursor) == Some(&b'#') {
+        let raw = cursor + 1;
+        if !bytes.get(raw).is_some_and(|byte| is_ident_start(*byte)) {
+            return None;
+        }
+        let mut end = raw;
+        while end < bytes.len() && is_ident_continue(bytes[end]) {
+            end += 1;
+        }
+        return Some((&code[raw..end], end));
+    }
+    Some((&code[start..cursor], cursor))
+}
+
 /// Every file module declaration in `text`, each carrying the inline module
 /// names that enclose it and any `#[path = "..."]` it names.
 pub(crate) fn declarations(text: &str) -> Vec<Declaration> {
@@ -105,14 +134,9 @@ pub(crate) fn include_paths(text: &str) -> Vec<String> {
 fn read_module(code: &str, mut index: usize) -> Option<(String, bool, usize)> {
     let bytes = code.as_bytes();
     index = skip_space(bytes, index);
-    if !bytes.get(index).is_some_and(|byte| is_ident_start(*byte)) {
-        return None;
-    }
-    let start = index;
-    while index < bytes.len() && is_ident_continue(bytes[index]) {
-        index += 1;
-    }
-    let name = code[start..index].to_owned();
+    let (name, next) = read_ident(code, index)?;
+    let name = name.to_owned();
+    index = next;
     index = skip_space(bytes, index);
     match bytes.get(index) {
         Some(b'{') => Some((name, true, index)),
@@ -121,8 +145,14 @@ fn read_module(code: &str, mut index: usize) -> Option<(String, bool, usize)> {
     }
 }
 
-/// Collects the attribute groups immediately preceding `end`, skipping any
+/// Collects every attribute group immediately preceding `end`, skipping any
 /// `pub(...)` or `unsafe` qualifiers between them and the item.
+///
+/// Groups are collected outward until a token that is neither an attribute nor a
+/// qualifier is met, so an unrelated group before the `#[path]` (a plain
+/// `#[allow(dead_code)]`, or one of two `#[cfg_attr]` branches) does not hide the
+/// `#[path]` that `rustc` honours. The `#` sigil that introduces each group is
+/// consumed with it, which is what lets the walk reach the earlier groups.
 fn attribute_text(code: &str, mut end: usize) -> String {
     let bytes = code.as_bytes();
     let mut groups = Vec::new();
@@ -139,6 +169,11 @@ fn attribute_text(code: &str, mut end: usize) -> String {
             };
             groups.push(code[open + 1..end - 1].to_owned());
             end = open;
+            if end > 0 && bytes[end - 1] == b'#' {
+                end -= 1;
+            } else {
+                break;
+            }
         } else if bytes[end - 1] == b')' {
             let Some(open) = matching(code, end - 1, b'(', b')') else {
                 break;

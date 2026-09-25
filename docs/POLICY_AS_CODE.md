@@ -22,6 +22,23 @@ look beside themselves, an ordinary `STEM.rs` file looks in a `STEM/` subdirecto
 are `[lib].path`/`src/lib.rs`, `[[bin]].path`/`src/main.rs`/`src/bin/*.rs`/`src/bin/*/main.rs`, and
 the `tests/`, `examples/`, and `benches/` target conventions.
 
+Three consequences of that fidelity are easy to get wrong, so they are pinned by tests rather than
+left to review:
+
+- A raw identifier is resolved through its ordinary name. `mod r#move;` loads `move.rs`, and an
+  inline `mod r#type { ... }` nests its children in the **unprefixed** `type/` directory; `r#move.rs`
+  and `rtype/` are the unreachable spellings.
+- The `#[path]` value is authored relative to the file that carries the attribute, so it may name a
+  parent directory (`#[path = "../other/y.rs"]` from `src/nest/mod.rs`). The reported path is
+  compared against the reduced spelling the file walk produces, so an escaping value cannot look
+  unreachable.
+- Every attribute group directly above the item is read, not just the one nearest it. An unrelated
+  `#[allow(dead_code)]`, or a second `#[cfg_attr(..., path = "...")]` branch, must not hide a
+  `#[path]` that rustc honours.
+
+Because a false finding would block a legitimate build, the check must never report a reachable
+file; each resolution rule above is covered by a control that fails if the rule regresses.
+
 ## Local entrypoint
 
 Rust executable sources under `crates/gateway/src/bin/` are included in policy checks. The old

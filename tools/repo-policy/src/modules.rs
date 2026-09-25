@@ -65,7 +65,7 @@ pub(crate) fn findings(root: &Path, files: &[PathBuf]) -> Vec<Finding> {
         .iter()
         .filter(|file| {
             file.extension().and_then(|value| value.to_str()) == Some("rs")
-                && !reachable.contains(*file)
+                && !reachable.contains(&normalise(file))
                 && packages.iter().any(|package| file.starts_with(package))
         })
         .map(|file| {
@@ -153,7 +153,7 @@ fn reach(package: &Path, roots: &BTreeSet<PathBuf>, reachable: &mut BTreeSet<Pat
         if !visited.insert((file.clone(), module_dir.clone())) {
             continue;
         }
-        reachable.insert(file.clone());
+        reachable.insert(normalise(&file));
         let Ok(text) = fs::read_to_string(&file) else {
             continue;
         };
@@ -182,7 +182,7 @@ fn resolve(
     queue: &mut VecDeque<(PathBuf, PathBuf)>,
 ) {
     for path in &declaration.paths {
-        let target = file_dir.join(path);
+        let target = normalise(&file_dir.join(path));
         if target.is_file() {
             queue.push_back((
                 target.clone(),
@@ -203,6 +203,31 @@ fn resolve(
             queue.push_back((module, nested));
         }
     }
+}
+
+/// Removes `.` and `..` components textually.
+///
+/// A `#[path = "../other/y.rs"]` value is authored relative to the file carrying
+/// the attribute, so it routinely escapes its own directory. The filesystem
+/// resolves such a path on `is_file`, but the unreduced spelling would then be
+/// inserted into the reachable set while `files::collect` records the reduced
+/// one, and the file would be reported as unreachable.
+fn normalise(path: &Path) -> PathBuf {
+    let mut parts: Vec<std::ffi::OsString> = Vec::new();
+    for component in path.components() {
+        match component {
+            std::path::Component::CurDir => {}
+            std::path::Component::ParentDir => {
+                parts.pop();
+            }
+            other => parts.push(other.as_os_str().to_owned()),
+        }
+    }
+    let mut normalised = PathBuf::new();
+    for part in parts {
+        normalised.push(part);
+    }
+    normalised
 }
 
 #[cfg(test)]

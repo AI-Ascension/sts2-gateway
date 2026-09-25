@@ -119,6 +119,100 @@ fn reaches_an_auto_discovered_bin_root() -> Result<(), String> {
     Ok(())
 }
 
+/// `mod r#move;` resolves through the ordinary name, so the file is
+/// `move.rs` — never `r#move.rs`.
+#[test]
+fn resolves_a_raw_identifier_module_name() -> Result<(), String> {
+    let scratch = Scratch::new("raw-ident")?;
+    scratch.write("Cargo.toml", "[package]\nname = \"scratch\"\n")?;
+    scratch.write("src/lib.rs", "mod r#move;\n")?;
+    scratch.write("src/move.rs", "pub fn moved() {}\n")?;
+
+    let found = findings(&scratch.root, &scratch.files()?);
+    assert!(found.is_empty(), "unexpected findings: {found:?}");
+    Ok(())
+}
+
+/// An attribute group between the `#[path]` and the item must not hide the
+/// `#[path]`, in either order.
+#[test]
+fn reaches_path_modules_beside_other_attributes() -> Result<(), String> {
+    for (case, source) in [
+        (
+            "allow-then-path",
+            "#[allow(dead_code)]\n#[path = \"sub/x.rs\"]\nmod x;\n",
+        ),
+        (
+            "path-then-allow",
+            "#[path = \"sub/x.rs\"]\n#[allow(dead_code)]\nmod x;\n",
+        ),
+    ] {
+        let scratch = Scratch::new(case)?;
+        scratch.write("Cargo.toml", "[package]\nname = \"scratch\"\n")?;
+        scratch.write("src/lib.rs", source)?;
+        scratch.write("src/sub/x.rs", "pub fn x() {}\n")?;
+
+        let found = findings(&scratch.root, &scratch.files()?);
+        assert!(found.is_empty(), "{case}: unexpected findings: {found:?}");
+    }
+    Ok(())
+}
+
+/// Every `#[cfg_attr]` branch of a `#[path]` pair is reachable, because the
+/// branch that is compiled out on the current platform still counts.
+#[test]
+fn reaches_every_cfg_attr_path_branch() -> Result<(), String> {
+    let scratch = Scratch::new("cfg-attr-pair")?;
+    scratch.write("Cargo.toml", "[package]\nname = \"scratch\"\n")?;
+    scratch.write(
+        "src/lib.rs",
+        "#[cfg_attr(unix, path = \"a.rs\")]\n#[cfg_attr(not(unix), path = \"b.rs\")]\nmod pick;\n",
+    )?;
+    scratch.write("src/a.rs", "pub fn a() {}\n")?;
+    scratch.write("src/b.rs", "pub fn b() {}\n")?;
+
+    let found = findings(&scratch.root, &scratch.files()?);
+    assert!(found.is_empty(), "unexpected findings: {found:?}");
+    Ok(())
+}
+
+/// A `#[path]` value is authored relative to the file carrying it, so it may
+/// escape that directory. The reported path must match the collected tree.
+#[test]
+fn resolves_a_parent_relative_path_attribute() -> Result<(), String> {
+    let scratch = Scratch::new("parent-relative")?;
+    scratch.write("Cargo.toml", "[package]\nname = \"scratch\"\n")?;
+    scratch.write("src/lib.rs", "mod nest;\n")?;
+    scratch.write("src/nest/mod.rs", "#[path = \"../other/y.rs\"]\nmod y;\n")?;
+    scratch.write("src/other/y.rs", "pub fn y() {}\n")?;
+
+    let found = findings(&scratch.root, &scratch.files()?);
+    assert!(found.is_empty(), "unexpected findings: {found:?}");
+    Ok(())
+}
+
+/// The two counter-intuitive ground truths are pinned so a future "cleanup"
+/// cannot quietly reverse them: children of an inline `mod r#type { ... }`
+/// resolve in the *unprefixed* `type/` directory, and only the unprefixed
+/// spelling compiles.
+#[test]
+fn inline_raw_identifier_module_nests_in_the_unprefixed_directory() -> Result<(), String> {
+    let scratch = Scratch::new("inline-raw-ident")?;
+    scratch.write("Cargo.toml", "[package]\nname = \"scratch\"\n")?;
+    scratch.write("src/lib.rs", "mod r#type {\n    mod child;\n}\n")?;
+    scratch.write("src/type/child.rs", "pub fn child() {}\n")?;
+    scratch.write("src/rtype/child.rs", "pub fn stranded() {}\n")?;
+
+    let found = findings(&scratch.root, &scratch.files()?);
+    assert_eq!(
+        found.len(),
+        1,
+        "only the unprefixed `type/` directory is reachable: {found:?}"
+    );
+    assert_eq!(found[0].path, "src/rtype/child.rs");
+    Ok(())
+}
+
 /// The repository's own controls: after the deleted orphan, the real tree must
 /// be green, and the files exercising each resolution rule must be present so
 /// the green result is not vacuous.
