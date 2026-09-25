@@ -67,7 +67,21 @@ jobs:
         run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 
       - name: Check documentation links
-        run: RUSTDOCFLAGS="-D rustdoc::broken_intra_doc_links -D rustdoc::private_intra_doc_links -D rustdoc::redundant_explicit_links --document-private-items" cargo doc --workspace --no-deps --locked
+        # A renamed or mistyped deny makes rustdoc emit `unknown lint` as a warning-only
+        # diagnostic and still exit 0, so cargo's status alone is not evidence that the
+        # lints this step names were accepted. Read the log for the counters as well.
+        run: |
+          set -o pipefail
+          log=target/doc.log
+          mkdir -p target
+          status=0
+          RUSTDOCFLAGS="-D rustdoc::broken_intra_doc_links -D rustdoc::private_intra_doc_links -D rustdoc::redundant_explicit_links --document-private-items" \
+            cargo doc --workspace --no-deps --locked 2>&1 | tee "$log" || status=$?
+          errors=$(awk '/^error/{count++} END{print count+0}' "$log")
+          unknown=$(awk '/unknown lint/{count++} END{print count+0}' "$log")
+          warnings=$(awk '/^warning/{count++} END{print count+0}' "$log")
+          echo "doc: exit=$status errors=$errors warnings=$warnings unknown_lints=$unknown"
+          [ "$status" -eq 0 ] && [ "$errors" -eq 0 ] && [ "$warnings" -eq 0 ] && [ "$unknown" -eq 0 ]
 
       - name: Run Rust tests
         run: cargo test --workspace --all-targets --all-features --locked
