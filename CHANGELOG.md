@@ -5,6 +5,18 @@ host compatibility and release publication.
 
 ## [Unreleased]
 
+- Stop `RUST002` reporting four rustc-valid module shapes as unreachable, since a false finding
+  invites deleting a file the build needs. The declaration parser now reads raw identifiers through
+  their ordinary name (`mod r#move;` loads `move.rs`, and an inline `mod r#type { ... }` nests in the
+  unprefixed `type/` directory), keeps every attribute group directly above the item so an unrelated
+  `#[allow(dead_code)]` or a second `#[cfg_attr(..., path = "...")]` branch cannot hide the honoured
+  `#[path]`, and compares reached files against the reduced spelling the file walk produces so a
+  `#[path = "../other/y.rs"]` value that escapes its own directory is not mistaken for an orphan. Five
+  regression tests pin the four shapes plus the counter-intuitive unprefixed-directory rule; each one
+  was confirmed failing before the fix. Found by review of #99; it blocked porting the rule to the six
+  sibling repositories that vendor this tool. Policy and documentation only; no gateway behavior,
+  contract, or native effect. Closes #102.
+
 - Retire the gateway's undeclared, never-compiled `service_config_identity.rs` and gate the class
   durably. `crates/gateway/src/bin/runtime_support/service_config_identity.rs` defined
   `configured_mcp_session`, but no `mod`, `#[path]`, `include!`, or manifest target reached it, so
