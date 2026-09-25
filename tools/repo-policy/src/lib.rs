@@ -5,6 +5,7 @@ mod diagnostic;
 mod files;
 mod license;
 mod markdown;
+mod reach;
 mod rust;
 mod workflow;
 
@@ -52,6 +53,7 @@ pub fn check(root: &Path, strict: bool) -> Result<Outcome, String> {
     findings.extend(workflow::findings(root, &repository_files));
     findings.extend(license::findings(root, &repository_files));
     findings.extend(markdown::findings(root, &repository_files));
+    findings.extend(reach::findings(root));
     findings.extend(rust::findings(root));
     findings.sort_by(|left, right| {
         left.path

@@ -5,6 +5,27 @@ host compatibility and release publication.
 
 ## [Unreleased]
 
+- Retire the gateway's one unreachable Rust source file and gate the class durably. rustc compiles
+  only files reachable from a crate root, so a lost `mod` item is not a compile error anywhere: the
+  file simply stops being read, taking any live code and any `#[test]` inside it out of the build
+  with no diagnostic. `crates/gateway/src/bin/runtime_support/service_config_identity.rs` was in
+  exactly that state at 21 lines. Its `configured_mcp_session` was byte-identical to the copy in
+  `service_config_values.rs`, which `service_config.rs` declares with `mod values;`, re-exports, and
+  calls, so the two are the same function and restoring the declaration would have been an immediate
+  `E0592 duplicate definitions`; the file is therefore deleted rather than wired back. No name
+  anywhere referenced it (`policy.toml` included), so no behaviour, contract artifact, schema, route,
+  or test changes. The durable half is a new `RUST002` check in `tools/repo-policy` that reports a
+  Rust file under a crate's `src`, `tests`, `benches`, or `examples` directory that no crate root can
+  reach, following rustc's own resolution rules: crate roots keep their directory for `mod` children,
+  any other file resolves them beside itself, `#[path = "..."]` resolves relative to the file
+  carrying the attribute and gives the loaded module its own directory, inline modules scope their
+  children under their own name, and `include!` shares the includer's child directory. `cfg` and
+  `cfg_attr` gating is deliberately ignored — a module compiled out on one platform is still
+  reachable — so every branch of a `cfg_attr`-selected `#[path]` counts. The check must never report a
+  reachable file, because a false finding would block a legitimate build, so its 20 unit tests build
+  real crates on disk to pin each rule, including `r#`-prefixed module names and the
+  attribute-before-visibility form. It reports only the one retired file on this tree. Refs #98.
+
 - Repair the gateway crate's one dangling intra-doc link and gate the class durably. The `host_lease`
   child of `recovery::recovery_store` linked a bare `[`RecoveryLease`]`, but a bare link resolves only
   against the file's own scope: the parent module's private `use super::recovery_types::{…}` does not
