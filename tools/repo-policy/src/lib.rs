@@ -5,7 +5,10 @@ mod diagnostic;
 mod files;
 mod license;
 mod markdown;
+mod modules;
 mod rust;
+mod rust_source;
+mod rust_text;
 mod workflow;
 
 use std::path::Path;
@@ -53,6 +56,7 @@ pub fn check(root: &Path, strict: bool) -> Result<Outcome, String> {
     findings.extend(license::findings(root, &repository_files));
     findings.extend(markdown::findings(root, &repository_files));
     findings.extend(rust::findings(root));
+    findings.extend(modules::findings(root, &repository_files));
     findings.sort_by(|left, right| {
         left.path
             .cmp(&right.path)
