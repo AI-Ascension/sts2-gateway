@@ -4,6 +4,8 @@
 
 #[path = "service_admission_tests.rs"]
 mod admission_tests;
+#[path = "service_admission_rejection_tests.rs"]
+mod admission_rejection_tests;
 
 #[path = "service_allocation_cleanup_tests.rs"]
 mod allocation_cleanup_tests;
