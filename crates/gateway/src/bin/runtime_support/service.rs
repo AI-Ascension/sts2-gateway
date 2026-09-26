@@ -260,7 +260,8 @@ mod workflow_authority;
 use admission::{accept_requests, run_worker};
 use authorization::request_rejection;
 use support::{
-    json_bytes, json_error, json_overload, safe_identity, safe_operation_id, unix_millis,
+    json_bytes, json_error, json_overload, json_unsupported_header, safe_identity,
+    safe_operation_id, unix_millis,
 };
 
 #[derive(Clone, Debug)]

@@ -542,3 +542,29 @@ the mod can stage a closure, apply a restore, or recapture the selected exact
 state. Native effect support, MCP-to-Gateway deployed compatibility, Harness
 closure orchestration, game-host restore, and post-restore verification remain
 separate acceptance evidence.
+
+## Unsupported-header refusal naming
+
+The gateway's `unsupported_header` refusal is an additive observability
+extension of an existing error, not a new field on a public contract and not a
+route, identity, lease, or forwarding change. The body was
+`{"error_code":"unsupported_header"}` and is now
+`{"error_code":"unsupported_header","rejected_header":"<name>"}`:
+
+- `error_code` keeps its exact previous value, so a consumer that matches on it
+  is unaffected, and the status stays 400.
+- `rejected_header` is a new sibling field. A consumer that strictly decodes
+  the body into a fixed, non-ignoring field set is incompatible with this
+  revision; a consumer that matches on `error_code`, or that ignores unknown
+  fields, is unaffected.
+- Only the header **name** crosses the boundary. A header value may carry a
+  credential, so the value is never read, copied, or rendered, and the name is
+  already constrained to the RFC 7230 token charset by `valid_header` at
+  parse time.
+- The forwarded-header allow-list is unchanged, so the set of admitted and
+  refused requests is identical before and after. A named refusal describes an
+  existing refusal; it does not create one.
+
+This does not establish that any particular caller introduced an unlisted
+header, and it does not change who may call which route. See
+AI-Ascension/sts2-harness#541.
