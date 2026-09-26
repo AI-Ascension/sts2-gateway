@@ -17,6 +17,10 @@
 // Test code is allowed to panic: a failed assertion is the expected failure mode.
 #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 
+// Shared with `gateway_refusal_record`, which reads the served process's
+// standard error. This suite only surfaces stderr in its own failure messages,
+// so those accessors are unused here.
+#[allow(dead_code)]
 #[path = "gateway_real_process_episode/gateway.rs"]
 mod gateway;
 #[path = "gateway_real_process_episode/host.rs"]

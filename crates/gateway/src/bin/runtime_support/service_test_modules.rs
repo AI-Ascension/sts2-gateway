@@ -17,6 +17,8 @@ mod allocation_negative_regression_tests;
 mod host_lease_restart_tests;
 #[path = "service_auth_tests.rs"]
 mod auth_tests;
+#[path = "service_refusal_record_tests.rs"]
+mod refusal_record_tests;
 #[path = "service_tests.rs"]
 mod legacy_tests;
 #[path = "service_recovery_catalog_tests.rs"]

@@ -176,6 +176,59 @@ impl GatewayProcess {
         self.child.id()
     }
 
+    /// The child's standard error, so far, as a single string.
+    ///
+    /// This is the surface a diagnostic record has to reach. A test that only
+    /// read the response body would not be evidence for anything about
+    /// durability: the body is discarded the moment it is written to the
+    /// socket.
+    pub(crate) fn stderr(&self) -> Result<String, String> {
+        self.diagnostics
+            .lock()
+            .map(|text| text.clone())
+            .map_err(|_| String::from("the gateway's stderr buffer was poisoned"))
+    }
+
+    /// Waits until the child's standard error contains `needle` at least
+    /// `expected` times.
+    ///
+    /// The drain thread appends as the child writes, so a record the child has
+    /// already made is not necessarily visible the instant the response
+    /// arrives. Asserting on a count without waiting for it would race the
+    /// drain rather than test the server. Bounded, so a record that never
+    /// arrives fails the test instead of hanging it.
+    pub(crate) fn await_stderr(&self, needle: &str, expected: usize) -> Result<(), String> {
+        let deadline = Instant::now() + READY_DEADLINE;
+        loop {
+            let text = self.stderr()?;
+            if text.matches(needle).count() >= expected {
+                return Ok(());
+            }
+            if Instant::now() >= deadline {
+                return Err(format!(
+                    "the gateway recorded {needle:?} fewer than {expected} times on its \
+                     standard error: {text}"
+                ));
+            }
+            std::thread::sleep(READY_POLL_INTERVAL);
+        }
+    }
+
+    /// Waits until the child's standard error stops changing, so a test can
+    /// assert on the *absence* of a record without racing the drain thread.
+    pub(crate) fn settle_stderr(&self) -> Result<String, String> {
+        let mut previous = self.stderr()?;
+        for _ in 0..8 {
+            std::thread::sleep(READY_POLL_INTERVAL);
+            let current = self.stderr()?;
+            if current == previous {
+                return Ok(current);
+            }
+            previous = current;
+        }
+        Ok(previous)
+    }
+
     /// Waits until the served process answers an authenticated liveness probe.
     ///
     /// The readiness route itself stays `503` until a boot is fenced, so the

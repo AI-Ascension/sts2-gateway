@@ -215,6 +215,8 @@ mod recovery_state;
 mod recovery_v3;
 #[path = "service_recovery_wire.rs"]
 mod recovery_wire;
+#[path = "service_refusal_record.rs"]
+mod refusal_record;
 #[path = "service_route_dispatch.rs"]
 mod route_dispatch;
 #[path = "service_routes.rs"]

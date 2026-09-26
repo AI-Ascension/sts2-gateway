@@ -10,6 +10,13 @@ pub(super) fn request_rejection(
     recovery_enabled: bool,
 ) -> Option<(u16, Vec<u8>)> {
     if let Some(name) = first_rejected_header(&request.headers) {
+        // Recorded here, in the one function that produces every
+        // `unsupported_header` refusal, so the name survives the request
+        // whether the refusal is written to a socket (the admission path) or
+        // returned in process (the route path). The name is already
+        // token-charset, so the line cannot be forged; no value is read
+        // (AI-Ascension/sts2-harness#541).
+        super::refusal_record::record_rejected_header(name);
         return Some((400, json_unsupported_header(name)));
     }
     let provided = request.headers.get("authorization").map(String::as_str);
