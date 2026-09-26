@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 
+use super::authorization::first_rejected_header;
 use super::*;
 
 impl RuntimeService {
@@ -182,6 +183,7 @@ pub(super) fn accept_requests(
         if let Some((status, body)) =
             request_rejection(&request, &auth_policy, &instance_id, recovery_enabled)
         {
+            report_rejected_header(&request, status);
             if status == 401 || status == 403 {
                 metrics.authentication_rejected();
             } else {
@@ -236,6 +238,36 @@ pub(super) fn accept_requests(
         }
     }
     Ok(())
+}
+
+/// Records which header a refusal named, on the gateway's own diagnostic output.
+///
+/// The refusal body already carries the name for the caller, but a name that is
+/// only written to a socket is invisible to an operator holding the run artifact
+/// and no client transcript, which is exactly the untraced
+/// `unsupported_header` refusal on AI-Ascension/sts2-harness#541.
+///
+/// Only the *name* is printed. A header value may carry a credential, so the
+/// value is never read here: `first_rejected_header` yields a `&str` borrowed
+/// from the header map's keys, and the format argument below is that borrow,
+/// so no value byte has a path to the stream. The name is constrained to the
+/// RFC 7230 token charset by `valid_header` at parse time, so it cannot carry a
+/// delimiter or forge a second field. The request line, the other header names,
+/// and the method and path are all withheld for the same reason.
+///
+/// This is `eprintln!` to match this file's existing diagnostic idiom (the
+/// queued-request and shutdown-cancellation paths) rather than `log::` or
+/// `tracing::`, neither of which this binary initialises. That is deliberate: an
+/// uninitialised facade would silently discard the line, which is the gap this
+/// closes.
+fn report_rejected_header(request: &HttpRequest, status: u16) {
+    let Some(name) = first_rejected_header(&request.headers) else {
+        return;
+    };
+    if status != 400 {
+        return;
+    }
+    eprintln!("gateway refused unsupported header: {name}");
 }
 
 pub(super) fn wake_listener(address: SocketAddr) {
