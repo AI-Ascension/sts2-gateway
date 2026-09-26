@@ -9,8 +9,8 @@ pub(super) fn request_rejection(
     instance_id: &str,
     recovery_enabled: bool,
 ) -> Option<(u16, Vec<u8>)> {
-    if !headers_are_allowed(&request.headers) {
-        return Some((400, json_error("unsupported_header")));
+    if let Some(name) = first_rejected_header(&request.headers) {
+        return Some((400, json_unsupported_header(name)));
     }
     let provided = request.headers.get("authorization").map(String::as_str);
     let scope = required_scope(request, instance_id);
@@ -197,28 +197,45 @@ pub(super) fn required_scope(request: &HttpRequest, instance_id: &str) -> AuthSc
     AuthScope::Read
 }
 
-pub(super) fn headers_are_allowed(headers: &BTreeMap<String, String>) -> bool {
-    headers.keys().all(|name| {
-        matches!(
-            name.as_str(),
-            "authorization"
-                | "connection"
-                | "content-length"
-                | "content-type"
-                | "host"
-                | "x-mcp-request-id"
-                | "x-mcp-session-id"
-                | "x-sts2-instance-id"
-                | "x-sts2-caller-id"
-                | "x-sts2-session-id"
-                | "x-sts2-lease-id"
-                | "x-sts2-lease-epoch"
-                | "x-sts2-workflow-boot-epoch"
-                | "x-sts2-correlation-id"
-                | "x-sts2-capabilities-version"
-                | "x-sts2-episode-profile"
-                | "x-sts2-peer-token"
-                | "x-sts2-recovery-capability"
-        )
-    })
+/// The first header name outside the allow-list, or `None` when every header
+/// is admitted.
+///
+/// The refusal reports the rejected *name* so a caller can tell which hop
+/// introduced it, and so an intermittent refusal is decidable from the run
+/// artifact alone rather than by a re-run (AI-Ascension/sts2-harness#541). Only
+/// the name crosses this boundary: a header value may carry a credential, and
+/// `valid_header` admits any printable ASCII, so a value is never echoed.
+///
+/// The name is already constrained to the RFC 7230 token charset by
+/// `valid_header` at parse time, so it cannot carry a delimiter and cannot
+/// break out of the JSON string it is serialized into.
+pub(super) fn first_rejected_header(headers: &BTreeMap<String, String>) -> Option<&str> {
+    headers
+        .keys()
+        .map(String::as_str)
+        .find(|name| !header_is_allowed(name))
+}
+
+fn header_is_allowed(name: &str) -> bool {
+    matches!(
+        name,
+        "authorization"
+            | "connection"
+            | "content-length"
+            | "content-type"
+            | "host"
+            | "x-mcp-request-id"
+            | "x-mcp-session-id"
+            | "x-sts2-instance-id"
+            | "x-sts2-caller-id"
+            | "x-sts2-session-id"
+            | "x-sts2-lease-id"
+            | "x-sts2-lease-epoch"
+            | "x-sts2-workflow-boot-epoch"
+            | "x-sts2-correlation-id"
+            | "x-sts2-capabilities-version"
+            | "x-sts2-episode-profile"
+            | "x-sts2-peer-token"
+            | "x-sts2-recovery-capability"
+    )
 }

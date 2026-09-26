@@ -5,6 +5,8 @@ host compatibility and release publication.
 
 ## [Unreleased]
 
+- Name the rejected header in the `unsupported_header` refusal, additively and by name only. Refs #541.
+
 - Correct the "pinned by tests" list in `docs/POLICY_AS_CODE.md`: it still read *three* consequences after
   the inline-`mod` ownership rule became the fourth, so a reader counting the registry would miss a rule
   `RUST002` now follows. Prose only; the rule, its tests, and every other check are unchanged. Closes #110.

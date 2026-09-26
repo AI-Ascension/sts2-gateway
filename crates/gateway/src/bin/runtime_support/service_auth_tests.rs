@@ -2,6 +2,7 @@
 
 use super::*;
 
+use super::authorization::first_rejected_header;
 use super::test_support::*;
 
 #[test]
@@ -192,5 +193,122 @@ fn v3_routes_keep_the_configured_mcp_session_fence() -> Result<(), String> {
             .insert("x-mcp-session-id".to_owned(), "other-session".to_owned());
         assert_eq!(service.handle_request(&request).0, 409, "{suffix}");
     }
+    Ok(())
+}
+
+#[test]
+fn a_rejected_header_is_named_in_the_refusal_so_a_recurrence_is_decidable()
+-> Result<(), String> {
+    // The refusal is unattributable without the name: `{"error_code":
+    // "unsupported_header"}` does not say which header was refused, so an
+    // intermittent refusal can only be adjudicated by re-running
+    // (AI-Ascension/sts2-harness#541).
+    let mut service = test_service()?;
+    let mut request = authenticated_request("/health/ready");
+    request
+        .headers
+        .insert("accept".to_owned(), "application/json".to_owned());
+    let (status, bytes) = service.handle_request(&request);
+    assert_eq!(status, 400);
+    let body = String::from_utf8(bytes).map_err(|error| error.to_string())?;
+    let value: serde_json::Value =
+        serde_json::from_str(&body).map_err(|error| error.to_string())?;
+    assert_eq!(value["error_code"], "unsupported_header");
+    assert_eq!(value["rejected_header"], "accept");
+    Ok(())
+}
+
+#[test]
+fn a_refusal_never_echoes_a_header_value() -> Result<(), String> {
+    // The value may be a credential, so only the name crosses the boundary.
+    let secret = "Bearer super-secret-token-value";
+    let mut service = test_service()?;
+    let mut request = authenticated_request("/health/ready");
+    request
+        .headers
+        .insert("x-unlisted-credential".to_owned(), secret.to_owned());
+    let (status, bytes) = service.handle_request(&request);
+    assert_eq!(status, 400);
+    let body = String::from_utf8(bytes).map_err(|error| error.to_string())?;
+    assert!(
+        !body.contains(secret),
+        "a header value must never be echoed: {body}"
+    );
+    assert!(
+        !body.contains("super-secret-token-value"),
+        "no fragment of the value may survive: {body}"
+    );
+    let value: serde_json::Value =
+        serde_json::from_str(&body).map_err(|error| error.to_string())?;
+    assert_eq!(value["rejected_header"], "x-unlisted-credential");
+    Ok(())
+}
+
+#[test]
+fn an_admitted_header_set_is_not_refused() -> Result<(), String> {
+    // The remediation is additive: a request whose headers are all on the
+    // allow-list must not be refused, and `error_code` must be unchanged for a
+    // consumer that matches on it.
+    let request = authenticated_request("/health/ready");
+    assert_eq!(first_rejected_header(&request.headers), None);
+    Ok(())
+}
+
+#[test]
+fn the_rejection_precedes_route_resolution_for_every_path() -> Result<(), String> {
+    // `request_rejection` runs before route parsing, so the refusal is the same
+    // on any path. Pin that, because it is what makes an unattributed refusal
+    // ambiguous between hops.
+    let mut service = test_service()?;
+    for path in ["/health/ready", "/v1/no-such-route", "/workflow-runs"] {
+        let mut request = authenticated_request(path);
+        request
+            .headers
+            .insert("accept".to_owned(), "application/json".to_owned());
+        let (status, bytes) = service.handle_request(&request);
+        assert_eq!(status, 400, "{path}");
+        let body = String::from_utf8(bytes).map_err(|error| error.to_string())?;
+        assert!(body.contains("unsupported_header"), "{path}: {body}");
+    }
+    Ok(())
+}
+
+#[test]
+fn a_refusal_names_one_header_deterministically() -> Result<(), String> {
+    // A request can carry several unlisted headers. The refusal must be
+    // reproducible for the same request, so the reported name is taken from
+    // the request's own `BTreeMap` order rather than from an unordered scan.
+    let mut service = test_service()?;
+    let mut request = authenticated_request("/health/ready");
+    request
+        .headers
+        .insert("x-sts2-unlisted-a".to_owned(), String::from("first"));
+    request
+        .headers
+        .insert("x-sts2-unlisted-b".to_owned(), String::from("second"));
+    let (status, bytes) = service.handle_request(&request);
+    assert_eq!(status, 400);
+    let value: serde_json::Value =
+        serde_json::from_slice(&bytes).map_err(|error| error.to_string())?;
+    assert_eq!(value["error_code"], "unsupported_header");
+    assert_eq!(value["rejected_header"], "x-sts2-unlisted-a");
+    Ok(())
+}
+
+#[test]
+fn an_allowed_header_is_never_named_as_the_rejected_one() -> Result<(), String> {
+    // `authorization` is on the allow-list even though it carries a
+    // credential, so the refusal must not be able to promote an admitted
+    // header into the reported name.
+    let mut service = test_service()?;
+    let mut request = authenticated_request("/health/ready");
+    request
+        .headers
+        .insert("x-sts2-unlisted".to_owned(), String::from("value"));
+    let (_, bytes) = service.handle_request(&request);
+    let value: serde_json::Value =
+        serde_json::from_slice(&bytes).map_err(|error| error.to_string())?;
+    assert_ne!(value["rejected_header"], "authorization");
+    assert_eq!(value["rejected_header"], "x-sts2-unlisted");
     Ok(())
 }
