@@ -7,8 +7,21 @@ establish consumer, host, or live recovery validation. The deterministic key in
 
 Use a separately configured, protected 32-byte shared key for this sideband.
 For each of the six frame kinds, select its request or acknowledgment domain
-from the fixed table in `docs/host-lease-control-contract.md` (repository root).
-Do not accept a caller-selected domain. Compute:
+from this fixed table:
+
+```text
+host-lease-control/v1/lease-install-request
+host-lease-control/v1/lease-install-ack
+host-lease-control/v1/lease-renew-request
+host-lease-control/v1/lease-renew-ack
+host-lease-control/v1/lease-revoke-request
+host-lease-control/v1/lease-revoke-ack
+```
+
+These six values are the `domain` field of every case in
+`proof-vectors.json` `frame_proof_cases`, each with its own `proof` and
+`fixture_sha256`, so the table is checkable against the shipped vectors rather
+than asserted here. Do not accept a caller-selected domain. Compute:
 
 ```text
 unsigned_frame = complete frame with only auth.proof omitted

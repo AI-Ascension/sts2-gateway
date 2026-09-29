@@ -1,4 +1,4 @@
-fe5391bdd0f31a070dbc1a9c9d2497b7337de38637291f45684793b1108ff6cd  ./README.md
+138355ef9641253fd766b28c2576f391217b8573785a33279a6e1d5f08191ec0  ./README.md
 5ef6f334258a0c4df74e4e7b10e96b3ee99ae3bbccbbef9088b6359a70d0f4e7  ./conformance.json
 8d02c6d556aff1efa654d41d05a83d77e67b35ec6b5c7d9b0a5ef40c927ad8e8  ./conformance/cases/game-information-lookup-binding-v1.json
 b489aab78cb090322b188d1be149dfe0a02611d815d18e682ef2e8f093c58f48  ./conformance/fixtures/game-information-lookup-binding-v1/invalid/duplicate-key.json

@@ -5,9 +5,11 @@ the game-information lookup transport. It is owned by `sts2-protocol`; the named
 `sts2-harness`, `sts2-gateway`, and `sts2-mcp-server`. The artifact carries no route, transport, host
 access, clock, credential, registry, lifecycle, persistence, or mutation behavior.
 
-The normative rules are `LBR-1` through `LBR-12` in
-`docs/game-information-lookup-binding-contract.md`; this artifact is the machine-checkable witness of
-those rules.
+The normative rules are `LBR-1` through `LBR-12` in the **sts2-protocol** contract
+`docs/game-information-lookup-binding-contract.md`, read at protocol `6392fcd8297afb90ce8fa1bfc28dd24049cffa1d`.
+That contract names `sts2-protocol` as its canonical owner and `sts2-harness`, `sts2-gateway` and
+`sts2-mcp-server` as its named consumers; it is not a file in this repository. This artifact is the
+machine-checkable witness of those rules.
 
 This copied consumer artifact is pinned to protocol source commit
 `843fddbd3b5875d01d7f99d3433f872b0a4d7681`. Its conformance metadata records the reviewed

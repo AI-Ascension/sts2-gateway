@@ -12,12 +12,23 @@ or schema digests. The frame is bounded to 262144 bytes and its authentication
 proof is bounded to 512 bytes.
 
 JSON Schema validates the closed wire shape and scalar bounds. Consumers must
-additionally enforce the semantic rules in `docs/host-lease-control-contract.md`:
-grant field equality, digest and proof domains, gateway/host identity binding,
-strict renewal sequencing, the received-at wall check plus clamped monotonic
-deadline, durable-before-ack ordering, idempotent same-grant retries, duplicate
-member rejection, protected persistence without a plaintext fence token, and
-current boot/fence checks.
+additionally enforce these semantic rules, which are normative for this artifact
+and are listed here rather than in a separate contract document:
+
+- grant field equality, digest and proof domains
+- gateway/host identity binding
+- strict renewal sequencing
+- the received-at wall check plus clamped monotonic deadline
+- durable-before-ack ordering
+- idempotent same-grant retries
+- duplicate member rejection
+- protected persistence without a plaintext fence token
+- current boot/fence checks
+
+The proof recipe, including the six per-kind HMAC domains, is fixed by
+`PROOF_PROFILE.md` in this directory and is checkable against
+`proof-vectors.json`. No document outside this directory is required to
+implement or verify it.
 
 The valid fixtures exercise install, duplicate install, renewal, duplicate
 renewal, revocation, and duplicate revocation. Schema-invalid fixtures
