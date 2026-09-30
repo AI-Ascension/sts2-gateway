@@ -20,7 +20,7 @@ const ARTIFACT_ROOT: &str = concat!(
 );
 const SCHEMA_DIGEST: &str = "e22faf0f7d3cd313a007b65e52058b3c255153d5778dd8124055c283adf977f9";
 const MANIFEST_SHA256: &str = "17552a4cd001ce9e622535fafdedfc8d5d7f9b93ffdfa5696ae7689d3aaf84b1";
-const PROFILE_SHA256: &str = "1dd25a5520c655fb8107475c1a510830bcce4a157f726e9f7b15122070ffddef";
+const PROFILE_SHA256: &str = "ecaa0fdf1fa205de74e80570f0007b27df5c005704e79441138575d27fef4c7b";
 const VECTORS_SHA256: &str = "942c5c8ad07705ae43ff5fc44309b1aaa474bd7cb48152f2384117922a4abb30";
 
 fn sha256_hex(bytes: &[u8]) -> String {
