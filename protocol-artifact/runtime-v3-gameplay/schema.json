@@ -157,16 +157,70 @@
         "price": { "type": "integer", "minimum": 0, "maximum": 4294967295 }
       }
     },
+    "offered_attribute": {
+      "type": "string", "minLength": 1, "maxLength": 512,
+      "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F]*$",
+      "description": "One host-supplied offered-entry attribute. maxLength counts Unicode characters, so a non-ASCII name of 512 characters is admitted; the bound is on characters, not UTF-8 bytes."
+    },
+    "offered_entry": {
+      "type": "object", "additionalProperties": false,
+      "required": ["choice_id"],
+      "description": "One host-offered choice, described by whatever the host actually supplied. Every attribute beyond the identity is independently omittable, and an omitted attribute stays omitted: it is never defaulted to a plausible name, cost, rarity or description, and never derived from a generation pool or weight. An explicit null is not an accepted spelling of absent.",
+      "properties": {
+        "choice_id": { "$ref": "#/$defs/identity" },
+        "name": { "$ref": "#/$defs/offered_attribute" },
+        "cost": { "type": "integer", "minimum": 0, "maximum": 255 },
+        "upgraded": { "type": "boolean" },
+        "rarity": { "$ref": "#/$defs/offered_attribute" },
+        "description": { "$ref": "#/$defs/offered_attribute" },
+        "contents": { "$ref": "#/$defs/disclosed_set" }
+      }
+    },
+    "disclosed_entry": {
+      "type": "object", "additionalProperties": false,
+      "required": ["choice_id"],
+      "description": "One element inside an entry's disclosed contents. It carries the same host-supplied attributes but cannot disclose further contents, which bounds disclosure to exactly one level.",
+      "properties": {
+        "choice_id": { "$ref": "#/$defs/identity" },
+        "name": { "$ref": "#/$defs/offered_attribute" },
+        "cost": { "type": "integer", "minimum": 0, "maximum": 255 },
+        "upgraded": { "type": "boolean" },
+        "rarity": { "$ref": "#/$defs/offered_attribute" },
+        "description": { "$ref": "#/$defs/offered_attribute" }
+      }
+    },
+    "choice": {
+      "description": "One element of a state's offered set: the identity a host named, or an entry describing it.",
+      "oneOf": [
+        { "$ref": "#/$defs/identity" },
+        { "$ref": "#/$defs/offered_entry" }
+      ]
+    },
+    "disclosed_choice": {
+      "description": "One element of an entry's disclosed contents: named or described, but never disclosing in turn.",
+      "oneOf": [
+        { "$ref": "#/$defs/identity" },
+        { "$ref": "#/$defs/disclosed_entry" }
+      ]
+    },
+    "disclosed_set": {
+      "description": "What taking a described entry would present next, as a bounded, non-recursive set.",
+      "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/disclosed_choice" }
+    },
+    "offered_set": {
+      "description": "A set of host-offered choices in which an entry is either named or described, and a single list may mix both forms.",
+      "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/choice" }
+    },
     "state": {
       "oneOf": [
         { "type": "object", "additionalProperties": false, "required": ["state", "characters"], "properties": { "state": { "const": "setup" }, "characters": { "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/identity" } } } },
         { "type": "object", "additionalProperties": false, "required": ["state", "node_id", "options"], "properties": { "state": { "const": "map" }, "node_id": { "anyOf": [{ "$ref": "#/$defs/identity" }, { "type": "null" }] }, "options": { "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/identity" } } } },
         { "type": "object", "additionalProperties": false, "required": ["state", "turn_index", "enemies"], "properties": { "state": { "const": "combat" }, "turn_index": { "type": "integer", "minimum": 0, "maximum": 65535 }, "enemies": { "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/enemy" } } } },
-        { "type": "object", "additionalProperties": false, "required": ["state", "options"], "properties": { "state": { "const": "reward" }, "options": { "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/identity" } } } },
+        { "type": "object", "additionalProperties": false, "required": ["state", "options"], "properties": { "state": { "const": "reward" }, "options": { "$ref": "#/$defs/offered_set" } } },
         { "type": "object", "additionalProperties": false, "required": ["state", "items"], "properties": { "state": { "const": "shop" }, "items": { "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/shop_item" } } } },
-        { "type": "object", "additionalProperties": false, "required": ["state", "choices"], "properties": { "state": { "const": "event" }, "choices": { "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/identity" } } } },
+        { "type": "object", "additionalProperties": false, "required": ["state", "choices"], "properties": { "state": { "const": "event" }, "choices": { "$ref": "#/$defs/offered_set" } } },
         { "type": "object", "additionalProperties": false, "required": ["state", "options"], "properties": { "state": { "const": "rest" }, "options": { "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/identity" } } } },
-        { "type": "object", "additionalProperties": false, "required": ["state", "choices"], "properties": { "state": { "const": "selection" }, "choices": { "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/identity" } } } },
+        { "type": "object", "additionalProperties": false, "required": ["state", "choices"], "properties": { "state": { "const": "selection" }, "choices": { "$ref": "#/$defs/offered_set" } } },
         { "type": "object", "additionalProperties": false, "required": ["state"], "properties": { "state": { "const": "victory" } } },
         { "type": "object", "additionalProperties": false, "required": ["state", "reason"], "properties": { "state": { "const": "defeat" }, "reason": { "anyOf": [{ "$ref": "#/$defs/text" }, { "type": "null" }] } } },
         { "type": "object", "additionalProperties": false, "required": ["state", "code"], "properties": { "state": { "const": "recovery" }, "code": { "$ref": "#/$defs/identity" } } }

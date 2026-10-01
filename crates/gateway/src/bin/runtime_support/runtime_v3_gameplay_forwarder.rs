@@ -10,7 +10,7 @@ const SCHEMA: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../protocol-artifact/runtime-v3-gameplay/schema.json"
 ));
-const DIGEST: &str = "daa216902d3211b9537924105b27e7718dd93dec82969a3c550131a27147c06b";
+const DIGEST: &str = "843e2e546116c8011f378d271406ac2fb4ec0e4c2dedd32dee46cc1500315ad5";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct RuntimeV3GameplayForwarder {

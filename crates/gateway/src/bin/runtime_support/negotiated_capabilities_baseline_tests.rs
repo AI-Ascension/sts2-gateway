@@ -51,7 +51,7 @@ fn route_advertises_runtime_v3_only_after_a_validated_configured_state_probe() -
         value["runtime_v3_baseline_witness"],
         json!({
             "profile":"runtime-v3-gameplay",
-            "schema_digest":"daa216902d3211b9537924105b27e7718dd93dec82969a3c550131a27147c06b",
+            "schema_digest":"843e2e546116c8011f378d271406ac2fb4ec0e4c2dedd32dee46cc1500315ad5",
             "configured_state_probe":true,
             "recovery_kinds":["reobserve","reconcile"]
         })
