@@ -22,6 +22,8 @@
       "start_run",
       "select_map_node",
       "play_card",
+      "use_potion",
+      "discard_potion",
       "end_turn",
       "choose_reward",
       "skip_reward",
@@ -56,6 +58,14 @@
       "id": "state",
       "request": "artifacts/runtime-v3-gameplay/golden/state-request.json",
       "response": "artifacts/runtime-v3-gameplay/golden/state-response.json"
+    },
+    {
+      "id": "described_belt",
+      "response": "artifacts/runtime-v3-gameplay/golden/state-response-described-belt.json",
+      "requires": [
+        "observation",
+        "legal_actions"
+      ]
     },
     {
       "id": "settled_action",

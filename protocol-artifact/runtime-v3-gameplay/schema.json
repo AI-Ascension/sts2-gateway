@@ -104,7 +104,37 @@
         "card_id": { "$ref": "#/$defs/identity" },
         "name": { "$ref": "#/$defs/text" },
         "cost": { "type": "integer", "minimum": 0, "maximum": 255 },
-        "upgraded": { "type": "boolean" }
+        "upgraded": { "type": "boolean" },
+        "description": { "$ref": "#/$defs/offered_attribute" }
+      }
+    },
+    "relic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["relic_id", "name"],
+      "description": "A relic the player currently holds. A relic changes the rules for the run, so a decision that turns on one cannot be made without it.",
+      "properties": {
+        "relic_id": { "$ref": "#/$defs/identity" },
+        "name": { "$ref": "#/$defs/offered_attribute" },
+        "description": { "$ref": "#/$defs/offered_attribute" }
+      }
+    },
+    "potion_target_mode": {
+      "enum": ["self", "any_enemy", "all_enemies", "none", "unknown"],
+      "description": "Who a potion can be used on. `unknown` is an explicit host statement of ignorance, not a default: a host that does not know may omit the potion instead."
+    },
+    "potion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["potion_id", "name"],
+      "description": "A potion in one slot of the player's potion belt.",
+      "properties": {
+        "potion_id": { "$ref": "#/$defs/identity" },
+        "name": { "$ref": "#/$defs/offered_attribute" },
+        "slot": { "type": "integer", "minimum": 0, "maximum": 255 },
+        "usable": { "type": "boolean" },
+        "target_mode": { "$ref": "#/$defs/potion_target_mode" },
+        "description": { "$ref": "#/$defs/offered_attribute" }
       }
     },
     "enemy_intent": {
@@ -145,7 +175,11 @@
         "hand": { "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/card" } },
         "deck": { "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/card" } },
         "discard": { "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/card" } },
-        "exhaust": { "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/card" } }
+        "exhaust": { "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/card" } },
+        "relics": { "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/relic" } },
+        "potions": { "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/potion" } },
+        "potion_slots": { "type": "integer", "minimum": 0, "maximum": 255 },
+        "max_potion_slots": { "type": "integer", "minimum": 0, "maximum": 255 }
       }
     },
     "shop_item": {
@@ -242,6 +276,8 @@
         { "type": "object", "additionalProperties": false, "required": ["kind", "character_id"], "properties": { "kind": { "const": "start_run" }, "character_id": { "$ref": "#/$defs/identity" } } },
         { "type": "object", "additionalProperties": false, "required": ["kind", "node_id"], "properties": { "kind": { "const": "select_map_node" }, "node_id": { "$ref": "#/$defs/identity" } } },
         { "type": "object", "additionalProperties": false, "required": ["kind", "card_id", "target_id"], "properties": { "kind": { "const": "play_card" }, "card_id": { "$ref": "#/$defs/identity" }, "target_id": { "anyOf": [{ "$ref": "#/$defs/identity" }, { "type": "null" }] } } },
+        { "type": "object", "additionalProperties": false, "required": ["kind", "potion_id", "target_id"], "properties": { "kind": { "const": "use_potion" }, "potion_id": { "$ref": "#/$defs/identity" }, "target_id": { "anyOf": [{ "$ref": "#/$defs/identity" }, { "type": "null" }] } } },
+        { "type": "object", "additionalProperties": false, "required": ["kind", "potion_id"], "properties": { "kind": { "const": "discard_potion" }, "potion_id": { "$ref": "#/$defs/identity" } } },
         { "type": "object", "additionalProperties": false, "required": ["kind"], "properties": { "kind": { "enum": ["end_turn", "skip_reward", "rest", "confirm_victory", "save_quit", "proceed", "confirm_selection", "cancel_selection"] } } },
         { "type": "object", "additionalProperties": false, "required": ["kind", "reward_id"], "properties": { "kind": { "const": "choose_reward" }, "reward_id": { "$ref": "#/$defs/identity" } } },
         { "type": "object", "additionalProperties": false, "required": ["kind", "item_id"], "properties": { "kind": { "const": "shop_purchase" }, "item_id": { "$ref": "#/$defs/identity" } } },
