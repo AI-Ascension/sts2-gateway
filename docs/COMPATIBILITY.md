@@ -278,7 +278,7 @@ These surfaces are additive to Runtime-v2 and do not inherit its runtime evidenc
 
 The gameplay envelope is pinned to current protocol main
 `d3ab5fca7d9d74bb31eeb3e5b343d8024ee44404`, schema digest
-`daa216902d3211b9537924105b27e7718dd93dec82969a3c550131a27147c06b`.
+`843e2e546116c8011f378d271406ac2fb4ec0e4c2dedd32dee46cc1500315ad5`.
 This coordinated profile adds argument-free proceed, confirm-selection and cancel-selection
 actions. Producer and all consumers must migrate together; earlier digests are rejected.
 The complete copied artifact and its source/conformance companions are checked by CI. Runtime
