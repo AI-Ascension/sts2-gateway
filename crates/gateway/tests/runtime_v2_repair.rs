@@ -197,6 +197,24 @@ fn identity_and_epoch_are_checked_before_duplicate_replay() -> Result<(), String
         ))
     );
 
+    let mut wrong_session = request.clone();
+    wrong_session.session_id = String::from("session-other");
+    assert_eq!(
+        ledger.submit_action(wrong_session),
+        Err(sts2_gateway::RuntimeV2LedgerError::Fence(
+            sts2_gateway::RuntimeV2FenceFailure::WrongSession,
+        ))
+    );
+
+    let mut wrong_lease = request.clone();
+    wrong_lease.lease_id = String::from("lease-other");
+    assert_eq!(
+        ledger.submit_action(wrong_lease),
+        Err(sts2_gateway::RuntimeV2LedgerError::Fence(
+            sts2_gateway::RuntimeV2FenceFailure::WrongLease,
+        ))
+    );
+
     let mut stale_epoch = request;
     stale_epoch.lease_epoch = 0;
     assert_eq!(
