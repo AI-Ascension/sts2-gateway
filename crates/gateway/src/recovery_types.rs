@@ -27,7 +27,7 @@ pub const RECOVERY_CONTRACT: &str = "watchdog-recovery-v1";
 pub const RECOVERY_SCHEMA_DIGEST: &str =
     "fb934d3157485aaf6e13e6ebbb213ec8a14c7fc6f5eeebc06b7a22c1f0009217";
 pub const RUNTIME_V3_SCHEMA_DIGEST: &str =
-    "843e2e546116c8011f378d271406ac2fb4ec0e4c2dedd32dee46cc1500315ad5";
+    "0ae1d4d1525162da3059c028dcdb70df1d4d2dcf9620c5edd9b543e5f04aacc2";
 pub const MAX_RECOVERY_FRAME_BYTES: usize = 262_144;
 pub const MAX_RECOVERY_ACTION_BYTES: usize = 65_536;
 pub const MAX_RECOVERY_RESPONSE_BYTES: usize = 128 * 1024;
