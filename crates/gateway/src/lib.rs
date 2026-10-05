@@ -28,6 +28,8 @@ mod process_lifecycle_ownership;
 mod process_lifecycle_recovery;
 #[path = "process_lifecycle_recovery_actions.rs"]
 mod process_lifecycle_recovery_actions;
+#[path = "process_lifecycle_restart_recovery.rs"]
+mod process_lifecycle_restart_recovery;
 mod process_lifecycle_types;
 #[path = "process_lifecycle_verification.rs"]
 mod process_lifecycle_verification;

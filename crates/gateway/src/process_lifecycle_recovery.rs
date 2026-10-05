@@ -160,6 +160,7 @@ where
                 Err(fault) => self.unknown(operation, None, Some(LifecycleFailure::Process(fault))),
             };
         }
+        let operation = self.prepare_restart_recovery(operation, profile)?;
         self.finish_restart(operation, profile)
     }
 

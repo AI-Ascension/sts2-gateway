@@ -420,6 +420,9 @@ fn attach_requires_a_prior_gateway_identity_and_reuses_it_after_reconnect() -> R
 #[path = "process_lifecycle_recovery_tests.rs"]
 mod recovery_tests;
 
+#[path = "process_lifecycle_restart_fence_tests.rs"]
+mod restart_fence_tests;
+
 #[path = "process_lifecycle_contract_tests.rs"]
 mod contract_tests;
 

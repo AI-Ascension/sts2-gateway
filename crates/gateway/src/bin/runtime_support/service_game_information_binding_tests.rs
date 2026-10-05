@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 
 use super::super::game_information_lookup_binding::RESPONSE_LIMIT_BYTES;
+use super::game_information_additional_tests::serve_http_sequence_with_declared_oversized_response;
 use super::test_support::{authenticated_request, serve_http_sequence, test_service};
 use super::*;
 use serde_json::{Value, json};
@@ -265,7 +266,11 @@ fn malformed_duplicate_foreign_oversized_and_status_mismatch_never_return_succes
         } else {
             vec![(status, body)]
         };
-        let worker = serve_http_sequence(listener, responses);
+        let worker = if label == "oversized" {
+            serve_http_sequence_with_declared_oversized_response(listener, responses, 0)?
+        } else {
+            serve_http_sequence(listener, responses)
+        };
         let mut service = service_with_address(address)?;
         if operation == "observe" {
             assert_eq!(
@@ -281,16 +286,23 @@ fn malformed_duplicate_foreign_oversized_and_status_mismatch_never_return_succes
         assert_eq!(returned_status, 502, "{label}");
         let error: Value =
             serde_json::from_slice(&returned_body).map_err(|error| error.to_string())?;
-        assert!(
-            matches!(
-                error["error_code"].as_str(),
-                Some(
-                    "game_information_lookup_binding_response_invalid"
-                        | "game_information_response_oversized"
-                )
-            ),
-            "{label}: {error}"
-        );
+        if label == "oversized" {
+            assert_eq!(
+                error["error_code"], "game_information_response_oversized",
+                "{label}: {error}"
+            );
+        } else {
+            assert!(
+                matches!(
+                    error["error_code"].as_str(),
+                    Some(
+                        "game_information_lookup_binding_response_invalid"
+                            | "game_information_response_oversized"
+                    )
+                ),
+                "{label}: {error}"
+            );
+        }
         worker
             .join()
             .map_err(|_| format!("{label} producer panicked"))??;
