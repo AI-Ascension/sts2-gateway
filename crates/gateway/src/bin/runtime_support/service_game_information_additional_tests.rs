@@ -9,6 +9,7 @@ use super::test_support::{
 use super::*;
 use serde_json::Value;
 use std::io::ErrorKind;
+use std::io::Write;
 use std::net::TcpListener;
 use std::thread;
 use std::time::{Duration, Instant};
@@ -76,6 +77,41 @@ fn service_with_address(address: String) -> Result<RuntimeService, String> {
     Ok(service)
 }
 
+/// Sends only headers for the selected response, so length refusal needs no oversized body write.
+pub(super) fn serve_http_sequence_with_declared_oversized_response(
+    listener: TcpListener,
+    responses: Vec<(u16, Vec<u8>)>,
+    response_index: usize,
+) -> Result<thread::JoinHandle<Result<Vec<HttpRequest>, String>>, String> {
+    if response_index >= responses.len() {
+        return Err(String::from(
+            "declared oversized response index is out of range",
+        ));
+    }
+    Ok(thread::spawn(move || {
+        let mut requests = Vec::with_capacity(responses.len());
+        for (index, (status, body)) in responses.into_iter().enumerate() {
+            let (mut stream, _) = listener.accept().map_err(|error| error.to_string())?;
+            let request = super::super::http::read_request(&mut stream)
+                .map_err(|error| format!("{error:?}"))?;
+            if index == response_index {
+                let header = format!(
+                    "HTTP/1.1 {status} Declared-Length Test\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                    body.len()
+                );
+                stream
+                    .write_all(header.as_bytes())
+                    .map_err(|error| error.to_string())?;
+            } else {
+                super::super::http::write_response(&mut stream, status, &body)
+                    .map_err(|error| error.to_string())?;
+            }
+            requests.push(request);
+        }
+        Ok(requests)
+    }))
+}
+
 #[test]
 fn typed_producer_errors_are_preserved_and_oversized_output_is_bounded() -> Result<(), String> {
     let error = include_bytes!(concat!(
@@ -111,13 +147,14 @@ fn typed_producer_errors_are_preserved_and_oversized_output_is_bounded() -> Resu
         .local_addr()
         .map_err(|error| error.to_string())?
         .to_string();
-    let worker = serve_http_sequence(
+    let worker = serve_http_sequence_with_declared_oversized_response(
         listener,
         vec![
             (200, CAPABILITIES_RESPONSE.to_vec()),
             (200, vec![b' '; MAX_MESSAGE_BYTES + 1]),
         ],
-    );
+        1,
+    )?;
     service.config.mod_address = address;
     let (status, _) = service.handle_request(&game_information_capabilities_request());
     assert_eq!(status, 200);

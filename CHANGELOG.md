@@ -273,10 +273,10 @@ host compatibility and release publication.
   deterministic process-port fixtures and an SQLite record seam. Durable per-instance ownership
   reservations, server-issued operation ordering, repeated read-only recovery, and an explicit
   no-eviction operation-record budget now prevent duplicate launch, stale-history replacement,
-  and unbounded retention. Ambiguous launch faults stay `Unknown` with a durable reservation and
-  retain any identity-bearing cleanup obligation until exact, child-free absence is proven;
-  approved user-data namespaces cannot be reused concurrently, and on-disk SQLite coordinators
-  are fenced by an exclusive lock plus a durable coordinator token and transactional admission.
+  and unbounded retention. Restart recovery advances authority and reserves ownership durably
+  before effects; rotation-write failure or epoch exhaustion leaves the process untouched.
+  Ambiguous launch faults remain `Unknown` with durable reservations; identity-bearing cleanup is
+  retained until exact child-free absence. Approved user-data namespaces stay exclusive, and SQLite coordinators remain fenced by exclusive locks, durable tokens, and transactional admission.
   This is source/component evidence only: native process launch, host
   readiness, harness workflow mapping, and deployment compatibility remain unverified behind the
   `sts2-harness` prerequisites. Legacy ports reject the profile-aware launch path before
