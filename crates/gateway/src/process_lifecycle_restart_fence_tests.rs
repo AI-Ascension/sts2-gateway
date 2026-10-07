@@ -4,7 +4,7 @@ use super::{FakeProcess, new_lifecycle};
 use crate::{
     AuthorityEpoch, InMemoryLifecycleStore, InstanceId, LaunchProfileId, Lease, LifecycleError,
     LifecycleOperation, LifecycleOperationState, LifecycleOwnership, LifecycleRecordStore,
-    LifecycleRequest, LifecycleStoreError, OperationId, StopMode,
+    LifecycleRequest, LifecycleStoreError, OperationId, ProcessGenerationKind, StopMode,
 };
 
 fn lease() -> Lease {
@@ -148,6 +148,78 @@ fn already_rotated_restart_recovery_does_not_rotate_again() -> Result<(), String
     );
     assert_eq!(reopened.process().starts(), 2);
     assert_eq!(reopened.process().stop_modes(), vec![StopMode::Force]);
+    Ok(())
+}
+
+#[test]
+fn replacement_recovery_reuses_the_persisted_post_fence_generation_key() -> Result<(), String> {
+    let mut lifecycle = new_lifecycle(FakeProcess::default(), InMemoryLifecycleStore::new())?;
+    lifecycle
+        .apply(super::launch_request(1))
+        .map_err(|error| error.to_string())?;
+    let (process, mut store) = lifecycle.into_parts();
+    store.set_fail_update_after(Some(3));
+    let mut lifecycle = new_lifecycle(process, store)?;
+    let request = LifecycleRequest::restart(
+        OperationId::new(2),
+        lease().proof(),
+        AuthorityEpoch::new(1),
+        LaunchProfileId::new(1),
+    );
+
+    assert_eq!(
+        lifecycle.apply(request),
+        Err(LifecycleError::Store(LifecycleStoreError::Database))
+    );
+    assert_eq!(lifecycle.process().starts(), 2);
+    assert_eq!(lifecycle.process().stop_modes(), vec![StopMode::Force]);
+    let (mut process, mut store) = lifecycle.into_parts();
+    process.set_recover_enabled(true);
+    store.set_fail_update_after(None);
+    let persisted = store
+        .list()
+        .map_err(|error| format!("{error:?}"))?
+        .into_iter()
+        .find(|operation| operation.operation_id() == OperationId::new(2))
+        .ok_or_else(|| String::from("restart operation was not retained"))?;
+    assert_eq!(persisted.sequence(), 2);
+    assert_eq!(persisted.request_epoch(), AuthorityEpoch::new(1));
+    assert_eq!(persisted.authority_epoch(), AuthorityEpoch::new(2));
+    assert_eq!(persisted.state(), LifecycleOperationState::Restarting);
+    assert_eq!(persisted.process(), None);
+
+    let mut reopened = new_lifecycle(process, store)?;
+    let recovered = reopened
+        .reconcile(lease().proof(), AuthorityEpoch::new(2), OperationId::new(2))
+        .map_err(|error| error.to_string())?;
+    assert_eq!(
+        recovered.operation_state(),
+        LifecycleOperationState::Started
+    );
+    assert_eq!(recovered.authority_epoch(), AuthorityEpoch::new(2));
+    assert_eq!(
+        reopened.current_authority_epoch(InstanceId::new(7)),
+        AuthorityEpoch::new(2)
+    );
+    assert_eq!(reopened.process().starts(), 2);
+    assert_eq!(reopened.process().stop_modes(), vec![StopMode::Force]);
+    assert_eq!(reopened.process().generation_starts().len(), 2);
+    assert_eq!(reopened.process().generation_queries().len(), 1);
+    assert_eq!(
+        reopened.process().generation_starts().last(),
+        reopened.process().generation_queries().last()
+    );
+    let generation = reopened
+        .process()
+        .generation_queries()
+        .last()
+        .ok_or_else(|| String::from("replacement generation was not recovered"))?;
+    assert_eq!(generation.operation_id(), OperationId::new(2));
+    assert_eq!(generation.sequence(), 2);
+    assert_eq!(generation.request_epoch(), AuthorityEpoch::new(1));
+    assert_eq!(generation.authority_epoch(), AuthorityEpoch::new(2));
+    assert_eq!(generation.profile_id(), LaunchProfileId::new(1));
+    assert_eq!(generation.kind(), ProcessGenerationKind::RestartReplacement);
     Ok(())
 }
 

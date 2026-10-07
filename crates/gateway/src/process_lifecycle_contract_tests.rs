@@ -9,27 +9,6 @@ use crate::{
     LifecycleError, LifecycleOperation, LifecycleRecordStore, LifecycleStoreError, OperationId,
 };
 
-impl super::FakeProcess {
-    fn set_descendants_after_stop(&mut self, descendants: Vec<ProcessDescendantIdentity>) {
-        self.descendants_after_stop = descendants;
-    }
-
-    fn set_recover_fault(&mut self, fault: Option<ProcessFault>) {
-        self.recover_fault = fault;
-    }
-
-    fn crash(
-        &mut self,
-        process: super::ProcessHandle,
-        descendants: Vec<ProcessDescendantIdentity>,
-    ) {
-        if let Some(entry) = self.entries.get_mut(&process) {
-            entry.state = super::ProcessState::Exited { code: Some(17) };
-            entry.descendants = descendants;
-        }
-    }
-}
-
 #[test]
 fn inspection_failure_keeps_identity_reserved_until_cleanup_is_observed() -> Result<(), String> {
     let mut lifecycle = new_lifecycle(FakeProcess::default(), InMemoryLifecycleStore::new())?;
@@ -196,6 +175,41 @@ fn recovery_error_after_creation_keeps_the_instance_reserved() -> Result<(), Str
 }
 
 #[test]
+fn indeterminate_generation_recovery_keeps_unknown_operation_reserved() -> Result<(), String> {
+    let mut store = InMemoryLifecycleStore::new();
+    store.set_fail_update_after(Some(1));
+    let mut lifecycle = new_lifecycle(FakeProcess::default(), store)?;
+    assert_eq!(
+        lifecycle.apply(super::launch_request(1)),
+        Err(LifecycleError::Store(LifecycleStoreError::Database))
+    );
+    let (process, mut store) = lifecycle.into_parts();
+    assert_eq!(process.starts(), 1);
+    store.set_fail_update_after(None);
+    let mut reopened = new_lifecycle(process, store)?;
+
+    let reconciled = reopened
+        .reconcile(
+            super::lease().proof(),
+            AuthorityEpoch::new(1),
+            OperationId::new(1),
+        )
+        .map_err(|error| error.to_string())?;
+    assert_eq!(
+        reconciled.operation_state(),
+        LifecycleOperationState::Unknown
+    );
+    assert_eq!(reopened.process().starts(), 1);
+    assert_eq!(reopened.process().generation_queries().len(), 1);
+    assert_eq!(
+        reopened.apply(super::launch_request(2)),
+        Err(LifecycleError::InstanceBusy)
+    );
+    assert_eq!(reopened.process().starts(), 1);
+    Ok(())
+}
+
+#[test]
 fn rejected_restart_does_not_replace_the_authoritative_owner() -> Result<(), String> {
     let mut lifecycle = new_lifecycle(FakeProcess::default(), InMemoryLifecycleStore::new())?;
     lifecycle
@@ -323,9 +337,9 @@ fn caller_operation_ids_do_not_replace_the_server_ordered_owner() -> Result<(), 
 }
 
 #[test]
-fn unknown_restart_retries_read_only_recovery_until_identity_is_found() -> Result<(), String> {
+fn zero_sequence_restart_stays_unknown_without_generation_lookup() -> Result<(), String> {
     let mut lifecycle = new_lifecycle(FakeProcess::default(), InMemoryLifecycleStore::new())?;
-    let started = lifecycle
+    lifecycle
         .apply(super::launch_request(1))
         .map_err(|error| error.to_string())?;
     let (process, mut store) = lifecycle.into_parts();
@@ -356,6 +370,7 @@ fn unknown_restart_retries_read_only_recovery_until_identity_is_found() -> Resul
         .map_err(|error| error.to_string())?;
     assert_eq!(first.operation_state(), LifecycleOperationState::Unknown);
     assert_eq!(restarted.process().starts(), 1);
+    assert!(restarted.process().generation_queries().is_empty());
     restarted.process_mut().set_recover_enabled(true);
     let second = restarted
         .reconcile(
@@ -364,8 +379,8 @@ fn unknown_restart_retries_read_only_recovery_until_identity_is_found() -> Resul
             request.operation_id(),
         )
         .map_err(|error| error.to_string())?;
-    assert_eq!(second.operation_state(), LifecycleOperationState::Started);
-    assert_eq!(second.process(), started.process());
+    assert_eq!(second.operation_state(), LifecycleOperationState::Unknown);
     assert_eq!(restarted.process().starts(), 1);
+    assert!(restarted.process().generation_queries().is_empty());
     Ok(())
 }

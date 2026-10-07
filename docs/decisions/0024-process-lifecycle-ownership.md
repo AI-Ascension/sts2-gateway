@@ -69,6 +69,39 @@ row with an identity-less reservation for the replacement, and rotates the autho
 launching it. Requests carrying the previous epoch are rejected before the process port is called.
 Failed cleanup or uncertain identity retains the record and blocks replacement allocation.
 
+## Amendment — generation-keyed start and recovery
+
+Each `LaunchNew` or restart replacement start and its recovery lookup share one opaque
+`ProcessOperationGeneration`, derived from the persisted operation and resolved profile. Its exact
+key contains instance ID, operation ID, nonzero server sequence, request and authority epochs,
+profile ID, and a closed generation kind. Lifecycle state and call phase are excluded, so an
+ambiguous start and a later read-only lookup refer to the same process generation. The public type
+has private fields and no caller-facing constructor or serialization; the coordinator alone
+constructs it after the intent and reservation are durable.
+
+The additive `ProcessPort` defaults fail closed without forwarding to the older instance/profile
+methods. `Unsupported` is a guaranteed no-effect start refusal and follows the existing explicit
+pre-start failure path, which records `Failed` and releases the reservation. A `Process` start
+fault may be ambiguous, so the coordinator looks up only the same generation key; `Found` still
+passes existing identity and profile checks, while a recovery fault or `Indeterminate` leaves the
+operation `Unknown` and capacity reserved. Recovery has no `Absent` result, so it can never
+authorize a second start. The old `start_with_profile` and `recover_owned` methods remain available
+for direct legacy callers.
+
+An identity-less restart replacement is queried only after its persisted authority epoch equals
+the coordinator's current epoch and differs from its request epoch. Sequence zero remains the
+legacy unsequenced marker: an identity-less legacy launch or restart stays `Unknown`, retains its
+reservation, and receives no generation start or lookup. Existing identity-bearing stop, inspect,
+attach, and cleanup continue to use complete `ProcessIdentity` checks. The adapter seam and fakes
+exercise key forwarding and equality only; they do not prove an OS adapter, restart-durable registry,
+native process recovery, readiness, or production activation.
+
+The defaulted methods and new public types preserve `ProcessPort` implementor source compilation,
+but a legacy adapter used by `ProcessLifecycle` now fails closed with `Unsupported` and
+`Indeterminate` until it implements generation-aware start and recovery. This amendment adds no
+variants to the existing lifecycle or process-fault enums; consumers matching the newly introduced
+generation result enums exhaustively must handle their variants.
+
 ## Compatibility and rejection/cancellation behavior
 
 This is an additive gateway-local source/component contract at the route and trait-method

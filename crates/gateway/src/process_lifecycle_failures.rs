@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
 
+use crate::process_operation_generation::{ProcessGenerationKind, ProcessOperationGeneration};
 use crate::process_store::{
     LifecycleAction, LifecycleFailure, LifecycleOperation, LifecycleOperationState,
 };
-use crate::{LifecycleError, LifecycleResponse, ProcessFault};
+use crate::{GenerationRecovery, LifecycleError, LifecycleResponse, ProcessFault};
 
 use super::ProcessLifecycle;
 
@@ -32,25 +33,34 @@ where
                     | ProcessFault::ProfileRequired
                     | ProcessFault::ProfileNotApproved
             ) {
-                let profile = match operation.action() {
-                    LifecycleAction::LaunchNew { profile_id }
-                    | LifecycleAction::Restart { profile_id } => {
-                        self.profiles.resolve(*profile_id).ok()
+                let generation_profile = match operation.action() {
+                    LifecycleAction::LaunchNew { profile_id } => {
+                        Some((*profile_id, ProcessGenerationKind::LaunchNew))
+                    }
+                    LifecycleAction::Restart { profile_id } => {
+                        Some((*profile_id, ProcessGenerationKind::RestartReplacement))
                     }
                     LifecycleAction::AttachExisting { .. } | LifecycleAction::Stop { .. } => None,
                 };
-                let recovered = profile.and_then(|profile| {
-                    self.process
-                        .recover_owned(operation.instance_id(), profile)
-                        .ok()
-                        .flatten()
-                        // A profile mismatch is not evidence that the
-                        // process is foreign: this identity may be the exact
-                        // child created by the failed launch. Retain it as a
-                        // cleanup obligation and let reconciliation compare
-                        // the complete identity before any stop.
-                        .filter(|identity| identity.instance_id() == operation.instance_id())
-                });
+                let recovered = generation_profile
+                    .and_then(|(profile_id, kind)| {
+                        self.profiles
+                            .resolve(profile_id)
+                            .ok()
+                            .map(|profile| (profile, kind))
+                    })
+                    .and_then(|(profile, kind)| {
+                        let generation =
+                            ProcessOperationGeneration::for_operation(&operation, profile, kind)?;
+                        match self.process.recover_generation(&generation, profile).ok()? {
+                            GenerationRecovery::Found(identity) => Some(identity),
+                            GenerationRecovery::Indeterminate => None,
+                        }
+                    })
+                    // A profile mismatch is not evidence that the process is
+                    // foreign: this exact-key identity may be the child
+                    // created by the failed launch. Retain it as cleanup work.
+                    .filter(|identity| identity.instance_id() == operation.instance_id());
                 let mut unknown = operation;
                 unknown.set_state(
                     LifecycleOperationState::Unknown,

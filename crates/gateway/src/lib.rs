@@ -33,6 +33,7 @@ mod process_lifecycle_restart_recovery;
 mod process_lifecycle_types;
 #[path = "process_lifecycle_verification.rs"]
 mod process_lifecycle_verification;
+mod process_operation_generation;
 mod process_ownership;
 mod process_profile;
 mod process_store;
@@ -46,8 +47,13 @@ mod save_profile;
 mod seeded_run;
 
 #[cfg(test)]
+mod process_lifecycle_fake;
+#[cfg(test)]
 #[path = "process_lifecycle_tests.rs"]
 mod process_lifecycle_tests;
+#[cfg(test)]
+#[path = "process_operation_generation_tests.rs"]
+mod process_operation_generation_tests;
 
 use std::fmt;
 
@@ -74,6 +80,9 @@ pub use process_identity::{ProcessDescendantIdentity, ProcessIdentity, ProcessLa
 pub use process_lifecycle::ProcessLifecycle;
 pub use process_lifecycle_types::{
     LifecycleError, LifecycleRequest, LifecycleResponse, ProcessLifecycleConfig,
+};
+pub use process_operation_generation::{
+    GenerationRecovery, GenerationStartError, ProcessGenerationKind, ProcessOperationGeneration,
 };
 pub use process_ownership::LifecycleOwnership;
 pub use process_profile::{
