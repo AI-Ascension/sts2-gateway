@@ -4,6 +4,9 @@ use crate::identity::{
     FenceFailure, InstanceId, Lease, LeaseProof, OperationId, Tick, evaluate_fence,
 };
 use crate::process_identity::{ProcessDescendantIdentity, ProcessIdentity, ProcessLaunch};
+use crate::process_operation_generation::{
+    GenerationRecovery, GenerationStartError, ProcessOperationGeneration,
+};
 use crate::process_profile::LaunchProfile;
 use serde::{Deserialize, Serialize};
 
@@ -97,14 +100,28 @@ pub trait ProcessPort {
     /// invoking `start`; adapters that can establish and clean up an identity-bearing launch
     /// must override this method. An adapter may report an ambiguous fault after creating a
     /// child (for example when cleanup itself fails); `ProcessLifecycle` treats such a fault as
-    /// `Unknown` and retains its durable reservation, then uses `recover_owned` as a read-only
-    /// attachment opportunity.
+    /// `Unknown` and retains its durable reservation. The coordinator uses `recover_generation`
+    /// with the same persisted operation key; direct legacy callers may continue using
+    /// `recover_owned`.
     fn start_with_profile(
         &mut self,
         _specification: LaunchSpec,
         _profile: LaunchProfile,
     ) -> Result<ProcessLaunch, ProcessFault> {
         Err(ProcessFault::ProfileRequired)
+    }
+
+    /// Starts the process generation identified by a persisted lifecycle operation.
+    ///
+    /// The default refuses before any process effect. It deliberately does not
+    /// delegate to `start_with_profile`, which cannot preserve the generation key.
+    fn start_generation(
+        &mut self,
+        _generation: &ProcessOperationGeneration,
+        _specification: LaunchSpec,
+        _profile: LaunchProfile,
+    ) -> Result<ProcessLaunch, GenerationStartError> {
+        Err(GenerationStartError::Unsupported)
     }
 
     /// Returns the exact identity currently associated with a handle.
@@ -143,6 +160,18 @@ pub trait ProcessPort {
         _profile: LaunchProfile,
     ) -> Result<Option<ProcessIdentity>, ProcessFault> {
         Ok(None)
+    }
+
+    /// Looks up only the exact generation identified by a persisted operation.
+    ///
+    /// The default is conservative and never delegates to instance/profile-only
+    /// `recover_owned`; absence cannot be inferred without adapter evidence.
+    fn recover_generation(
+        &mut self,
+        _generation: &ProcessOperationGeneration,
+        _profile: LaunchProfile,
+    ) -> Result<GenerationRecovery, ProcessFault> {
+        Ok(GenerationRecovery::Indeterminate)
     }
 }
 

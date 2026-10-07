@@ -16,6 +16,9 @@ use crate::ports::{
     StopMode,
 };
 use crate::process_identity::{ProcessDescendantIdentity, ProcessIdentity, ProcessLaunch};
+use crate::process_operation_generation::{
+    GenerationRecovery, GenerationStartError, ProcessOperationGeneration,
+};
 use crate::process_profile::LaunchProfile;
 
 // A boxed port keeps the attached runtime able to select its concrete adapter at composition
@@ -43,6 +46,15 @@ impl<T: ProcessPort + ?Sized> ProcessPort for Box<T> {
         (**self).start_with_profile(specification, profile)
     }
 
+    fn start_generation(
+        &mut self,
+        generation: &ProcessOperationGeneration,
+        specification: LaunchSpec,
+        profile: LaunchProfile,
+    ) -> Result<ProcessLaunch, GenerationStartError> {
+        (**self).start_generation(generation, specification, profile)
+    }
+
     fn inspect_identity(
         &mut self,
         process: ProcessHandle,
@@ -63,6 +75,14 @@ impl<T: ProcessPort + ?Sized> ProcessPort for Box<T> {
         profile: LaunchProfile,
     ) -> Result<Option<ProcessIdentity>, ProcessFault> {
         (**self).recover_owned(instance_id, profile)
+    }
+
+    fn recover_generation(
+        &mut self,
+        generation: &ProcessOperationGeneration,
+        profile: LaunchProfile,
+    ) -> Result<GenerationRecovery, ProcessFault> {
+        (**self).recover_generation(generation, profile)
     }
 }
 

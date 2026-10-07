@@ -89,11 +89,11 @@ epochs, persists operation intent before calling `ProcessPort`, and retains dupl
 outcomes for reconciliation. Attach requires an identity from an earlier gateway record;
 stop/restart verify process birth/image/instance identity and descendant scope. Launch acknowledges
 `Starting`, not gameplay readiness. Existing constructors and methods remain available, but the
-new identity-bearing profile path rejects legacy ports before starting a process. In addition,
-the public lifecycle and fault enums gained variants, and the lifecycle record now includes a
-gateway-issued ordering sequence while caller operation IDs remain idempotency keys; Rust callers
-with exhaustive `match` expressions must add arms (wildcard or non-exhaustive matches remain
-source-compatible). Treat this as an additive
+original identity-bearing profile path rejects legacy ports before starting a process. In addition,
+the earlier lifecycle component expanded the public lifecycle and fault enums, and the lifecycle
+record now includes a gateway-issued ordering sequence while caller operation IDs remain
+idempotency keys; Rust callers with exhaustive `match` expressions must add arms (wildcard or
+non-exhaustive matches remain source-compatible). Treat this as an additive
 source/component change for wildcard-matching consumers and a source-breaking migration for
 exhaustive enum consumers, rather than a blanket minor compatibility claim.
 Active instances cannot reuse the same approved user-data namespace; ambiguous launch faults remain
@@ -101,6 +101,17 @@ Active instances cannot reuse the same approved user-data namespace; ambiguous l
 read-only recovery proves the outcome. The SQLite lifecycle store fences competing coordinators
 with an exclusive process-lifetime lock, a durable coordinator token, and transactional ownership
 admission. These guarantees are source/component behavior only.
+
+Generation-aware creation adds defaulted `ProcessPort` methods and new public generation types; this
+slice adds no variants to the existing lifecycle or process-fault enums. Legacy implementors still
+compile, but `ProcessLifecycle` now uses the generation methods, so adapters inheriting defaults
+return no-effect `Unsupported` for start and `Indeterminate` for recovery until both methods are
+overridden. Unsupported start is recorded as `Failed` and releases its reservation; ambiguous
+faults and indeterminate recovery remain `Unknown` and reserved. Exact recovery keys include the
+persisted instance, operation, nonzero sequence, request/current epochs, profile, and kind; sequence
+zero cannot start or recover. `start_with_profile` and `recover_owned` remain for direct legacy
+callers, but they no longer back lifecycle creation or recovery. Exhaustive matches over the new
+generation result enums need arms.
 
 The attached runtime now exposes that component through three fixed routes
 (`sts2-gateway-process-lifecycle-v1`): `POST /v1/instances/{instance}/process-lifecycle/operations`

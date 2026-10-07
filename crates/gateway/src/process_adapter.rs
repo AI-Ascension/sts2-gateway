@@ -2,6 +2,9 @@
 
 use std::collections::BTreeMap;
 
+use crate::process_operation_generation::{
+    GenerationRecovery, GenerationStartError, ProcessOperationGeneration,
+};
 use crate::process_profile::{ApprovedLaunchProfiles, LaunchProfile};
 use crate::{
     LaunchSpec, ProcessDescendantIdentity, ProcessFault, ProcessHandle, ProcessIdentity,
@@ -66,6 +69,18 @@ impl<P> ApprovedLaunchProfileAdapter<P> {
         P: ProcessPort,
     {
         let launch = self.process.start_with_profile(specification, profile)?;
+        self.accept_approved_launch(specification, profile, launch)
+    }
+
+    fn accept_approved_launch(
+        &mut self,
+        specification: LaunchSpec,
+        profile: LaunchProfile,
+        launch: ProcessLaunch,
+    ) -> Result<ProcessLaunch, ProcessFault>
+    where
+        P: ProcessPort,
+    {
         if !launch
             .identity()
             .matches_profile(specification.instance_id(), profile)
@@ -140,6 +155,30 @@ impl<P: ProcessPort> ProcessPort for ApprovedLaunchProfileAdapter<P> {
         self.start_approved(specification, profile)
     }
 
+    fn start_generation(
+        &mut self,
+        generation: &ProcessOperationGeneration,
+        specification: LaunchSpec,
+        profile: LaunchProfile,
+    ) -> Result<ProcessLaunch, GenerationStartError> {
+        let approved = self
+            .profile_for(specification)
+            .map_err(GenerationStartError::Process)?;
+        if approved != profile
+            || generation.instance_id() != specification.instance_id()
+            || generation.profile_id() != profile.id()
+        {
+            return Err(GenerationStartError::Process(
+                ProcessFault::ProfileNotApproved,
+            ));
+        }
+        let launch = self
+            .process
+            .start_generation(generation, specification, profile)?;
+        self.accept_approved_launch(specification, profile, launch)
+            .map_err(GenerationStartError::Process)
+    }
+
     fn inspect(&mut self, process: ProcessHandle) -> Result<ProcessState, ProcessFault> {
         self.process.inspect(process)
     }
@@ -195,5 +234,32 @@ impl<P: ProcessPort> ProcessPort for ApprovedLaunchProfileAdapter<P> {
             self.unresolved.remove(&identity.process());
         }
         Ok(Some(identity))
+    }
+
+    fn recover_generation(
+        &mut self,
+        generation: &ProcessOperationGeneration,
+        profile: LaunchProfile,
+    ) -> Result<GenerationRecovery, ProcessFault> {
+        if self.profiles.resolve(profile.id()).ok() != Some(profile)
+            || generation.profile_id() != profile.id()
+        {
+            return Err(ProcessFault::ProfileNotApproved);
+        }
+        let GenerationRecovery::Found(identity) =
+            self.process.recover_generation(generation, profile)?
+        else {
+            return Ok(GenerationRecovery::Indeterminate);
+        };
+        if identity.instance_id() != generation.instance_id() {
+            return Err(ProcessFault::IdentityMismatch);
+        }
+        self.bindings.insert(identity.process(), profile);
+        if !identity.matches_profile(generation.instance_id(), profile) {
+            self.unresolved.insert(identity.process(), identity.clone());
+        } else {
+            self.unresolved.remove(&identity.process());
+        }
+        Ok(GenerationRecovery::Found(identity))
     }
 }

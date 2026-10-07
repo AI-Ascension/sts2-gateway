@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
 
+use crate::process_operation_generation::{ProcessGenerationKind, ProcessOperationGeneration};
 use crate::process_store::{LifecycleFailure, LifecycleOperation, LifecycleOperationState};
 use crate::{
-    LaunchProfile, LaunchProfileId, LaunchSpec, LifecycleError, LifecycleResponse, ProcessIdentity,
-    ProcessLaunch, ProcessPort, StopMode,
+    GenerationStartError, LaunchProfile, LaunchProfileId, LaunchSpec, LifecycleError,
+    LifecycleResponse, ProcessFault, ProcessIdentity, ProcessLaunch, ProcessPort, StopMode,
 };
 
 use super::ProcessLifecycle;
@@ -24,9 +25,24 @@ where
         operation.set_state(LifecycleOperationState::Starting, None, None);
         self.persist_update(operation.clone())?;
         let specification = LaunchSpec::for_profile(operation.instance_id(), profile_id);
-        let launch = match self.process.start_with_profile(specification, profile) {
+        let Some(generation) = ProcessOperationGeneration::for_operation(
+            &operation,
+            profile,
+            ProcessGenerationKind::LaunchNew,
+        ) else {
+            return self.unknown(operation, None, None);
+        };
+        let launch = match self
+            .process
+            .start_generation(&generation, specification, profile)
+        {
             Ok(launch) => launch,
-            Err(fault) => return self.process_failure(operation, fault),
+            Err(GenerationStartError::Unsupported) => {
+                return self.process_failure(operation, ProcessFault::ProfileRequired);
+            }
+            Err(GenerationStartError::Process(fault)) => {
+                return self.process_failure(operation, fault);
+            }
         };
         self.finish_start(operation, launch, profile, LifecycleOperationState::Started)
     }

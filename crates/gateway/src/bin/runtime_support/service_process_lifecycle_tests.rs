@@ -9,8 +9,9 @@
 
 use super::*;
 use sts2_gateway::{
-    LaunchSpec, ProcessFault,
-    ProcessHandle, ProcessIdentity, ProcessLaunch, ProcessPort, ProcessState, StopMode,
+    GenerationRecovery, GenerationStartError, LaunchSpec, ProcessFault,
+    ProcessHandle, ProcessIdentity, ProcessLaunch, ProcessOperationGeneration, ProcessPort,
+    ProcessState, StopMode,
 };
 use std::sync::{Arc, Mutex, MutexGuard};
 
@@ -31,6 +32,7 @@ struct RecordingState {
     stops: usize,
     next_handle: u64,
     identities: std::collections::BTreeMap<u64, ProcessIdentity>,
+    generations: std::collections::BTreeMap<ProcessOperationGeneration, ProcessIdentity>,
 }
 
 impl RecordingProcess {
@@ -43,14 +45,8 @@ impl RecordingProcess {
             state,
         )
     }
-}
 
-impl ProcessPort for RecordingProcess {
-    fn start(&mut self, _specification: LaunchSpec) -> Result<ProcessHandle, ProcessFault> {
-        Err(ProcessFault::ProfileRequired)
-    }
-
-    fn start_with_profile(
+    fn create_launch(
         &mut self,
         specification: LaunchSpec,
         profile: sts2_gateway::LaunchProfile,
@@ -72,6 +68,44 @@ impl ProcessPort for RecordingProcess {
         );
         state.identities.insert(handle.value(), identity.clone());
         Ok(ProcessLaunch::new(identity))
+    }
+}
+
+impl ProcessPort for RecordingProcess {
+    fn start(&mut self, _specification: LaunchSpec) -> Result<ProcessHandle, ProcessFault> {
+        Err(ProcessFault::ProfileRequired)
+    }
+
+    fn start_with_profile(
+        &mut self,
+        specification: LaunchSpec,
+        profile: sts2_gateway::LaunchProfile,
+    ) -> Result<ProcessLaunch, ProcessFault> {
+        self.create_launch(specification, profile)
+    }
+
+    fn start_generation(
+        &mut self,
+        generation: &ProcessOperationGeneration,
+        specification: LaunchSpec,
+        profile: sts2_gateway::LaunchProfile,
+    ) -> Result<ProcessLaunch, GenerationStartError> {
+        if generation.instance_id() != specification.instance_id()
+            || generation.profile_id() != profile.id()
+        {
+            return Err(GenerationStartError::Process(
+                ProcessFault::ProfileNotApproved,
+            ));
+        }
+        let launch = self
+            .create_launch(specification, profile)
+            .map_err(GenerationStartError::Process)?;
+        self.state
+            .lock()
+            .map_err(|_| GenerationStartError::Process(ProcessFault::Unavailable))?
+            .generations
+            .insert(generation.clone(), launch.identity().clone());
+        Ok(launch)
     }
 
     fn inspect(&mut self, _process: ProcessHandle) -> Result<ProcessState, ProcessFault> {
@@ -102,6 +136,21 @@ impl ProcessPort for RecordingProcess {
         _profile: sts2_gateway::LaunchProfile,
     ) -> Result<Option<ProcessIdentity>, ProcessFault> {
         Ok(None)
+    }
+
+    fn recover_generation(
+        &mut self,
+        generation: &ProcessOperationGeneration,
+        _profile: sts2_gateway::LaunchProfile,
+    ) -> Result<GenerationRecovery, ProcessFault> {
+        Ok(self
+            .state
+            .lock()
+            .map_err(|_| ProcessFault::Unavailable)?
+            .generations
+            .get(generation)
+            .cloned()
+            .map_or(GenerationRecovery::Indeterminate, GenerationRecovery::Found))
     }
 }
 

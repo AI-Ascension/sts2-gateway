@@ -100,6 +100,15 @@ protocol implementation path dependency is present. See
 [ADR 0010](decisions/0010-runtime-v2-mcp-session-fence.md), and
 [ADR 0020](decisions/0020-workflow-authority-recovery-contract.md).
 
+Lifecycle process creation now carries an opaque `ProcessOperationGeneration` derived from the
+durable operation and resolved profile: instance, operation, nonzero server sequence, request and
+current authority epochs, profile, and generation kind. Start and read-only recovery use that same
+key; defaults refuse start without effect and report recovery as `Indeterminate`, with no
+instance/profile fallback or `Absent` result. Identity-less legacy sequence-zero operations remain
+`Unknown` and reserved without a generation call. Identity-bound stop, inspect, attach, and cleanup
+are unchanged. These source/component seams and synthetic fakes do not establish an OS adapter or a
+restart-durable process registry.
+
 ## Identity, lifecycle, and fencing
 
 The future gateway contract must distinguish caller, gateway session, MCP session, game session,

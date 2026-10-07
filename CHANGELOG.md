@@ -275,13 +275,13 @@ host compatibility and release publication.
   no-eviction operation-record budget now prevent duplicate launch, stale-history replacement,
   and unbounded retention. Restart recovery advances authority and reserves ownership durably
   before effects; rotation-write failure or epoch exhaustion leaves the process untouched.
-  Ambiguous launch faults remain `Unknown` with durable reservations; identity-bearing cleanup is
-  retained until exact child-free absence. Approved user-data namespaces stay exclusive, and SQLite coordinators remain fenced by exclusive locks, durable tokens, and transactional admission.
-  This is source/component evidence only: native process launch, host
-  readiness, harness workflow mapping, and deployment compatibility remain unverified behind the
-  `sts2-harness` prerequisites. Legacy ports reject the profile-aware launch path before
-  starting; consumers with exhaustive matches over the expanded public lifecycle/fault enums must
-  add arms.
+  Start and recovery share an exact key: instance, operation, nonzero sequence, request/current epochs,
+  profile, and generation kind; sequence-zero stays `Unknown` with no lookup or relaunch.
+  Ambiguous faults and `Indeterminate` retain capacity; no-effect `Unsupported` records `Failed` and releases it.
+  Cleanup still uses exact child-free identity; namespaces stay exclusive, and SQLite retains locks, tokens,
+  and transactional admission. This remains source/component evidence only: native process launch,
+  host readiness, harness workflow mapping, and deployment compatibility remain unverified behind the
+  `sts2-harness` prerequisites. Defaulted methods keep legacy ports compiling, but lifecycle adapters need both generation-aware overrides; no old enum variants are added here, and new generation result enums need exhaustive arms.
 - Add the authenticated, bounded `game-information-query-v1` read transport for capabilities and
   the canonical envelope query route (with additive operation-specific aliases). Fixed
   instance-scoped routes derive only their allowlisted loopback producer paths after

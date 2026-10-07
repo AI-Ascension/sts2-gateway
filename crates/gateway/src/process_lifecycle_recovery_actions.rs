@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT
 
+use crate::process_operation_generation::{ProcessGenerationKind, ProcessOperationGeneration};
 use crate::process_store::{LifecycleFailure, LifecycleOperation, LifecycleOperationState};
 use crate::{
-    LaunchProfile, LifecycleError, ProcessIdentity, ProcessLaunch, ProcessState, StopMode,
+    GenerationRecovery, GenerationStartError, LaunchProfile, LifecycleError, ProcessFault,
+    ProcessIdentity, ProcessLaunch, ProcessState, StopMode,
 };
 
 use super::ProcessLifecycle;
@@ -138,9 +140,24 @@ where
         // recovery or a successful start establishes its exact ownership.
         self.reserve_ownership(&operation, profile.id())?;
         let specification = crate::LaunchSpec::for_profile(operation.instance_id(), profile.id());
-        let launch = match self.process.start_with_profile(specification, profile) {
+        let Some(generation) = ProcessOperationGeneration::for_operation(
+            &operation,
+            profile,
+            ProcessGenerationKind::RestartReplacement,
+        ) else {
+            return self.unknown(operation, None, None);
+        };
+        let launch = match self
+            .process
+            .start_generation(&generation, specification, profile)
+        {
             Ok(launch) => launch,
-            Err(fault) => return self.process_failure(operation, fault),
+            Err(GenerationStartError::Unsupported) => {
+                return self.process_failure(operation, ProcessFault::ProfileRequired);
+            }
+            Err(GenerationStartError::Process(fault)) => {
+                return self.process_failure(operation, fault);
+            }
         };
         self.finish_start(operation, launch, profile, LifecycleOperationState::Started)
     }
@@ -159,10 +176,18 @@ where
             return self.verify_record(operation);
         }
         let previous_process = operation.process().cloned();
-        let recovered = self.process.recover_owned(operation.instance_id(), profile);
-        let identity = match recovered {
-            Ok(Some(identity)) => identity,
-            Ok(None) => return self.unknown(operation, previous_process, None),
+        let Some(generation) = ProcessOperationGeneration::for_operation(
+            &operation,
+            profile,
+            ProcessGenerationKind::LaunchNew,
+        ) else {
+            return self.unknown(operation, previous_process, None);
+        };
+        let identity = match self.process.recover_generation(&generation, profile) {
+            Ok(GenerationRecovery::Found(identity)) => identity,
+            Ok(GenerationRecovery::Indeterminate) => {
+                return self.unknown(operation, previous_process, None);
+            }
             Err(fault) => {
                 return self.unknown(
                     operation,

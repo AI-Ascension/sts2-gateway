@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
 
+use crate::process_operation_generation::{ProcessGenerationKind, ProcessOperationGeneration};
 use crate::process_store::{
     LifecycleAction, LifecycleFailure, LifecycleOperation, LifecycleOperationState,
 };
 use crate::{
-    LaunchProfile, LifecycleError, LifecycleResponse, ProcessFault, ProcessIdentity, ProcessLaunch,
-    ProcessState, StopMode,
+    GenerationRecovery, LaunchProfile, LifecycleError, LifecycleResponse, ProcessFault,
+    ProcessIdentity, ProcessLaunch, ProcessState, StopMode,
 };
 
 use super::ProcessLifecycle;
@@ -145,21 +146,30 @@ where
         &mut self,
         operation: LifecycleOperation,
     ) -> Result<LifecycleResponse, LifecycleError> {
-        let profile = self.profile_for_operation(&operation)?;
         if operation.process().is_none() {
-            let recovered = self.process.recover_owned(operation.instance_id(), profile);
-            return match recovered {
-                Ok(Some(identity)) => {
+            let current_epoch = self.current_authority_epoch(operation.instance_id());
+            if !ProcessOperationGeneration::permits_restart_recovery(&operation, current_epoch) {
+                return self.unknown(operation, None, None);
+            }
+            let profile = self.profile_for_operation(&operation)?;
+            let Some(generation) = ProcessOperationGeneration::for_operation(
+                &operation,
+                profile,
+                ProcessGenerationKind::RestartReplacement,
+            ) else {
+                return self.unknown(operation, None, None);
+            };
+            return match self.process.recover_generation(&generation, profile) {
+                Ok(GenerationRecovery::Found(identity)) => {
                     self.finish_recovered(operation, ProcessLaunch::new(identity), profile)
                 }
-                // The replacement may have been created after the last durable
-                // transition but before the response was lost. Without an
-                // explicit recovery observation, starting another process
-                // would be a blind mutation and could duplicate the instance.
-                Ok(None) => self.unknown(operation, None, None),
+                // Never turn an uncertain read into a second replacement start.
+                // A recovery result cannot authorize a blind mutation.
+                Ok(GenerationRecovery::Indeterminate) => self.unknown(operation, None, None),
                 Err(fault) => self.unknown(operation, None, Some(LifecycleFailure::Process(fault))),
             };
         }
+        let profile = self.profile_for_operation(&operation)?;
         let operation = self.prepare_restart_recovery(operation, profile)?;
         self.finish_restart(operation, profile)
     }
