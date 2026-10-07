@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 
 use super::process_lifecycle_fake::FakeProcess;
+use super::{ExecutableIdentity, ProcessDescendantIdentity};
 use super::{
     ApprovedLaunchProfileAdapter, ApprovedLaunchProfiles, AuthorityEpoch, CallerId,
     DeterministicLeaseDecision, InMemoryLifecycleStore, InstanceId, LaunchProfile, LaunchProfileId,
