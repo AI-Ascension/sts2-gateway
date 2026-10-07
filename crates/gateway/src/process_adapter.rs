@@ -23,6 +23,7 @@ pub struct ApprovedLaunchProfileAdapter<P> {
     /// be cleaned up. The profile may be mismatched; the identity is still a
     /// durable cleanup witness and must not be dropped.
     unresolved: BTreeMap<ProcessHandle, ProcessIdentity>,
+    retained_generations: BTreeMap<ProcessOperationGeneration, ProcessHandle>,
 }
 
 impl<P> ApprovedLaunchProfileAdapter<P> {
@@ -32,6 +33,7 @@ impl<P> ApprovedLaunchProfileAdapter<P> {
             process,
             bindings: BTreeMap::new(),
             unresolved: BTreeMap::new(),
+            retained_generations: BTreeMap::new(),
         }
     }
 
@@ -102,7 +104,7 @@ impl<P> ApprovedLaunchProfileAdapter<P> {
                     }
                     Ok(_) => {
                         self.bindings.remove(&process);
-                        self.unresolved.remove(&process);
+                        self.forget_retained(process);
                         Err(ProcessFault::IdentityMismatch)
                     }
                 },
@@ -110,8 +112,14 @@ impl<P> ApprovedLaunchProfileAdapter<P> {
         }
         let process = launch.identity().process();
         self.bindings.insert(process, profile);
-        self.unresolved.remove(&process);
+        self.forget_retained(process);
         Ok(launch)
+    }
+
+    fn forget_retained(&mut self, process: ProcessHandle) {
+        self.unresolved.remove(&process);
+        self.retained_generations
+            .retain(|_, handle| *handle != process);
     }
 
     fn validate_identity(
@@ -175,8 +183,13 @@ impl<P: ProcessPort> ProcessPort for ApprovedLaunchProfileAdapter<P> {
         let launch = self
             .process
             .start_generation(generation, specification, profile)?;
-        self.accept_approved_launch(specification, profile, launch)
-            .map_err(GenerationStartError::Process)
+        let process = launch.identity().process();
+        let result = self.accept_approved_launch(specification, profile, launch);
+        if result.is_err() && self.unresolved.contains_key(&process) {
+            self.retained_generations
+                .insert(generation.clone(), process);
+        }
+        result.map_err(GenerationStartError::Process)
     }
 
     fn inspect(&mut self, process: ProcessHandle) -> Result<ProcessState, ProcessFault> {
@@ -194,7 +207,7 @@ impl<P: ProcessPort> ProcessPort for ApprovedLaunchProfileAdapter<P> {
     fn stop(&mut self, process: ProcessHandle, mode: StopMode) -> Result<(), ProcessFault> {
         self.process.stop(process, mode)?;
         self.bindings.remove(&process);
-        self.unresolved.remove(&process);
+        self.forget_retained(process);
         Ok(())
     }
 
@@ -231,7 +244,7 @@ impl<P: ProcessPort> ProcessPort for ApprovedLaunchProfileAdapter<P> {
         if !identity.matches_profile(instance_id, profile) {
             self.unresolved.insert(identity.process(), identity.clone());
         } else {
-            self.unresolved.remove(&identity.process());
+            self.forget_retained(identity.process());
         }
         Ok(Some(identity))
     }
@@ -246,6 +259,13 @@ impl<P: ProcessPort> ProcessPort for ApprovedLaunchProfileAdapter<P> {
         {
             return Err(ProcessFault::ProfileNotApproved);
         }
+        if let Some(identity) = self
+            .retained_generations
+            .get(generation)
+            .and_then(|handle| self.unresolved.get(handle))
+        {
+            return Ok(GenerationRecovery::Found(identity.clone()));
+        }
         let GenerationRecovery::Found(identity) =
             self.process.recover_generation(generation, profile)?
         else {
@@ -258,7 +278,7 @@ impl<P: ProcessPort> ProcessPort for ApprovedLaunchProfileAdapter<P> {
         if !identity.matches_profile(generation.instance_id(), profile) {
             self.unresolved.insert(identity.process(), identity.clone());
         } else {
-            self.unresolved.remove(&identity.process());
+            self.forget_retained(identity.process());
         }
         Ok(GenerationRecovery::Found(identity))
     }

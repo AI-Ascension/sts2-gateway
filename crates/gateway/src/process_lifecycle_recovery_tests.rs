@@ -191,14 +191,16 @@ fn pending_restart_intent_stops_before_starting_a_replacement() -> Result<(), St
         AuthorityEpoch::new(1),
         LaunchProfileId::new(1),
     );
+    let mut operation = LifecycleOperation::new(
+        request.operation_id(),
+        request.instance_id(),
+        request.lease(),
+        request.authority_epoch(),
+        request.action().clone(),
+    );
+    operation.set_sequence(2);
     store
-        .insert(LifecycleOperation::new(
-            request.operation_id(),
-            request.instance_id(),
-            request.lease(),
-            request.authority_epoch(),
-            request.action().clone(),
-        ))
+        .insert(operation)
         .map_err(|error| format!("{error:?}"))?;
     let mut restarted = new_lifecycle(process, store)?;
     let response = restarted

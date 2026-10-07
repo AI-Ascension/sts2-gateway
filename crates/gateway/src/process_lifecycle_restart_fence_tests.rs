@@ -173,7 +173,8 @@ fn replacement_recovery_reuses_the_persisted_post_fence_generation_key() -> Resu
     );
     assert_eq!(lifecycle.process().starts(), 2);
     assert_eq!(lifecycle.process().stop_modes(), vec![StopMode::Force]);
-    let (process, mut store) = lifecycle.into_parts();
+    let (mut process, mut store) = lifecycle.into_parts();
+    process.set_recover_enabled(true);
     store.set_fail_update_after(None);
     let persisted = store
         .list()

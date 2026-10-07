@@ -382,3 +382,48 @@ fn identityless_unrotated_or_stale_restart_never_queries_the_adapter() -> Result
     }
     Ok(())
 }
+
+#[test]
+fn retained_adapter_cleanup_is_exact_keyed_and_forgotten_after_stop() -> Result<(), String> {
+    let profile = profile(2)?;
+    let mut catalog =
+        ApprovedLaunchProfiles::try_new(1).map_err(|error| test_error("valid catalog", error))?;
+    catalog
+        .insert(profile)
+        .map_err(|error| test_error("profile accepted", error))?;
+    let key = generation(7, 9, 12, 3, 3, 2, ProcessGenerationKind::LaunchNew)?;
+    let other = generation(7, 10, 13, 3, 3, 2, ProcessGenerationKind::LaunchNew)?;
+    let mut fake = crate::process_lifecycle_fake::FakeProcess::default();
+    fake.set_wrong_image(true);
+    fake.set_stop_fault(Some(ProcessFault::StopFailed));
+    let mut adapter = ApprovedLaunchProfileAdapter::new(catalog, fake);
+    assert_eq!(
+        adapter.start_generation(
+            &key,
+            LaunchSpec::for_profile(InstanceId::new(7), profile.id()),
+            profile,
+        ),
+        Err(GenerationStartError::Process(ProcessFault::StopFailed))
+    );
+    assert_eq!(
+        adapter.recover_generation(&other, profile),
+        Ok(GenerationRecovery::Indeterminate)
+    );
+    let GenerationRecovery::Found(identity) = adapter
+        .recover_generation(&key, profile)
+        .map_err(|error| test_error("retained exact-key recovery", error))?
+    else {
+        return Err("missing exact retained cleanup identity".to_owned());
+    };
+    assert!(!identity.matches_profile(InstanceId::new(7), profile));
+    adapter.process_mut().set_stop_fault(None);
+    adapter
+        .stop(identity.process(), StopMode::Force)
+        .map_err(|error| test_error("exact retained cleanup", error))?;
+    assert_eq!(
+        adapter.recover_generation(&key, profile),
+        Ok(GenerationRecovery::Indeterminate)
+    );
+    assert_eq!(adapter.process().starts(), 1);
+    Ok(())
+}
