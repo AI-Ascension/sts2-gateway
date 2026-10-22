@@ -4,11 +4,12 @@
 
 Proposed gateway-owned component contract. The deterministic source/component implementation is
 complete for this slice, and a real filesystem isolated-allocation adapter now exists
-(`FilesystemUserDataPort`) with evidenced containment behavior. The attached runtime still stays
-unprovisioned until an operator configures a durable store path and an isolated user-data root, so
-every mutation continues to fail closed by default. An authoritative active-run source, launch
-adapter wiring into the attached runtime, game-mod contract acceptance, launch-profile integration
-from issue #50, and native host verification remain external gates.
+(`FilesystemUserDataPort`) with evidenced containment behavior. SQLite allocation and operation
+stores also exist; [ADR 0038](0038-save-profile-allocation-integrity.md) tightens their physical
+ownership, bounded storage and recovery rules. The attached runtime remains unprovisioned because
+the actual launch binding and served authoritative game-mod active-run/readback source are absent.
+Configuring paths alone does not supply those authorities. Native host verification remains a
+separate gate.
 
 ## Context
 
@@ -18,9 +19,11 @@ meaning, baseline contents, and host-thread effects. The gateway owns instance/s
 fencing, isolated user-data allocation, operation intent, bounded forwarding, and recovery
 outcomes.
 
-The launch-profile shape from issue #50 is not merged on this branch. A gateway-local contract
-constant and `LaunchProfileBindingPort` isolate that dependency. Only the fixed
-`automation-disposable-v1` profile is admitted; callers cannot provide launch settings.
+The gateway-local `LaunchProfileBindingPort` still admits only the proposed fixed
+`automation-disposable-v1` alias. That alias is not an actual binding to the numeric approved
+profiles and process namespaces in ADR 0037. Callers cannot supply launch settings, and the later
+companion must bind the allocation to the actual host context without conflating save slots,
+allocations or process namespaces.
 
 ## Decision
 

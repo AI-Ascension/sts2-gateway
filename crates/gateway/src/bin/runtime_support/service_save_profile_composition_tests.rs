@@ -17,6 +17,9 @@ use super::service_save_profile_composition::{
 const DIGEST: &str =
     "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
+#[path = "service_save_profile_integrity_tests.rs"]
+mod integrity;
+
 /// Launch-profile adapter that refuses every binding, standing in for an unaccepted provider.
 #[derive(Default)]
 struct RefusingBindingPort;

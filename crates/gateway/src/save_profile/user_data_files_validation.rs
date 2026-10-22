@@ -4,10 +4,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use super::provisioning_types::{UserDataInspection, UserDataPortError};
-use super::types::{UserDataIdentity, UserDataProvenance};
+use super::types::UserDataIdentity;
 
-/// Directory-relative name of the gateway-owned provenance record.
-pub(super) const PROVENANCE_FILE: &str = "gateway-provenance.json";
+pub(super) use super::user_data_provenance::{PROVENANCE_FILE, read_owned};
 
 /// Resolves and verifies the server-owned root once per port construction.
 ///
@@ -50,13 +49,12 @@ pub(super) fn verify_containment(
     child: &Path,
     existing: bool,
 ) -> Result<(), UserDataPortError> {
-    if !child.is_absolute()
-        || !root.is_absolute()
-        || child.parent() != Some(root)
-        || root.canonicalize().ok().as_deref() != Some(root)
-    {
+    if !child.is_absolute() || !root.is_absolute() || child.parent() != Some(root) {
         return Err(UserDataPortError::Traversal);
     }
+    // Missing/unavailable storage is not evidence of traversal or foreign contents.
+    // Keep it recoverable while still refusing a replaced root or symlinked ancestor.
+    verify_root(root)?;
     match fs::symlink_metadata(child) {
         Ok(metadata) => {
             if metadata.file_type().is_symlink() {
@@ -81,39 +79,6 @@ pub(super) fn verify_containment(
     Ok(())
 }
 
-/// Reads and validates the provenance file of an existing allocation directory.
-pub(super) fn read_owned(
-    directory: &Path,
-    identity: UserDataIdentity,
-) -> Result<Option<UserDataProvenance>, UserDataPortError> {
-    let bytes = match fs::read(directory.join(PROVENANCE_FILE)) {
-        Ok(bytes) => bytes,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-        Err(_) => return Err(UserDataPortError::Unavailable),
-    };
-    let recorded: serde_json::Value =
-        serde_json::from_slice(&bytes).map_err(|_| UserDataPortError::UnknownContents)?;
-    let Some(object) = recorded.as_object() else {
-        return Err(UserDataPortError::UnknownContents);
-    };
-    if object.len() != 2
-        || object.get("identity").and_then(serde_json::Value::as_u64) != Some(identity.value())
-    {
-        return Err(UserDataPortError::UnknownContents);
-    }
-    let provenance: UserDataProvenance = serde_json::from_value(
-        object
-            .get("provenance")
-            .cloned()
-            .ok_or(UserDataPortError::UnknownContents)?,
-    )
-    .map_err(|_| UserDataPortError::UnknownContents)?;
-    provenance
-        .validate()
-        .map_err(|_| UserDataPortError::UnknownContents)?;
-    Ok(Some(provenance))
-}
-
 /// True when the allocation directory does not exist yet.
 pub(super) fn is_absent(directory: &Path) -> bool {
     matches!(
@@ -129,11 +94,7 @@ pub(super) fn inspect_identity(
 ) -> Result<UserDataInspection, UserDataPortError> {
     verify_identity(identity)?;
     let child = allocation_directory(root, identity);
-    match verify_containment(root, &child, false) {
-        Ok(()) => {}
-        Err(UserDataPortError::Unavailable) => return Ok(UserDataInspection::Absent),
-        Err(error) => return Err(error),
-    }
+    verify_containment(root, &child, false)?;
     if is_absent(&child) {
         return Ok(UserDataInspection::Absent);
     }

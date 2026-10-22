@@ -453,12 +453,14 @@ lookup path and recovery guidance, never a blind mutation retry. A creation rece
 reserved operation identity and the approved launch contract or it is rejected as an invalid
 response.
 
-The attached runtime composes none of those dependencies yet, and no durable operation-intent store
-exists, so `RuntimeService::from_environment` injects no allocation port, launch-profile binding
-port, or durable store and has no authoritative active-run writer. Every save-profile mutation
-therefore fails closed before provisioning or forwarding with an explicit capability result instead
-of creating volatile in-memory substitutes that a restart would silently lose; read routes keep
-forwarding through the fixed loopback targets. The game-mod remains authoritative for save-slot
-meaning, baselines, and host effects. Current evidence is deterministic source/component and
-synthetic loopback testing; real filesystem isolation, production persistence, launch-profile issue
-#50 wiring, game-mod contract acceptance, and native save compatibility are unverified.
+The filesystem allocation port and both SQLite journals exist. Their bounded ownership,
+durability and recovery rules are defined by
+[ADR 0038](decisions/0038-save-profile-allocation-integrity.md). Restored records cannot share an
+allocation identity or change its provenance, and reuse re-inspects physical ownership. The
+runtime seam authorizes the current admitted lease before an allocation or downstream effect.
+
+`RuntimeService::from_environment` still injects none of these adapters because an accepted actual
+launch binding and served authoritative active-run/readback source are absent. Mutations remain
+unavailable; discovery retains the fixed loopback targets. Allocation, process namespace and
+mod-owned save-slot identities remain distinct. Real filesystem/SQLite and recording-HTTP evidence
+does not establish game-mod host semantics, the cross-owner binding or native save compatibility.

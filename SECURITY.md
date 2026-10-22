@@ -34,6 +34,20 @@ Security tests must fail closed when their fixtures or credentials are unavailab
 disposable processes and isolated ports. Do not expose a listener, use a real game profile/save,
 contact a provider, or change deployment state during ordinary development validation.
 
+## Save-profile allocation integrity
+
+The configured allocation root and ancestors require exclusive deployment filesystem authority.
+New allocation directories and provenance files use private permissions. Bounded regular-file
+ownership reads reject links, unknown fields and foreign provenance; journal records cannot share
+or change their immutable allocation binding. Creation and reconciled ownership require completed
+file/directory syncs. Missing or invalid physical ownership retains the original operation as
+unknown or blocked, with no replacement allocation. Filesystem operations do not claim protection
+against a malicious concurrent writer with the same OS authority.
+
+The attached seam validates the current admitted lease before provisioning. No static active-run
+value, Runtime-v2 combat phase or allocation-directory name establishes game-mod save authority;
+the missing authoritative integration keeps production mutations unavailable.
+
 ## Opt-in native process ownership
 
 The ADR 0037 adapter trusts explicit operator configuration and the same-user systemd manager.

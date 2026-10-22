@@ -32,8 +32,8 @@ impl SaveProfileActiveRun {
 
 /// Injected save-profile adapters.
 ///
-/// No accepted durable operation-intent store, isolated-allocation port, or launch-profile
-/// binding port exists for this slice, so the attached runtime injects none of them. Every
+/// Filesystem and durable stores exist, but the actual launch binding and authoritative producer
+/// admission are not composed, so the attached runtime injects none of them. Every
 /// mutation then fails closed with an explicit unavailable capability instead of silently
 /// creating volatile in-memory state that a restart would lose.
 #[derive(Default)]

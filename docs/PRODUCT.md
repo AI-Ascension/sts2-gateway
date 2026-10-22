@@ -140,11 +140,11 @@ paths, with explicit read or mutate scopes and the complete caller/session/insta
 fence. It allocates a fresh opaque user-data identity, records provenance, rejects unknown or
 foreign contents, traversal, symlink escape, and implicit adoption, and retains accepted or
 uncertain work for lookup without blind retries. The game-mod owns profile meaning and authoritative
-baselines. This slice uses deterministic in-memory stores and synthetic loopback peers; launch
-profile issue #50 integration, production persistence, game-mod contract acceptance, and native
-save compatibility are `unverified`. The attached runtime injects no isolated-allocation,
-launch-profile, durable-intent, or active-run dependency, so mutations fail closed with an explicit
-capability result while discovery reads stay available through the fixed loopback targets.
+baselines. Real filesystem and SQLite adapters have bounded ownership/recovery tests, including
+recording-HTTP composition and current-lease admission. The actual launch-profile mapping and
+served mod active-run/readback authority are still absent. The attached runtime therefore leaves
+mutations unavailable while discovery retains the fixed loopback targets. Native save
+compatibility and production activation remain unverified.
 
 ## Candidate Runtime-v4 rest actions
 

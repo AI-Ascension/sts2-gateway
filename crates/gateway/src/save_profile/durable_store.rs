@@ -12,9 +12,11 @@ use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
 use crate::coordinator_lock::CoordinatorLock;
-use rusqlite::{Connection, params};
+use rusqlite::{Connection, TransactionBehavior, params};
 use uuid::Uuid;
 
+use super::durable_store_query::{db_error, read_records, validate_owner_row, verify_write};
+use super::provisioning_record::{MAX_ALLOCATIONS, encode, validate_update};
 use super::provisioning_types::{
     UserDataProvisioningError, UserDataProvisioningRecord, UserDataRecordStore,
 };
@@ -37,7 +39,7 @@ impl SqliteUserDataRecordStore {
         let path = path.as_ref();
         // An empty path makes SQLite open a transient database, which would silently accept
         // provisioning intents that do not survive the connection.
-        if path.as_os_str().is_empty() {
+        if path.as_os_str().is_empty() || path == Path::new(":memory:") {
             return Err(UserDataProvisioningError::PersistenceFailed);
         }
         // `Connection::open` enables SQLite URI handling, so a `file:...` spelling would resolve to
@@ -48,9 +50,6 @@ impl SqliteUserDataRecordStore {
         }
         let connection =
             Connection::open(path).map_err(|_| UserDataProvisioningError::PersistenceFailed)?;
-        if path == Path::new(":memory:") {
-            return Self::from_connection(connection, None);
-        }
         let lock = Self::acquire_lock(&Self::lock_path(path))?;
         Self::from_connection(connection, Some(lock))
     }
@@ -67,37 +66,37 @@ impl SqliteUserDataRecordStore {
         journal_lock: Option<CoordinatorLock>,
     ) -> Result<Self, UserDataProvisioningError> {
         // Keep connection teardown before authority release on every initialization path.
-        let store = Self {
+        let mut store = Self {
             connection,
             _journal_lock: journal_lock,
             coordinator_token: *Uuid::new_v4().as_bytes(),
         };
+        super::durable_store_schema::verify_or_empty(&store.connection)?;
         store
             .connection
-            .execute_batch(
-                "PRAGMA journal_mode = WAL;
-                 PRAGMA synchronous = FULL;
-                 CREATE TABLE IF NOT EXISTS save_profile_user_data_records (
-                   instance_id TEXT NOT NULL,
-                   operation_id TEXT NOT NULL,
-                   body BLOB NOT NULL,
-                   PRIMARY KEY (instance_id, operation_id)
-                 );
-                 CREATE TABLE IF NOT EXISTS save_profile_coordinator (
-                   singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
-                   token BLOB NOT NULL
-                 );",
-            )
-            .map_err(|_| UserDataProvisioningError::PersistenceFailed)?;
+            .busy_timeout(std::time::Duration::from_millis(100))
+            .map_err(db_error)?;
         store
             .connection
+            .execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;")
+            .map_err(db_error)?;
+        let transaction = store
+            .connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(db_error)?;
+        super::durable_store_schema::initialize(&transaction)?;
+        validate_owner_row(&transaction)?;
+        read_records(&transaction)?;
+        transaction
             .execute(
                 "INSERT INTO save_profile_coordinator (singleton, token)
                  VALUES (1, ?1)
                  ON CONFLICT(singleton) DO UPDATE SET token = excluded.token",
                 params![store.coordinator_token.as_slice()],
             )
-            .map_err(|_| UserDataProvisioningError::PersistenceFailed)?;
+            .map_err(db_error)?;
+        Self::ensure_token(&transaction, &store.coordinator_token)?;
+        transaction.commit().map_err(db_error)?;
         Ok(store)
     }
 
@@ -131,9 +130,19 @@ impl SqliteUserDataRecordStore {
         connection: &Connection,
         token: &[u8; 16],
     ) -> Result<(), UserDataProvisioningError> {
+        super::durable_store_schema::verify(connection)?;
+        let count: i64 = connection
+            .query_row("SELECT count(*) FROM save_profile_coordinator", [], |row| {
+                row.get(0)
+            })
+            .map_err(db_error)?;
+        if count != 1 {
+            return Err(UserDataProvisioningError::PersistenceFailed);
+        }
         let stored = connection
             .query_row(
-                "SELECT token FROM save_profile_coordinator WHERE singleton = 1",
+                "SELECT token FROM save_profile_coordinator
+                 WHERE singleton=1 AND typeof(token)='blob' AND length(token)=16",
                 [],
                 |row| row.get::<_, Vec<u8>>(0),
             )
@@ -143,31 +152,14 @@ impl SqliteUserDataRecordStore {
         }
         Ok(())
     }
-
-    fn encode(record: &UserDataProvisioningRecord) -> Result<Vec<u8>, UserDataProvisioningError> {
-        serde_json::to_vec(record).map_err(|_| UserDataProvisioningError::PersistenceFailed)
-    }
-
-    fn decode(body: Vec<u8>) -> Result<UserDataProvisioningRecord, UserDataProvisioningError> {
-        serde_json::from_slice(&body).map_err(|_| UserDataProvisioningError::PersistenceFailed)
-    }
 }
 
 impl UserDataRecordStore for SqliteUserDataRecordStore {
     fn list(&mut self) -> Result<Vec<UserDataProvisioningRecord>, UserDataProvisioningError> {
-        Self::ensure_token(&self.connection, &self.coordinator_token)?;
-        let mut statement = self
-            .connection
-            .prepare("SELECT body FROM save_profile_user_data_records ORDER BY instance_id, operation_id")
-            .map_err(|_| UserDataProvisioningError::PersistenceFailed)?;
-        let rows = statement
-            .query_map([], |row| row.get::<_, Vec<u8>>(0))
-            .map_err(|_| UserDataProvisioningError::PersistenceFailed)?;
-        let mut records = Vec::new();
-        for row in rows {
-            let body = row.map_err(|_| UserDataProvisioningError::PersistenceFailed)?;
-            records.push(Self::decode(body)?);
-        }
+        let transaction = self.connection.transaction().map_err(db_error)?;
+        Self::ensure_token(&transaction, &self.coordinator_token)?;
+        let records = read_records(&transaction)?;
+        transaction.commit().map_err(db_error)?;
         Ok(records)
     }
 
@@ -175,12 +167,26 @@ impl UserDataRecordStore for SqliteUserDataRecordStore {
         &mut self,
         record: UserDataProvisioningRecord,
     ) -> Result<(), UserDataProvisioningError> {
-        let body = Self::encode(&record)?;
+        let body = encode(&record)?;
+        if record.status != super::UserDataProvisioningStatus::Pending {
+            return Err(UserDataProvisioningError::InvalidRequest);
+        }
         let transaction = self
             .connection
-            .transaction()
+            .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(|_| UserDataProvisioningError::PersistenceFailed)?;
         Self::ensure_token(&transaction, &self.coordinator_token)?;
+        let records = read_records(&transaction)?;
+        if records.iter().any(|old| {
+            old.descriptor.identity == record.descriptor.identity
+                || (old.context.instance_id == record.context.instance_id
+                    && old.operation_id == record.operation_id)
+        }) {
+            return Err(UserDataProvisioningError::OperationConflict);
+        }
+        if records.len() >= MAX_ALLOCATIONS {
+            return Err(UserDataProvisioningError::CapacityExceeded);
+        }
         let changed = transaction
             .execute(
                 "INSERT OR IGNORE INTO save_profile_user_data_records
@@ -191,6 +197,7 @@ impl UserDataRecordStore for SqliteUserDataRecordStore {
         if changed == 0 {
             return Err(UserDataProvisioningError::OperationConflict);
         }
+        verify_write(&transaction, &record, &body)?;
         transaction
             .commit()
             .map_err(|_| UserDataProvisioningError::PersistenceFailed)
@@ -200,12 +207,20 @@ impl UserDataRecordStore for SqliteUserDataRecordStore {
         &mut self,
         record: UserDataProvisioningRecord,
     ) -> Result<(), UserDataProvisioningError> {
-        let body = Self::encode(&record)?;
+        let body = encode(&record)?;
         let transaction = self
             .connection
-            .transaction()
+            .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(|_| UserDataProvisioningError::PersistenceFailed)?;
         Self::ensure_token(&transaction, &self.coordinator_token)?;
+        let previous = read_records(&transaction)?
+            .into_iter()
+            .find(|old| {
+                old.context.instance_id == record.context.instance_id
+                    && old.operation_id == record.operation_id
+            })
+            .ok_or(UserDataProvisioningError::OperationNotFound)?;
+        validate_update(&previous, &record)?;
         let changed = transaction
             .execute(
                 "UPDATE save_profile_user_data_records SET body = ?3
@@ -216,6 +231,7 @@ impl UserDataRecordStore for SqliteUserDataRecordStore {
         if changed == 0 {
             return Err(UserDataProvisioningError::OperationNotFound);
         }
+        verify_write(&transaction, &record, &body)?;
         transaction
             .commit()
             .map_err(|_| UserDataProvisioningError::PersistenceFailed)

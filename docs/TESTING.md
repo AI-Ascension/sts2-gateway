@@ -244,22 +244,28 @@ unknown-to-created reconciliation, and retained operator guidance. Creation rece
 reserved operation identity and the approved launch contract, or the gateway records an invalid
 response and retains the operation as unknown.
 
-The filesystem-refusal tests inject the adapter's inspection classification or typed port error
-(`Traversal`, `SymlinkEscape`, `UnknownContents`, `ExistingContents`, or `Unavailable`) instead of
-touching a real root, so they prove the provisioner's refusal mapping and that no create call
-follows a refused inspection. They do not traverse a real filesystem, resolve a real symlink, or
-prove containment. The restart tests reopen a shared record store from a second ledger or
-provisioner, which proves that retained accepted/unknown intent is not dispatched again and that
-allocation identities are not reused; there is no production durable-store adapter yet.
+The injected filesystem-refusal tests prove the provisioner's error mapping. Separate real
+filesystem tests now exercise canonical containment, child/provenance symlinks, hardlinked,
+oversized, duplicate-field and foreign provenance, private permissions and preservation of unknown
+contents. `save_profile_physical_recovery` uses real files and SQLite connections across reopen,
+lost acknowledgments and failed result persistence. It verifies the same allocation is recovered
+without another create and that a stale creation receipt cannot recreate or adopt missing/foreign
+contents. `save_profile_durable_store` additionally rejects duplicate identities, corrupt or
+oversized rows, row/key mismatch, changed immutable ownership and unknown databases.
+
+The runtime integrity regressions compose those real adapters with an explicitly synthetic launch
+binding and active-run authority plus a recording HTTP producer. They verify exact readback and
+durable replay, preservation of existing data, pre-provisioning authority checks, and use of the
+actual admitted recovery lease. See [ADR 0038](decisions/0038-save-profile-allocation-integrity.md).
 
 The attached runtime composes no durable operation-intent store, isolated-allocation port, or
 launch-profile binding port, so every mutation fails closed before provisioning or forwarding with
 an explicit capability result (`save_profile_active_run_unavailable`,
 `save_profile_persistence_unavailable`, or `save_profile_provisioning_unavailable`) and no
 production in-memory substitute is created. Read routes still forward through the fixed loopback
-targets. These are source/component outcomes; they do not prove a real isolated filesystem
-allocation, production durability, issue #50 launch-profile wiring, game-mod readback, native save
-compatibility, or cross-restart durability.
+targets. Filesystem and SQLite component results do not establish the actual issue #50 launch
+binding, a served authoritative game-mod active-run/readback contract, native save compatibility,
+power-loss durability of a deployment filesystem, or production activation.
 
 The authorized exact-host lane now confirms the managed mod listener, downstream forwarding,
 lease fencing, a Godot main-thread callback, the bounded STS2 host effect, and reversible disposable

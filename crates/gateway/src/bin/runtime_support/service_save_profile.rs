@@ -28,12 +28,16 @@ impl RuntimeService {
         if let Err(error) = self.check_lease(request) {
             return error;
         }
+        let (lease_id, lease_epoch) = match self.recovery_lease.as_ref() {
+            Some(lease) if self.recovery.is_some() => (lease.lease_id.clone(), lease.lease_epoch),
+            _ => (self.config.lease_id.clone(), self.config.lease_epoch),
+        };
         let authority = SaveProfileAuthority {
             instance_id: self.config.instance_id.clone(),
             caller_id: self.config.caller_id.clone(),
             session_id: self.config.session_id.clone(),
-            lease_id: self.config.lease_id.clone(),
-            lease_epoch: self.config.lease_epoch,
+            lease_id,
+            lease_epoch,
             expires_at_millis: None,
         };
         self.save_profile.request(
@@ -59,9 +63,8 @@ pub(super) struct SaveProfileRuntime {
 impl SaveProfileRuntime {
     /// Attached-runtime composition.
     ///
-    /// No accepted durable intent store, isolated-allocation port, or launch-profile binding
-    /// port is configured, so every mutation fails closed rather than provisioning from
-    /// volatile in-memory stand-ins.
+    /// The actual launch binding and authoritative producer admission remain unavailable;
+    /// existing filesystem/durable adapters are not configured. Every mutation fails closed.
     pub(super) fn new(
         enabled: bool,
         mod_address: &str,
@@ -148,6 +151,9 @@ impl SaveProfileRuntime {
             Ok(context) => context,
             Err(code) => return (400, json_error(code)),
         };
+        if let Err(error) = authority.authorize(&context, now_millis) {
+            return ledger_error(sts2_gateway::SaveProfileLedgerError::Fence(error));
+        }
         let operation_id = operation_id(request, route);
         if operation_id.is_empty() || !safe_operation_id(&operation_id) {
             return (400, json_error("save_profile_operation_invalid"));
