@@ -5,6 +5,14 @@ host compatibility and release publication.
 
 ## [Unreleased]
 
+- Harden save-profile allocation integrity: sync private physical allocation/provenance before
+  acknowledgment, bound and validate ownership reads and durable rows, reject duplicate or changed
+  allocation identities, and re-inspect retained creation receipts before reuse. Save-profile
+  authority now follows the current recovery lease and is checked before provisioning. Real
+  filesystem/SQLite reopen and recording-HTTP regressions cover these boundaries. Production
+  mutations remain unavailable pending the actual launch binding and mod admission/readback
+  contract; native save behavior is unverified. Refs #51; see ADR 0038.
+
 - Add an explicit opt-in Linux/systemd process adapter for the existing approved-profile lifecycle
   routes. Each operation generation reserves one durable owned service identity before dispatch;
   duplicate/reopened generations only inspect, and stop completes only with empty-cgroup evidence.
