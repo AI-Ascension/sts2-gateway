@@ -237,9 +237,12 @@ fn reopened_allocation_store_keeps_identities_and_does_not_readopt() -> Result<(
         .ok_or_else(|| String::from("descriptor missing"))?;
     assert_eq!(created.identity, UserDataIdentity::new(1));
 
+    // Reopening the coordinator does not erase the already-owned physical allocation.
+    let mut retained_filesystem = first.port().clone();
+    retained_filesystem.created.clear();
     let mut reopened = UserDataProvisioner::new(
         4,
-        InMemoryUserDataPort::default(),
+        retained_filesystem,
         store,
         RecordingBindingPort::default(),
     )
