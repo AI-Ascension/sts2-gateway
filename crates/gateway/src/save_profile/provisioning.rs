@@ -3,7 +3,7 @@
 use std::collections::BTreeMap;
 
 use super::guidance::RecoveryGuidance;
-use super::provisioning_descriptor::PROVENANCE_OWNER;
+use super::provisioning_record::{MAX_ALLOCATIONS, replay_matches, validate_set};
 use super::provisioning_types::{
     UserDataCreateOutcome, UserDataCreateRequest, UserDataInspection, UserDataPort,
     UserDataPortError, UserDataProvisioningError, UserDataProvisioningOutcome,
@@ -14,11 +14,9 @@ use super::provisioning_validation::{
     validate_operation_id, validate_request,
 };
 use super::types::{
-    LAUNCH_PROFILE_CONTRACT, LaunchProfileBinding, LaunchProfileBindingPort, SaveProfileContext,
-    UserDataDescriptor, UserDataIdentity,
+    LaunchProfileBinding, LaunchProfileBindingPort, SaveProfileContext, UserDataDescriptor,
+    UserDataIdentity,
 };
-
-const MAX_ALLOCATIONS: usize = 64;
 
 /// Allocates a fresh, gateway-owned user-data identity and records every attempt.
 ///
@@ -46,6 +44,7 @@ impl<P: UserDataPort, S: UserDataRecordStore, B: LaunchProfileBindingPort>
             return Err(UserDataProvisioningError::CapacityExceeded);
         }
         let persisted = store.list()?;
+        validate_set(&persisted, capacity)?;
         let next_identity = persisted
             .iter()
             .map(|record| record.descriptor.identity.value())
@@ -86,21 +85,16 @@ impl<P: UserDataPort, S: UserDataRecordStore, B: LaunchProfileBindingPort>
         validate_request(&context, &operation_id, &profile_id)?;
         let key = (context.instance_id.clone(), operation_id.clone());
         if let Some(existing) = self.records.get(&key) {
-            if !existing.context.same_fence(&context)
-                || existing.launch_profile.profile_id != profile_id
-                || existing.launch_profile.validate().is_err()
-                || existing.descriptor.validate().is_err()
-                || existing.launch_profile.user_data != existing.descriptor.identity
-                || existing.descriptor.provenance.owner != PROVENANCE_OWNER
-                || existing.descriptor.provenance.instance_id != context.instance_id
-                || existing.descriptor.provenance.operation_id != operation_id
-                || existing.descriptor.provenance.contract != LAUNCH_PROFILE_CONTRACT
-            {
+            if !replay_matches(existing, &context, &operation_id, &profile_id) {
                 return Err(UserDataProvisioningError::OperationConflict);
             }
-            return Ok(outcome(existing));
+            return if existing.status == UserDataProvisioningStatus::Created {
+                self.reconcile(&context, &operation_id)
+            } else {
+                Ok(outcome(existing))
+            };
         }
-        if self.records.len() >= self.capacity {
+        if self.records.len() >= self.capacity || self.next_identity > self.capacity as u64 {
             return Err(UserDataProvisioningError::CapacityExceeded);
         }
         let identity = UserDataIdentity::try_new(self.next_identity)
@@ -149,14 +143,19 @@ impl<P: UserDataPort, S: UserDataRecordStore, B: LaunchProfileBindingPort>
         if !record.context.same_fence(context) {
             return Err(UserDataProvisioningError::StaleContext);
         }
-        if matches!(
-            record.status,
-            UserDataProvisioningStatus::Created | UserDataProvisioningStatus::Blocked
-        ) {
+        if record.status == UserDataProvisioningStatus::Blocked {
             return Ok(outcome(&record));
         }
         let inspected = match self.port.inspect(record.descriptor.identity) {
             Ok(value) => value,
+            Err(UserDataPortError::Unavailable) => {
+                return self.finish(
+                    key,
+                    UserDataProvisioningStatus::Unknown,
+                    None,
+                    Some(unknown_guidance()),
+                );
+            }
             Err(error) => return self.finish_port_error(key, error),
         };
         let (status, descriptor, guidance) = match inspected {
