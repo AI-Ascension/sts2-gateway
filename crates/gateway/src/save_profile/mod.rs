@@ -8,6 +8,8 @@
 //! shell commands, URLs supplied by callers, or save contents.
 
 mod durable_store;
+mod durable_store_query;
+mod durable_store_schema;
 mod guidance;
 mod launch_profile;
 mod ledger;
@@ -22,6 +24,7 @@ mod operation_schema;
 mod operation_store;
 mod provisioning;
 mod provisioning_descriptor;
+mod provisioning_record;
 #[cfg(test)]
 #[path = "provisioning_tests.rs"]
 mod provisioning_tests;
@@ -34,6 +37,7 @@ mod user_data_files;
 #[path = "user_data_files_tests.rs"]
 mod user_data_files_tests;
 mod user_data_files_validation;
+mod user_data_provenance;
 
 pub use durable_store::SqliteUserDataRecordStore;
 pub use guidance::RecoveryGuidance;
