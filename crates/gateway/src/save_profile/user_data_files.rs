@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 
-use std::fs;
+use std::fs::{self, File, OpenOptions};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use super::provisioning_types::{
@@ -22,6 +23,8 @@ pub const USER_DATA_ROOT_CAPACITY: usize = 64;
 /// directory, and refuses traversal, symlink escape, unknown existing contents, and implicit
 /// overwrite or adoption. Only the opaque identity leaves the port; host paths never appear in a
 /// descriptor or error.
+/// The deployment must exclusively own the configured root and its ancestors. Creation is
+/// acknowledged only after the provenance file and both directory entries have been synced.
 pub struct FilesystemUserDataPort {
     root: PathBuf,
     capacity: usize,
@@ -63,18 +66,45 @@ impl FilesystemUserDataPort {
     ) -> Result<(), UserDataPortError> {
         let directory = self.directory(identity);
         self.verify(identity, false)?;
-        fs::create_dir(&directory).map_err(|error| match error.kind() {
-            std::io::ErrorKind::AlreadyExists => UserDataPortError::ExistingContents,
-            _ => UserDataPortError::Unavailable,
-        })?;
-        let record = serde_json::json!({
-            "identity": identity.value(),
-            "provenance": provenance,
-        });
-        let bytes = serde_json::to_vec(&record).map_err(|_| UserDataPortError::UnknownContents)?;
-        fs::write(directory.join(PROVENANCE_FILE), bytes)
-            .map_err(|_| UserDataPortError::Unavailable)?;
+        let bytes = super::user_data_provenance::encode(identity, provenance)?;
+        let mut builder = fs::DirBuilder::new();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::DirBuilderExt;
+            builder.mode(0o700);
+        }
+        builder
+            .create(&directory)
+            .map_err(|error| match error.kind() {
+                std::io::ErrorKind::AlreadyExists => UserDataPortError::ExistingContents,
+                _ => UserDataPortError::Unavailable,
+            })?;
+        let mut options = OpenOptions::new();
+        options.write(true).create_new(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            options.mode(0o600);
+        }
+        // Every error from this point follows a physical effect, so retain an unknown outcome.
+        let mut file = options
+            .open(directory.join(PROVENANCE_FILE))
+            .map_err(|_| UserDataPortError::TimeoutAfterWrite)?;
+        file.write_all(&bytes)
+            .and_then(|()| file.sync_all())
+            .and_then(|()| File::open(&directory)?.sync_all())
+            .and_then(|()| File::open(&self.root)?.sync_all())
+            .map_err(|_| UserDataPortError::TimeoutAfterWrite)?;
         Ok(())
+    }
+
+    fn sync_owned(&self, identity: UserDataIdentity) -> Result<(), UserDataPortError> {
+        let directory = self.directory(identity);
+        File::open(directory.join(PROVENANCE_FILE))
+            .and_then(|file| file.sync_all())
+            .and_then(|()| File::open(&directory)?.sync_all())
+            .and_then(|()| File::open(&self.root)?.sync_all())
+            .map_err(|_| UserDataPortError::TimeoutAfterWrite)
     }
 }
 
@@ -87,7 +117,11 @@ impl UserDataPort for FilesystemUserDataPort {
         if identity.value() > self.capacity as u64 {
             return Err(UserDataPortError::Traversal);
         }
-        inspect_identity(&self.root, identity)
+        let inspected = inspect_identity(&self.root, identity)?;
+        if matches!(inspected, UserDataInspection::Owned(_)) {
+            self.sync_owned(identity)?;
+        }
+        Ok(inspected)
     }
 
     fn create(
@@ -97,6 +131,7 @@ impl UserDataPort for FilesystemUserDataPort {
         let descriptor = request.descriptor;
         let identity = descriptor.identity;
         if descriptor.validate().is_err()
+            || super::user_data_provenance::validate(&descriptor.provenance).is_err()
             || request.launch_profile.validate().is_err()
             || request.launch_profile.user_data != identity
         {
@@ -107,6 +142,7 @@ impl UserDataPort for FilesystemUserDataPort {
         match read_owned(&directory, identity)? {
             Some(provenance) => {
                 return if provenance == descriptor.provenance {
+                    self.sync_owned(identity)?;
                     Ok(UserDataCreateOutcome::AlreadyCreated(descriptor))
                 } else {
                     Err(UserDataPortError::ExistingContents)
