@@ -88,9 +88,13 @@ and one action. Caller identity is never taken from the body; the gateway's conf
 instance/caller/session/lease values are bridged to the coordinator's numeric identity space by a
 deterministic, domain-separated digest, and lease liveness stays the HTTP gate's decision while the
 lifecycle fence port decides identity only. The shipped binary validates the configured catalog,
-capacity budget, and durable store at startup but composes no concrete OS process adapter, so the
-surface reports `process_lifecycle_adapter_absent` and refuses every effect until one is installed.
-See [ADR 0035](decisions/0035-attached-process-lifecycle-route-surface.md). The
+capacity budget, and durable store at startup. Legacy configuration still reports
+`process_lifecycle_adapter_absent`. An explicit native deployment file can compose the gateway-owned
+Linux/systemd adapter and durable process-generation registry; invalid bindings or an unsupported
+manager fail startup. Its component tests do not establish native-host qualification. See
+[ADR 0035](decisions/0035-attached-process-lifecycle-route-surface.md),
+[ADR 0037](decisions/0037-owned-systemd-process-generations.md), and the
+[native deployment guide](NATIVE_PROCESS_LIFECYCLE.md). The
 POC and Runtime-v2 checks verify checked-in copies of their protocol artifacts as inert data; no
 protocol implementation path dependency is present. See
 [ADR 0001](decisions/0001-gateway-ownership-and-dependencies.md),
@@ -106,8 +110,11 @@ current authority epochs, profile, and generation kind. Start and read-only reco
 key; defaults refuse start without effect and report recovery as `Indeterminate`, with no
 instance/profile fallback or `Absent` result. Identity-less legacy sequence-zero operations remain
 `Unknown` and reserved without a generation call. Identity-bound stop, inspect, attach, and cleanup
-are unchanged. These source/component seams and synthetic fakes do not establish an OS adapter or a
-restart-durable process registry.
+are unchanged. `SystemdProcessPort` binds each generation to one durably reserved, unpredictable
+service name and full manager invocation identity. Recovery only observes that unit; it never
+redispatches creation. Registry loss, identity drift and missing absence evidence fail closed.
+Recording-controller tests exercise this durable adapter boundary; they do not qualify a systemd
+host, game executable or harness end-to-end workflow.
 
 ## Identity, lifecycle, and fencing
 
@@ -264,8 +271,9 @@ configuration and terminal in-process release admission. Runtime-v2 exact receip
 separate from new-action generation admission; read-only reconciliation polls accepted or unknown
 work without redispatch, and historical receipts cannot rewind current observation. See
 [ADR 0011](decisions/0011-attached-runtime-hardening.md). The queued executable includes Runtime-v2 journal recovery, but still has no timed lease renewal,
-durable boot epoch, or runtime-connected process supervisor; the co-op, supervisor, and profile
-lifecycle library seams are not connected to runtime admission or co-op wire serialization.
+durable boot epoch, or a multi-instance runtime supervisor in its default configuration. The
+separate profile-lifecycle routes can opt in to the ADR 0037 systemd adapter; that does not connect
+the legacy supervisor or co-op library seams to runtime admission or co-op wire serialization.
 
 The adapter also exposes `POST /v1/recovery/host-fence` as a control-scoped,
 fixed bridge for the additive `watchdog-recovery-v1` sideband. It validates the
