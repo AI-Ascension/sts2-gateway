@@ -7,11 +7,11 @@
 //! This adapter mirrors the lifecycle store: each mutation is committed before the caller proceeds,
 //! and only one coordinator may own a given on-disk journal.
 
-use std::fs::{File, OpenOptions};
+use std::fs::OpenOptions;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
-use fs2::FileExt;
+use crate::coordinator_lock::CoordinatorLock;
 use rusqlite::{Connection, params};
 use uuid::Uuid;
 
@@ -25,7 +25,7 @@ pub struct SqliteUserDataRecordStore {
     /// Held for the lifetime of the store so only one coordinator can allocate against a given
     /// on-disk journal. The provisioner caches `next_identity` in memory, so two live stores would
     /// otherwise both reserve the same identity for different operations.
-    _journal_lock: Option<File>,
+    _journal_lock: Option<CoordinatorLock>,
     /// Durable token that fences a stale store if its lock file is replaced or unlinked while the
     /// original coordinator is still alive.
     coordinator_token: [u8; 16],
@@ -64,9 +64,16 @@ impl SqliteUserDataRecordStore {
 
     fn from_connection(
         connection: Connection,
-        journal_lock: Option<File>,
+        journal_lock: Option<CoordinatorLock>,
     ) -> Result<Self, UserDataProvisioningError> {
-        connection
+        // Keep connection teardown before authority release on every initialization path.
+        let store = Self {
+            connection,
+            _journal_lock: journal_lock,
+            coordinator_token: *Uuid::new_v4().as_bytes(),
+        };
+        store
+            .connection
             .execute_batch(
                 "PRAGMA journal_mode = WAL;
                  PRAGMA synchronous = FULL;
@@ -82,20 +89,16 @@ impl SqliteUserDataRecordStore {
                  );",
             )
             .map_err(|_| UserDataProvisioningError::PersistenceFailed)?;
-        let coordinator_token = *Uuid::new_v4().as_bytes();
-        connection
+        store
+            .connection
             .execute(
                 "INSERT INTO save_profile_coordinator (singleton, token)
                  VALUES (1, ?1)
                  ON CONFLICT(singleton) DO UPDATE SET token = excluded.token",
-                params![coordinator_token.as_slice()],
+                params![store.coordinator_token.as_slice()],
             )
             .map_err(|_| UserDataProvisioningError::PersistenceFailed)?;
-        Ok(Self {
-            connection,
-            _journal_lock: journal_lock,
-            coordinator_token,
-        })
+        Ok(store)
     }
 
     fn lock_path(path: &Path) -> PathBuf {
@@ -107,7 +110,7 @@ impl SqliteUserDataRecordStore {
         PathBuf::from(lock_path)
     }
 
-    fn acquire_lock(path: &Path) -> Result<File, UserDataProvisioningError> {
+    fn acquire_lock(path: &Path) -> Result<CoordinatorLock, UserDataProvisioningError> {
         let lock = OpenOptions::new()
             .create(true)
             .truncate(false)
@@ -115,8 +118,8 @@ impl SqliteUserDataRecordStore {
             .write(true)
             .open(path)
             .map_err(|_| UserDataProvisioningError::PersistenceFailed)?;
-        match lock.try_lock_exclusive() {
-            Ok(()) => Ok(lock),
+        match CoordinatorLock::acquire(lock) {
+            Ok(lock) => Ok(lock),
             Err(error) if error.kind() == ErrorKind::WouldBlock => {
                 Err(UserDataProvisioningError::OperationConflict)
             }
