@@ -508,18 +508,23 @@ identity and reconcile through the read-only lookup route; selection is never bl
 a creation receipt that does not echo the reserved allocation identity and the approved launch
 contract is rejected as an invalid response.
 
-The attached runtime has no accepted isolated-allocation port, launch-profile binding port, durable
-operation-intent store, or authoritative active-run writer, so read routes behave as above while
-every mutation fails closed before provisioning or forwarding. The additive capability results are
+The attached runtime has no composed launch binding or authoritative active-run writer, so the
+existing filesystem and SQLite adapters remain unconfigured and every mutation fails closed
+before provisioning or forwarding. Read routes behave as above. The capability results are
 `save_profile_active_run_unavailable` (no authoritative active-run source) and
 `save_profile_persistence_unavailable` (no durable intent store), each `503`; disposable creation
 without an allocation adapter returns `save_profile_provisioning_unavailable` (`503`), and a
 refused launch-profile binding returns `save_profile_provisioning_failed` (`503`).
 
-This is a proposed minor surface pending game-mod save-profile contract acceptance and issue #50
-launch-profile integration. Deterministic source/component and synthetic loopback tests are
-confirmed; real filesystem isolation, production persistence, native save behavior, host
-compatibility, and cross-restart durability remain `unverified`.
+ADR 0038 preserves valid allocation journal/provenance bytes while rejecting malformed, oversized,
+duplicate, misbound or unknown storage. `SqliteUserDataRecordStore::open` rejects `:memory:`;
+explicit `open_in_memory` remains a test adapter. Creation is acknowledged after file/directory
+syncs, and stale physical receipts become unknown or blocked instead of authorizing reuse.
+Current recovery leases pass the existing save-profile fence; stale leases remain rejected.
+
+This remains a proposed surface pending the game-mod contract and actual issue #50 launch binding.
+Real filesystem/SQLite and recording-HTTP component tests establish the recorded local boundaries;
+native save behavior, host compatibility and deployment power-loss durability remain unverified.
 
 ## Continuation owner admission
 
