@@ -29,6 +29,9 @@ const CLAIM_PATH: &str = "/v1/recovery/continuation/owner/claim";
 const LOOKUP_PATH: &str = "/v1/recovery/continuation/owner/lookup";
 const DEPLOYMENT: &str = "00000000-0000-4000-8000-000000000011";
 
+#[path = "service_save_profile_recovery_lease_tests.rs"]
+mod save_profile_lease;
+
 struct ReadyService {
     service: RuntimeService,
     path: PathBuf,
