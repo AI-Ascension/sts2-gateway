@@ -33,3 +33,18 @@ gateway terminates caller credentials and emits only explicitly approved downstr
 Security tests must fail closed when their fixtures or credentials are unavailable. Use fake or
 disposable processes and isolated ports. Do not expose a listener, use a real game profile/save,
 contact a provider, or change deployment state during ordinary development validation.
+
+## Opt-in native process ownership
+
+The ADR 0037 adapter trusts explicit operator configuration and the same-user systemd manager.
+Its registry and user-data roots must be private. A retained random service name, full invocation
+identity, boot identity, kernel process birth and exact approved executable image establish
+ownership; an arbitrary PID, process-name scan or caller path never does. The adapter refuses
+unknown user-data contents and a recreated registry cannot reuse the previous registry's marker.
+Manager commands use fixed argument vectors with no shell or argument environment expansion.
+
+An inaccessible cgroup is not empty. Stop completion requires retained, verified empty-cgroup
+proof, and a lost command reply never authorizes another start. Unknown generations keep their
+reservations. Processes sharing the gateway's OS authority can alter its private registry or
+manager and are outside this isolation boundary. Host qualification requires disposable services
+and unchanged unrelated controls; ordinary recording-controller tests do not establish it.
