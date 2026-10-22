@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: MIT
 
-use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use fs2::FileExt;
+use crate::coordinator_lock::CoordinatorLock;
 use rusqlite::{Connection, OptionalExtension, Transaction};
 
 use super::recovery_types::{
@@ -18,7 +17,7 @@ const BUSY_TIMEOUT: Duration = Duration::from_secs(5);
 #[derive(Debug)]
 pub struct GatewayRecoveryStore {
     pub(super) conn: Connection,
-    pub(super) _lock: File,
+    pub(super) _lock: CoordinatorLock,
     path: PathBuf,
     pub(super) config: RecoveryStoreConfig,
 }
@@ -105,8 +104,7 @@ impl GatewayRecoveryStore {
         let lock_path = path.with_extension("gateway-recovery.lock");
         support::reject_symlink_path(&lock_path)?;
         let lock = open_private(&lock_path)?;
-        lock.try_lock_exclusive()
-            .map_err(|_| RecoveryStoreError::Busy)?;
+        let lock = CoordinatorLock::acquire(lock).map_err(|_| RecoveryStoreError::Busy)?;
         let database = open_private(&path)?;
         drop(database);
         let conn = Connection::open(&path).map_err(map_sql_error)?;
