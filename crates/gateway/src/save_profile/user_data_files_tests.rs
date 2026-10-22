@@ -15,6 +15,9 @@ use super::user_data_files::FilesystemUserDataPort;
 use super::user_data_files_validation::PROVENANCE_FILE;
 use uuid::Uuid;
 
+#[path = "user_data_files_integrity_tests.rs"]
+mod integrity;
+
 struct TestRoot(PathBuf);
 
 impl TestRoot {
