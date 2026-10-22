@@ -4,7 +4,7 @@ use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use fs2::FileExt;
+use crate::coordinator_lock::CoordinatorLock;
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 
@@ -119,9 +119,8 @@ impl GatewayRecoveryStore {
         let live_lock_path = live_path.with_extension("gateway-recovery.lock");
         super::support::reject_symlink_path(&live_lock_path)?;
         let live_lock = super::support::open_private(&live_lock_path)?;
-        live_lock
-            .try_lock_exclusive()
-            .map_err(|_| RecoveryStoreError::Busy)?;
+        let _live_lock =
+            CoordinatorLock::acquire(live_lock).map_err(|_| RecoveryStoreError::Busy)?;
         let live_conn = Connection::open(&live_path).map_err(super::map_sql_error)?;
         let live_generation: u64 = live_conn
             .query_row(

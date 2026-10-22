@@ -122,8 +122,13 @@ lease, and lease epoch come from configuration, and executable/install/image/use
 policy are never expressible on the wire. Every `LifecycleError` maps to one fixed status and code.
 The change is additive: an unconfigured deployment falls through to the existing
 `404 route_not_found`, and no existing route, body, protocol artifact, MCP frame, or game-mod
-contract changes. Because no concrete OS process adapter is installed, a configured deployment
+contract changes. Without `STS2_PROCESS_LIFECYCLE_NATIVE_CONFIG`, a configured deployment
 advertises `available: false` and refuses every effect with `503 process_lifecycle_adapter_absent`.
+The explicit opt-in configuration can compose `SystemdProcessPort` on a supported Linux cgroup-v2
+user-manager host. It uses the existing route schema and generation contract, with a separate
+private `sts2-gateway-systemd-process/v1` deployment format and version-1 SQLite registry.
+Invalid explicit native configuration fails startup; it never silently downgrades to unavailable.
+See [ADR 0037](decisions/0037-owned-systemd-process-generations.md).
 `ProcessLifecycle::bind_attached_lease` is an additive public method; `Lease::new` remains
 `pub(crate)`, so callers still cannot construct a lease they were not granted.
 Native launch, host readiness, harness workflow mapping, and disposable-process acceptance remain
@@ -282,7 +287,7 @@ The prior Runtime-v4 source/component record at commit `17b93bf35e5256f6adf690aa
 | Surface | Current evidence | Result |
 | --- | --- | --- |
 | `runtime-v3-gameplay` fixed routes and forwarder | Source validation and route allowlist tests | Source-derived; live gateway/host settlement unverified |
-| Profile-approved process lifecycle and legacy process supervisor | Bounded deterministic fakes, durable intent/replay tests, exact identity/descendant checks, and epoch rotation | Gateway source/component confirmed; native launch, host readiness, live restart/cleanup, isolation, and harness mapping unverified |
+| Profile-approved process lifecycle and legacy process supervisor | Deterministic fakes, durable intent/replay tests, exact identity/descendant checks, epoch rotation, and the opt-in systemd adapter with recording-controller/SQLite fault tests | Gateway source/component evidence; native systemd launch, host readiness, live restart/cleanup, isolation, and harness mapping unverified |
 | Coordinator-reported synchronization | Real gateway/MCP executable exchange plus injected-time ledger tests | Confirmed coordination component; native multiplayer unverified |
 
 These surfaces are additive to Runtime-v2 and do not inherit its runtime evidence.

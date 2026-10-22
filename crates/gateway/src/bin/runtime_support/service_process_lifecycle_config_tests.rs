@@ -61,8 +61,7 @@ fn configured_deployment_reports_adapter_absence_rather_than_silent_success() ->
         max_records: 16,
         store_path: process_lifecycle_fixtures::store_path(),
     };
-    let runtime = service_process_lifecycle::ProcessLifecycleRuntime::configured(&deployment)
-        ?;
+    let runtime = runtime::native_lifecycle::from_configuration(Some(deployment), None, &[])?;
     assert!(!runtime.is_ready());
     assert_eq!(runtime.profiles(), Some(&[7_u64, 9][..]));
     Ok(())
@@ -85,3 +84,20 @@ fn invalid_deployment_configuration_fails_closed() -> Result<(), String> {
     Ok(())
 }
 
+
+#[test]
+fn explicit_native_configuration_is_never_silently_downgraded() -> Result<(), String> {
+    let missing = process_lifecycle_fixtures::store_path().with_extension("missing-native-config");
+    assert!(runtime::native_lifecycle::from_configuration(None, Some(&missing), &[]).is_err());
+    let deployment = service_process_lifecycle_config::ProcessLifecycleDeployment {
+        profiles: process_lifecycle_fixtures::profiles()?,
+        max_processes: 4,
+        max_records: 16,
+        store_path: process_lifecycle_fixtures::store_path(),
+    };
+    let error = runtime::native_lifecycle::from_configuration(Some(deployment), Some(&missing), &[])
+        .err().ok_or("missing native configuration unexpectedly accepted")?;
+    assert_eq!(error, "native process adapter refused startup: Configuration");
+    assert!(!missing.exists());
+    Ok(())
+}

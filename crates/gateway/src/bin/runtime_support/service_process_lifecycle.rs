@@ -2,18 +2,11 @@
 
 //! Attached-runtime composition for the approved-profile process lifecycle.
 //!
-//! Two things are deliberately absent from this slice, and their absence is the fail-closed
-//! default rather than a gap to be filled by invention:
-//!
-//! 1. **No concrete OS process adapter.** ADR 0024 places executable/signal/host behavior behind
-//!    the injected `ProcessPort` and records it as a reviewed deployment input. This module
-//!    therefore never constructs a process, resolves an executable path, or reads a
-//!    caller-supplied command. An unconfigured deployment reports the surface unavailable and
-//!    refuses every submission before any effect.
-//! 2. **No caller-supplied identity.** The launch-profile catalog is built only from the
-//!    gateway's own configuration. A caller supplies an opaque `LaunchProfileId` and nothing
-//!    else; executable, install, image, user-data namespace, and process policy all come from the
-//!    configured catalog.
+//! Process creation remains behind the injected `ProcessPort`. The runtime may compose the
+//! explicit opt-in ADR 0037 systemd adapter after validating owner-local deployment configuration.
+//! Without that opt-in the configured surface reports adapter absence and refuses effects.
+//! This module never resolves a caller command or path: callers supply only an opaque profile ID;
+//! executable, image, user-data namespace and process policy come from the approved catalog.
 //!
 //! The HTTP surface itself lives in `service_process_lifecycle_requests.rs`; this module owns only
 //! the composition state and the startup validation an operator can fail on.
@@ -77,11 +70,9 @@ impl Clock for AttachedClock {
 /// Three states rather than two, because "no reviewed process adapter is installed" and "no
 /// configuration was supplied" are different operator facts and must not be reported alike.
 ///
-/// `Ready` is unreachable in the current shipped binary because ADR 0024 records the concrete OS
-/// process adapter as a reviewed deployment input that this build does not install. The variant
-/// and its composition path exist so the adapter is a composition change rather than a rewrite,
-/// and the focused tests exercise them at this commit. This is the same test-exercised,
-/// production-unwired seam pattern already used for `handle_request` in `service_routes.rs`.
+/// `Ready` requires explicit successful composition with a process adapter. Production reaches
+/// it only through the ADR 0037 opt-in configuration; ordinary configured deployments remain
+/// unavailable. Readiness here is component availability, not native-host qualification.
 #[cfg_attr(not(test), allow(dead_code))]
 pub(super) enum ProcessLifecycleRuntime {
     /// No lifecycle configuration was supplied; every effect is refused.

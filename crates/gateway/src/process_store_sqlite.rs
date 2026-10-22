@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 
-use std::fs::{File, OpenOptions};
+use std::fs::OpenOptions;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
-use fs2::FileExt;
 use rusqlite::{Connection, Error as SqlError, ErrorCode};
 use uuid::Uuid;
 
 use crate::InstanceId;
+use crate::coordinator_lock::CoordinatorLock;
 
 use super::{
     LifecycleOperation, LifecycleOwnership, LifecycleRecordKey, LifecycleRecordStore,
@@ -27,7 +27,7 @@ pub struct SqliteLifecycleStore {
     /// can admit effects against a given on-disk journal. SQLite's row-level
     /// conflict handling alone cannot fence coordinators that cache records
     /// and ownership in memory.
-    _coordinator_lock: Option<File>,
+    _coordinator_lock: Option<CoordinatorLock>,
     /// Durable coordinator token used to fence a stale store if its lock file
     /// is replaced or unlinked while the original coordinator is still alive.
     coordinator_token: [u8; 16],
@@ -52,9 +52,17 @@ impl SqliteLifecycleStore {
 
     fn from_connection(
         connection: Connection,
-        coordinator_lock: Option<File>,
+        coordinator_lock: Option<CoordinatorLock>,
     ) -> Result<Self, LifecycleStoreError> {
-        connection
+        // Construct ownership before fallible initialization so the connection always closes
+        // before the guard releases authority, including initialization failures.
+        let store = Self {
+            connection,
+            _coordinator_lock: coordinator_lock,
+            coordinator_token: *Uuid::new_v4().as_bytes(),
+        };
+        store
+            .connection
             .execute_batch(
                 "PRAGMA journal_mode = WAL;
                  PRAGMA synchronous = FULL;
@@ -74,20 +82,16 @@ impl SqliteLifecycleStore {
                  );",
             )
             .map_err(|_| LifecycleStoreError::Database)?;
-        let coordinator_token = *Uuid::new_v4().as_bytes();
-        connection
+        store
+            .connection
             .execute(
                 "INSERT INTO lifecycle_coordinator (singleton, token)
                  VALUES (1, ?1)
                  ON CONFLICT(singleton) DO UPDATE SET token = excluded.token",
-                rusqlite::params![coordinator_token.as_slice()],
+                rusqlite::params![store.coordinator_token.as_slice()],
             )
             .map_err(|_| LifecycleStoreError::Database)?;
-        Ok(Self {
-            connection,
-            _coordinator_lock: coordinator_lock,
-            coordinator_token,
-        })
+        Ok(store)
     }
 
     fn lock_path(path: &Path) -> PathBuf {
@@ -100,7 +104,7 @@ impl SqliteLifecycleStore {
         PathBuf::from(lock_path)
     }
 
-    fn acquire_lock(path: &Path) -> Result<File, LifecycleStoreError> {
+    fn acquire_lock(path: &Path) -> Result<CoordinatorLock, LifecycleStoreError> {
         let lock = OpenOptions::new()
             .create(true)
             .truncate(false)
@@ -108,8 +112,8 @@ impl SqliteLifecycleStore {
             .write(true)
             .open(path)
             .map_err(|_| LifecycleStoreError::Database)?;
-        match lock.try_lock_exclusive() {
-            Ok(()) => Ok(lock),
+        match CoordinatorLock::acquire(lock) {
+            Ok(lock) => Ok(lock),
             Err(error) if error.kind() == ErrorKind::WouldBlock => {
                 Err(LifecycleStoreError::Conflict)
             }

@@ -34,10 +34,12 @@ process-port fixtures. The profile lifecycle component is a gateway-local
 source/component contract. The attached runtime now reaches it through three fixed, lease-fenced,
 authorization-scoped routes (a capability read, a retained-operation lookup, and one closed-schema
 submission that carries only an opaque operation id, an authority epoch, and one action). The
-deployment validates its configured catalog, capacity budget, and durable store at startup, but no
-concrete OS process adapter is installed, so a configured deployment advertises the surface as
-unavailable and refuses every effect. The adapter remains a fixed single-instance route/identity
-oracle and is not wired to native process launch.
+deployment validates its configured catalog, capacity budget, and durable store at startup. Without
+an explicit native binding file it continues to advertise the surface as unavailable. The opt-in
+Linux/systemd adapter adds exact owned-unit creation, durable generation recovery and verified
+cgroup cleanup. It accepts server-owned executable/image/user-data bindings only; no caller-supplied
+command or path is exposed. See [the deployment guide](NATIVE_PROCESS_LIFECYCLE.md). The attached
+runtime remains single-instance, and the native host/game acceptance gate remains unverified.
 
 ## Consumers and non-goals
 
@@ -89,8 +91,9 @@ expired credentials fail with 401 and insufficient scopes fail with 403 before q
 attached process still relies on an external credential issuer/secret owner and does not claim
 production revocation or downstream-token rotation.
 
-This lane attaches to an already running downstream listener; it does not launch, own, or recover a
-game process. The runtime-v1 fixed action remains the safe host-visible `show_runtime_probe`. Runtime-v2
+The default lane attaches to an already running downstream listener. Only explicit ADR 0037
+configuration enables process lifecycle ownership; it does not discover a game installation or
+assert downstream gameplay readiness. The runtime-v1 fixed action remains the safe host-visible `show_runtime_probe`. Runtime-v2
 uses `end_turn` through its fixed authenticated forwarding seam and optional bounded journal, but the
 attached binary has no verified host-capable mod adapter and therefore makes no live gameplay mutation
 claim. Source/build, controlled component-network, and exact-host v1 forwarding evidence are confirmed

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 
-use std::fs::{File, OpenOptions};
+use std::fs::OpenOptions;
 use std::path::Path;
 
-use fs2::FileExt;
+use crate::coordinator_lock::CoordinatorLock;
 use rusqlite::{Connection, TransactionBehavior, params};
 use uuid::Uuid;
 
@@ -22,7 +22,7 @@ pub const SAVE_PROFILE_OPERATION_CAPACITY: usize = 256;
 /// A deployment must exclusively own the database directory and preserve its database/lock files.
 pub struct SqliteSaveProfileOperationStore {
     connection: Connection,
-    _lock: File,
+    _lock: CoordinatorLock,
     token: [u8; 16],
 }
 
@@ -34,7 +34,7 @@ impl SqliteSaveProfileOperationStore {
         if spelling.is_empty() || spelling == ":memory:" || spelling.starts_with("file:") {
             return Err(Error::PersistenceFailed);
         }
-        let mut connection = Connection::open(path).map_err(db_error)?;
+        let connection = Connection::open(path).map_err(db_error)?;
         let canonical = path.canonicalize().map_err(|_| Error::PersistenceFailed)?;
         let mut lock_path = canonical.into_os_string();
         lock_path.push(".save-profile-operations.lock");
@@ -45,13 +45,19 @@ impl SqliteSaveProfileOperationStore {
             .write(true)
             .open(lock_path)
             .map_err(|_| Error::PersistenceFailed)?;
-        lock.try_lock_exclusive()
-            .map_err(|_| Error::OperationConflict)?;
-        connection
+        let lock = CoordinatorLock::acquire(lock).map_err(|_| Error::OperationConflict)?;
+        // Struct field order closes SQLite before unlocking, even when initialization fails.
+        let mut store = Self {
+            connection,
+            _lock: lock,
+            token: *Uuid::new_v4().as_bytes(),
+        };
+        store
+            .connection
             .execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;")
             .map_err(db_error)?;
-        let token = *Uuid::new_v4().as_bytes();
-        let transaction = connection
+        let transaction = store
+            .connection
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(db_error)?;
         super::operation_schema::initialize(&transaction)?;
@@ -61,19 +67,15 @@ impl SqliteSaveProfileOperationStore {
             .execute(
                 "INSERT INTO save_profile_operation_owner VALUES(1,?1)
              ON CONFLICT(singleton) DO UPDATE SET token=excluded.token",
-                [token.as_slice()],
+                [store.token.as_slice()],
             )
             .map_err(db_error)?;
         if changed != 1 {
             return Err(Error::PersistenceFailed);
         }
-        ensure_owner(&transaction, &token)?;
+        ensure_owner(&transaction, &store.token)?;
         transaction.commit().map_err(db_error)?;
-        Ok(Self {
-            connection,
-            _lock: lock,
-            token,
-        })
+        Ok(store)
     }
 }
 
