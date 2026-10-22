@@ -18,6 +18,22 @@ fake clock, process, readiness, transport, and lease-decision seams. Runtime ada
 ephemeral loopback TCP listeners and synthetic peer threads. No game process, game host, provider,
 save, or deployment is used by these checks.
 
+## Owned native-adapter component tests
+
+`cargo test --locked -p sts2-gateway --lib process_native` exercises the actual private SQLite
+registry and lifecycle port with a recording service manager. Cases include lost acknowledgements,
+reopened generations, durable dispatch/stop/result write failures, identity and install drift,
+registry loss/corruption, preserved unrelated data, namespace exclusion, descendants and missing
+cgroup evidence. A Linux test starts and reaps disposable command helpers to verify timeout and
+literal-argument handling; it does not start a systemd service or a game. Runtime composition tests
+keep the legacy unavailable mode and require explicit native configuration failures to stop startup.
+The `coordinator_lock` unit tests retain a duplicate file descriptor to verify explicit lock release
+after owner teardown without sleeps, fork timing, or weakening competing-owner refusal.
+
+Native systemd/game qualification remains a separate gate described in
+[NATIVE_PROCESS_LIFECYCLE.md](NATIVE_PROCESS_LIFECYCLE.md). Missing host support is an external
+blocker, never a successful native check. No ordinary CI test opts in to a real service manager.
+
 ## Baseline commands
 
 Run from the target root:
