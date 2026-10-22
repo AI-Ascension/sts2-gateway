@@ -18,6 +18,9 @@ use sts2_gateway::{
 
 const INSTANCE: &str = "instance-1";
 
+#[path = "save_profile_durable_store/integrity.rs"]
+mod integrity;
+
 fn context(correlation: &str) -> SaveProfileContext {
     SaveProfileContext {
         instance_id: INSTANCE.to_owned(),
