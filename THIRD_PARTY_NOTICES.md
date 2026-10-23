@@ -9,7 +9,7 @@ lockfile. Its upstream license and dependency metadata are consumed from the Car
 registry; the project does not redistribute its source. Future product dependencies require a
 reviewed license, provenance, feature, and notice entry before release.
 
-The attached Runtime-v3 adapter uses `jsonschema` 0.52.1 (MIT), pinned exactly in
+The attached Runtime-v3 adapter uses `jsonschema` 0.59.0 (MIT), pinned exactly in
 `crates/gateway/Cargo.toml` and `Cargo.lock`, with default features disabled: HTTP and
 filesystem reference retrieval are not enabled. It validates the locally embedded neutral schema
 from `sts2-protocol`; it does not load sibling implementation source. Its transitive dependency
