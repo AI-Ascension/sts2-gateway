@@ -194,6 +194,11 @@ impl<F: SaveProfileForwardingPort, S: SaveProfileRecordStore> SaveProfileLedger<
         let Some(record) = self.records.get(&key).cloned() else {
             return Err(SaveProfileLedgerError::OperationNotFound);
         };
+        if !record.request.context.same_fence(&context) {
+            return Err(SaveProfileLedgerError::Fence(
+                SaveProfileFenceError::WrongSession,
+            ));
+        }
         if let Some(result) = record.result.as_ref()
             && !matches!(
                 result.status,

@@ -12,6 +12,9 @@ use sts2_gateway::{
     UserDataProvisioner, UserDataProvisioningStatus,
 };
 
+#[path = "save_profile/disconnect_fence.rs"]
+mod disconnect_fence;
+
 const DIGEST: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
 fn context(correlation: &str) -> SaveProfileContext {
