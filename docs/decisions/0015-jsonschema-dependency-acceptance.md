@@ -58,3 +58,35 @@ which is verified in this record and must hold for every future bump:
    cannot prove conformance to the canonical schema bytes that CI pins by digest.
 2. Vendoring a minimal validator: rejected because it copies third-party implementation source
    into a repository that forbids transliterated implementations.
+
+## 2026-10-28: 0.60.1 dependency candidate (PR #148)
+
+- The exact direct pin moves to `=0.60.1`; its Cargo.lock checksum is
+  `65de752665c4a06528af6759955eecf60ba73ae7442d35349963a09c8031cd71`.
+  `jsonschema-regex`, `jsonschema-value`, and `referencing` resolve to 0.60.2;
+  their exact versions and checksums remain recorded in Cargo.lock.
+- `default-features = false` and the first-party `unsafe_code = "forbid"`
+  setting remain unchanged (source-derived). The notice now identifies 0.60.1.
+- Hosted CI for head `3a807aed5302ecd75afae92156502116f24dd4e0`, composed
+  with main `3dbf877c881bd4fadae03dea0b416b624ffec575` as `640575f702b6268e9cb7fec9ae0b9534c01db213`,
+  passed formatting, all-feature Clippy, documentation lints, copied protocol
+  artifact checksum inventories, and 660 tests with zero failures or ignored
+  tests. This includes `embedded_runtime_v3_schema_compiles_and_admits_golden_request`.
+  Evidence: [Rust job 122937171785](https://github.com/AI-Ascension/sts2-gateway/actions/runs/40722585251/job/122937171785).
+- The locked normal feature graph and exact-version registry license metadata
+  were reviewed against the exact manifests, lockfile and crates.io metadata.
+  The only reverse dependency of jsonschema in the lockfile is sts2-gateway;
+  its dependency disables defaults and selects no features. Both workspace
+  member manifests and the workspace feature declarations were inspected:
+  no other edge enables jsonschema features. The registry feature map for
+  0.60.1 places resolve-http, resolve-file and TLS in default features, while
+  resolve-async is opt-in. None is selected by this graph (source-derived).
+  No reqwest, rustls or tokio package appears in the lockfile. This is static
+  graph evidence, not a claim that cargo tree was executed locally.
+  Exact-version registry metadata identifies jsonschema 0.60.1 and
+  jsonschema-regex/jsonschema-value/referencing 0.60.2 as MIT, unyanked,
+  Rust 1.85.0 minimum; all four registry checksums match Cargo.lock.
+  No tarball-byte or complete advisory audit is claimed. Re-run all required
+  hosted gates after candidate edits; a packaged release remains out of scope.
+- This records source/component evidence only. It does not qualify native
+  host behavior, actual provider integration, deployment, or a packaged release.
