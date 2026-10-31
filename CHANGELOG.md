@@ -5,6 +5,11 @@ host compatibility and release publication.
 
 ## [Unreleased]
 
+- Reject save-profile disconnect notifications whose current authority does not match the
+  retained operation's caller, session, lease and epoch. Preserve retained results without a
+  store update or downstream call across authority rotation. Synthetic regression coverage;
+  native behavior remains unverified. Refs #51.
+
 - Harden save-profile allocation integrity: sync private physical allocation/provenance before
   acknowledgment, bound and validate ownership reads and durable rows, reject duplicate or changed
   allocation identities, and re-inspect retained creation receipts before reuse. Save-profile
