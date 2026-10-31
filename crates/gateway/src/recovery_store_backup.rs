@@ -60,7 +60,11 @@ impl GatewayRecoveryStore {
                 .execute_batch("PRAGMA wal_checkpoint(FULL);")
                 .map_err(super::map_sql_error)?;
             self.conn
-                .backup(rusqlite::MAIN_DB, destination, None)
+                .backup(
+                    rusqlite::MAIN_DB,
+                    destination,
+                    None::<fn(rusqlite::backup::Progress)>,
+                )
                 .map_err(super::map_sql_error)?;
             created
                 .sync_all()
@@ -145,7 +149,11 @@ impl GatewayRecoveryStore {
         }
         let created = create_private(destination)?;
         let backup_result = source_conn
-            .backup(rusqlite::MAIN_DB, destination, None)
+            .backup(
+                rusqlite::MAIN_DB,
+                destination,
+                None::<fn(rusqlite::backup::Progress)>,
+            )
             .map_err(super::map_sql_error);
         drop(source_conn);
         if let Err(error) = backup_result {
