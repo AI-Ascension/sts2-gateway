@@ -3,7 +3,7 @@
 use super::*;
 use std::fs;
 use std::path::PathBuf;
-use sts2_gateway::{FilesystemUserDataPort, SqliteSaveProfileOperationStore, SqliteUserDataRecordStore};
+use sts2_gateway::SqliteUserDataRecordStore;
 
 struct Fixture(PathBuf);
 
@@ -17,17 +17,53 @@ impl Fixture {
     }
 
     fn dependencies(&self) -> Result<SaveProfileDependencies, String> {
-        Ok(SaveProfileDependencies {
-            intents: Some(Box::new(SqliteSaveProfileOperationStore::open(self.0.join("operations.sqlite"))
-                .map_err(|error| format!("{error:?}"))?)),
-            allocation_port: Some(Box::new(FilesystemUserDataPort::try_new(self.0.join("data"), 8)
-                .map_err(|error| format!("{error:?}"))?)),
-            allocation_intents: Some(Box::new(SqliteUserDataRecordStore::open(self.0.join("allocations.sqlite"))
-                .map_err(|error| format!("{error:?}"))?)),
-            // Explicit synthetic authority: no native process/host mapping is claimed.
-            launch_profile: Some(Box::new(InMemoryLaunchProfileBindingPort::default())),
-        })
+        // Explicit synthetic authority only: the production runtime remains UNCONFIGURED.
+        SaveProfileDependencies::from_owned_storage(
+            &self.0.join("data"),
+            &self.0.join("allocations.sqlite"),
+            &self.0.join("operations.sqlite"),
+            8,
+            Box::new(InMemoryLaunchProfileBindingPort::default()),
+        )
     }
+}
+
+#[test]
+fn owned_storage_rejects_shared_journals_before_any_physical_effect() -> Result<(), String> {
+    let fixture = Fixture::new()?;
+    let journal = fixture.0.join("shared.sqlite");
+    let attempt = SaveProfileDependencies::from_owned_storage(
+        &fixture.0.join("data"),
+        &journal,
+        &journal,
+        8,
+        Box::new(InMemoryLaunchProfileBindingPort::default()),
+    );
+    assert!(attempt.is_err());
+    assert!(!journal.exists());
+    assert_eq!(
+        fs::read(fixture.0.join("data/existing-profile")).map_err(|e| e.to_string())?,
+        b"preserve".to_vec()
+    );
+    Ok(())
+}
+
+#[test]
+fn owned_storage_rejects_missing_root_before_journal_creation() -> Result<(), String> {
+    let fixture = Fixture::new()?;
+    let allocation_journal = fixture.0.join("allocations.sqlite");
+    let operation_journal = fixture.0.join("operations.sqlite");
+    let attempt = SaveProfileDependencies::from_owned_storage(
+        &fixture.0.join("missing-data"),
+        &allocation_journal,
+        &operation_journal,
+        8,
+        Box::new(InMemoryLaunchProfileBindingPort::default()),
+    );
+    assert!(attempt.is_err());
+    assert!(!allocation_journal.exists());
+    assert!(!operation_journal.exists());
+    Ok(())
 }
 
 impl Drop for Fixture {
