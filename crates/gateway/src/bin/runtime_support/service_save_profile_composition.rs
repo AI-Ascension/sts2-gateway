@@ -70,8 +70,7 @@ impl SaveProfileDependencies {
         if allocation_journal == operation_journal
             || (allocation_journal.exists()
                 && operation_journal.exists()
-                && allocation_journal.canonicalize().ok()
-                    == operation_journal.canonicalize().ok())
+                && allocation_journal.canonicalize().ok() == operation_journal.canonicalize().ok())
         {
             return Err(String::from("save-profile journals must be distinct"));
         }
