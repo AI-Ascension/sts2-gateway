@@ -44,7 +44,7 @@ fn assert_error(response: (u16, Vec<u8>), status: u16, code: &str) {
 
 #[test]
 fn absent_owner_never_becomes_idle_authority() -> Result<(), String> {
-    let (mut service, _) = process_lifecycle_tests::lifecycle_service()?;
+    let mut service = process_lifecycle_tests::lifecycle_service_for_owner_exclusion()?;
     assert_error(
         service.handle_request(&create_request()),
         503,
@@ -55,7 +55,7 @@ fn absent_owner_never_becomes_idle_authority() -> Result<(), String> {
 
 #[test]
 fn retained_owner_overrides_idle_claim_until_stopped() -> Result<(), String> {
-    let (mut service, _) = process_lifecycle_tests::lifecycle_service()?;
+    let mut service = process_lifecycle_tests::lifecycle_service_for_owner_exclusion()?;
     // This source-only injection models a separate idle writer. An actual
     // production idle writer remains unconfigured until native qualification.
     service.save_profile_active_run = SaveProfileActiveRun {
