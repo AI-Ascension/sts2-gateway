@@ -159,7 +159,12 @@ impl ProcessPort for RecordingProcess {
 /// This drives the real production composition path (`ProcessLifecycleRuntime::compose`), so the
 /// catalog build, the durable SQLite store open, the capacity-budget validation, and the
 /// coordinator construction are all exercised as they ship. Only the process port is synthetic.
-pub(super) fn lifecycle_service() -> Result<(RuntimeService, Arc<Mutex<RecordingState>>), String> {
+/// Reuse the exact composed synthetic owner without exporting its private test state.
+pub(super) fn lifecycle_service_for_owner_exclusion() -> Result<RuntimeService, String> {
+    lifecycle_service().map(|(service, _)| service)
+}
+
+fn lifecycle_service() -> Result<(RuntimeService, Arc<Mutex<RecordingState>>), String> {
     let mut service = test_support::test_service()?;
     let (process, state) = RecordingProcess::new();
     let deployment = service_process_lifecycle_config::ProcessLifecycleDeployment {
