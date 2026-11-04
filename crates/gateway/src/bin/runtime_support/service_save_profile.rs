@@ -40,13 +40,25 @@ impl RuntimeService {
             lease_epoch,
             expires_at_millis: None,
         };
-        self.save_profile.request(
-            route,
-            request,
-            authority,
-            self.save_profile_active_run,
-            unix_millis(),
-        )
+        // A retained owner (including an identity-less uncertain launch) is positive
+        // evidence that an approved process may still hold this instance. It must block
+        // save-profile mutation even if a separate admission source reports idle.
+        // Absence of a row, however, never proves native liveness is absent: retain
+        // UNCONFIGURED unless a separate authoritative idle writer was installed.
+        let instance = super::service_process_lifecycle_identity::instance_id(&self.config.instance_id);
+        let active_run = if self
+            .process_lifecycle
+            .lifecycle_mut()
+            .is_some_and(|owner| owner.retained_ownership(instance).is_some())
+        {
+            SaveProfileActiveRun {
+                governed: Some(true),
+            }
+        } else {
+            self.save_profile_active_run
+        };
+        self.save_profile
+            .request(route, request, authority, active_run, unix_millis())
     }
 }
 
