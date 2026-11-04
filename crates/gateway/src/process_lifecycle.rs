@@ -173,7 +173,10 @@ where
     /// It does not inspect OS liveness or attest gameplay readiness. In particular, an absent
     /// record is not proof that no native game is running and cannot authorize a save-profile
     /// mutation; that decision requires a separately accepted active-run owner and lease fence.
-    pub fn retained_ownership(&self, instance_id: InstanceId) -> Option<&crate::LifecycleOwnership> {
+    pub fn retained_ownership(
+        &self,
+        instance_id: InstanceId,
+    ) -> Option<&crate::LifecycleOwnership> {
         self.ownership.get(&instance_id)
     }
 
