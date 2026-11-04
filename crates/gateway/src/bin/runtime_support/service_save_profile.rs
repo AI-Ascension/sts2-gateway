@@ -45,7 +45,8 @@ impl RuntimeService {
         // save-profile mutation even if a separate admission source reports idle.
         // Absence of a row, however, never proves native liveness is absent: retain
         // UNCONFIGURED unless a separate authoritative idle writer was installed.
-        let instance = super::service_process_lifecycle_identity::instance_id(&self.config.instance_id);
+        let instance =
+            super::service_process_lifecycle_identity::instance_id(&self.config.instance_id);
         let active_run = if self
             .process_lifecycle
             .lifecycle_mut()
