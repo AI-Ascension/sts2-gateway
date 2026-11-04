@@ -41,6 +41,8 @@ mod process_lifecycle_fixtures;
 mod process_lifecycle_config_tests;
 #[path = "service_save_profile_tests.rs"]
 mod save_profile_tests;
+#[path = "service_save_profile_owner_exclusion_tests.rs"]
+mod save_profile_owner_exclusion_tests;
 
 #[path = "service_save_profile_composition_tests.rs"]
 mod save_profile_composition_tests;
