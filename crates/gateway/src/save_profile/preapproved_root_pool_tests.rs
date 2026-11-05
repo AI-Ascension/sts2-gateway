@@ -80,10 +80,15 @@ fn claimed_root_reconciles_read_only_after_restart_without_reassignment() -> Res
         first.reserve(request(7, "op-7"), witness(&approved))?
     };
     let mut recovered = CandidateRootPool::open(&path, vec![approved.clone()])?;
-    assert_eq!(recovered.reconcile(&request(7, "op-7"))?, Some(claim.clone()));
+    assert_eq!(
+        recovered.reconcile(&request(7, "op-7"))?,
+        Some(claim.clone())
+    );
     assert_eq!(recovered.reconcile(&request(8, "op-8"))?, None);
     assert_eq!(
-        recovered.reserve(request(8, "op-8"), witness(&approved)).err(),
+        recovered
+            .reserve(request(8, "op-8"), witness(&approved))
+            .err(),
         Some(PoolError::Conflict)
     );
 
@@ -92,7 +97,10 @@ fn claimed_root_reconciles_read_only_after_restart_without_reassignment() -> Res
     let mut stale_lease = request(7, "op-7");
     stale_lease.lease_epoch = 2;
     for mismatched in [request(7, "op-other"), foreign, stale_lease] {
-        assert_eq!(recovered.reconcile(&mismatched).err(), Some(PoolError::Conflict));
+        assert_eq!(
+            recovered.reconcile(&mismatched).err(),
+            Some(PoolError::Conflict)
+        );
     }
     assert_eq!(recovered.reconcile(&request(7, "op-7"))?, Some(claim));
     Ok(())
@@ -113,7 +121,9 @@ fn recovery_lookup_is_not_a_reservation_or_idle_witness() -> Result<(), PoolErro
         Some(PoolError::InvalidCatalog)
     );
     assert_eq!(
-        pool.reserve(request(1, "op-1"), witness(&approved))?.identity.value(),
+        pool.reserve(request(1, "op-1"), witness(&approved))?
+            .identity
+            .value(),
         1
     );
     Ok(())
