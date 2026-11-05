@@ -50,7 +50,10 @@ impl RuntimeService {
         let active_run = if self
             .process_lifecycle
             .lifecycle_mut()
-            .is_some_and(|owner| owner.retained_ownership(instance).is_some())
+            .is_some_and(|owner| {
+                owner.retained_ownership(instance).is_some()
+                    || owner.has_unsettled_operation(instance)
+            })
         {
             SaveProfileActiveRun {
                 governed: Some(true),
