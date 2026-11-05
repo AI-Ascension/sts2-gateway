@@ -2,11 +2,11 @@
 
 use std::path::PathBuf;
 
-use crate::process_profile::LaunchProfileId;
 use super::preapproved_root_pool::{
     ApprovedRoot, CandidateRootPool, ClaimRequest, OwnerExclusion, PoolError,
 };
 use super::types::UserDataIdentity;
+use crate::process_profile::LaunchProfileId;
 
 fn database() -> PathBuf {
     std::env::temp_dir().join(format!("sts2-root-claim-{}.sqlite", uuid::Uuid::new_v4()))
@@ -55,11 +55,15 @@ fn exact_claim_is_durable_and_idempotent_across_coordinator_restart() -> Result<
         first
     );
     assert_eq!(
-        reopened.reserve(request(1, "op-other"), witness(&approved)).err(),
+        reopened
+            .reserve(request(1, "op-other"), witness(&approved))
+            .err(),
         Some(PoolError::Conflict)
     );
     assert_eq!(
-        reopened.reserve(request(2, "op-2"), witness(&approved)).err(),
+        reopened
+            .reserve(request(2, "op-2"), witness(&approved))
+            .err(),
         Some(PoolError::Conflict)
     );
     Ok(())
@@ -149,7 +153,8 @@ fn invalid_catalog_and_request_are_refused_before_any_claim() -> Result<(), Pool
         Some(PoolError::InvalidCatalog)
     );
     assert_eq!(
-        pool.reserve(request(1, "../foreign"), witness(&approved)).err(),
+        pool.reserve(request(1, "../foreign"), witness(&approved))
+            .err(),
         Some(PoolError::InvalidCatalog)
     );
     Ok(())

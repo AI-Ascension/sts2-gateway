@@ -8,8 +8,8 @@ use std::path::Path;
 
 use rusqlite::{Connection, ErrorCode, OptionalExtension, TransactionBehavior, params};
 
-use crate::process_profile::LaunchProfileId;
 use super::types::UserDataIdentity;
+use crate::process_profile::LaunchProfileId;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct ApprovedRoot {
@@ -66,7 +66,9 @@ pub(super) struct CandidateRootPool {
 fn valid_id(value: &str) -> bool {
     !value.is_empty()
         && value.len() <= 128
-        && value.bytes().all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_'))
+        && value
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_'))
 }
 
 fn valid_digest(value: &str) -> bool {
@@ -111,10 +113,7 @@ fn load_claim(
 impl CandidateRootPool {
     /// The caller must supply an operator-approved, already-validated native
     /// catalog; this prototype intentionally cannot read deployment config itself.
-    pub(super) fn open(
-        path: &Path,
-        roots: Vec<ApprovedRoot>,
-    ) -> Result<Self, PoolError> {
+    pub(super) fn open(path: &Path, roots: Vec<ApprovedRoot>) -> Result<Self, PoolError> {
         if !path.is_absolute() || roots.is_empty() || roots.len() > 64 {
             return Err(PoolError::InvalidCatalog);
         }
@@ -134,9 +133,12 @@ impl CandidateRootPool {
             }
         }
         let connection = Connection::open(path).map_err(sql_error)?;
-        connection.busy_timeout(std::time::Duration::from_millis(250)).map_err(sql_error)?;
-        connection.execute_batch(
-            "PRAGMA journal_mode=WAL;
+        connection
+            .busy_timeout(std::time::Duration::from_millis(250))
+            .map_err(sql_error)?;
+        connection
+            .execute_batch(
+                "PRAGMA journal_mode=WAL;
              PRAGMA synchronous=FULL;
              CREATE TABLE IF NOT EXISTS root_claims (
                  root_key TEXT PRIMARY KEY NOT NULL,
@@ -150,13 +152,16 @@ impl CandidateRootPool {
                  owner_epoch INTEGER NOT NULL,
                  process_generation INTEGER NOT NULL
              );",
-        ).map_err(sql_error)?;
+            )
+            .map_err(sql_error)?;
         {
-            let mut query = connection.prepare(
-                "SELECT root_key, native_profile, namespace, image_digest,
+            let mut query = connection
+                .prepare(
+                    "SELECT root_key, native_profile, namespace, image_digest,
                         identity, lease_epoch, owner_epoch, process_generation
                  FROM root_claims",
-            ).map_err(sql_error)?;
+                )
+                .map_err(sql_error)?;
             let mut rows = query.query([]).map_err(sql_error)?;
             while let Some(row) = rows.next().map_err(sql_error)? {
                 let key: String = row.get(0).map_err(sql_error)?;
@@ -168,16 +173,24 @@ impl CandidateRootPool {
                 let lease_epoch: i64 = row.get(5).map_err(sql_error)?;
                 let owner_epoch: i64 = row.get(6).map_err(sql_error)?;
                 let generation: i64 = row.get(7).map_err(sql_error)?;
-                if profile <= 0 || profile as u64 != root.profile.value()
-                    || namespace <= 0 || namespace as u64 != root.namespace
-                    || digest != root.image_digest || identity <= 0 || lease_epoch <= 0
-                    || owner_epoch <= 0 || generation <= 0
+                if profile <= 0
+                    || profile as u64 != root.profile.value()
+                    || namespace <= 0
+                    || namespace as u64 != root.namespace
+                    || digest != root.image_digest
+                    || identity <= 0
+                    || lease_epoch <= 0
+                    || owner_epoch <= 0
+                    || generation <= 0
                 {
                     return Err(PoolError::InvalidCatalog);
                 }
             }
         }
-        Ok(Self { connection, catalog })
+        Ok(Self {
+            connection,
+            catalog,
+        })
     }
 
     /// Only an affirmative, exact owner witness may reserve a candidate.
@@ -187,16 +200,23 @@ impl CandidateRootPool {
         request: ClaimRequest,
         witness: OwnerExclusion,
     ) -> Result<RootClaim, PoolError> {
-        let approved = self.catalog.get(&witness.root.key)
+        let approved = self
+            .catalog
+            .get(&witness.root.key)
             .ok_or(PoolError::InvalidCatalog)?;
-        if witness.root != *approved || !witness.no_retained_owner
-            || !witness.no_unsettled_operation || !witness.no_foreign_marker
-            || witness.owner_epoch == 0 || witness.process_generation == 0
+        if witness.root != *approved
+            || !witness.no_retained_owner
+            || !witness.no_unsettled_operation
+            || !witness.no_foreign_marker
+            || witness.owner_epoch == 0
+            || witness.process_generation == 0
         {
             return Err(PoolError::UnverifiedOwner);
         }
-        if request.identity.value() == 0 || request.lease_epoch == 0
-            || !valid_id(&request.instance) || !valid_id(&request.operation)
+        if request.identity.value() == 0
+            || request.lease_epoch == 0
+            || !valid_id(&request.instance)
+            || !valid_id(&request.operation)
         {
             return Err(PoolError::InvalidCatalog);
         }
@@ -209,29 +229,56 @@ impl CandidateRootPool {
             owner_epoch: witness.owner_epoch,
             process_generation: witness.process_generation,
         };
-        let identity = i64::try_from(claim.identity.value()).map_err(|_| PoolError::InvalidCatalog)?;
-        let profile = i64::try_from(claim.root.profile.value()).map_err(|_| PoolError::InvalidCatalog)?;
-        let namespace = i64::try_from(claim.root.namespace).map_err(|_| PoolError::InvalidCatalog)?;
-        let lease_epoch = i64::try_from(claim.lease_epoch).map_err(|_| PoolError::InvalidCatalog)?;
-        let owner_epoch = i64::try_from(claim.owner_epoch).map_err(|_| PoolError::InvalidCatalog)?;
-        let generation = i64::try_from(claim.process_generation).map_err(|_| PoolError::InvalidCatalog)?;
-        let transaction = self.connection.transaction_with_behavior(TransactionBehavior::Immediate)
+        let identity =
+            i64::try_from(claim.identity.value()).map_err(|_| PoolError::InvalidCatalog)?;
+        let profile =
+            i64::try_from(claim.root.profile.value()).map_err(|_| PoolError::InvalidCatalog)?;
+        let namespace =
+            i64::try_from(claim.root.namespace).map_err(|_| PoolError::InvalidCatalog)?;
+        let lease_epoch =
+            i64::try_from(claim.lease_epoch).map_err(|_| PoolError::InvalidCatalog)?;
+        let owner_epoch =
+            i64::try_from(claim.owner_epoch).map_err(|_| PoolError::InvalidCatalog)?;
+        let generation =
+            i64::try_from(claim.process_generation).map_err(|_| PoolError::InvalidCatalog)?;
+        let transaction = self
+            .connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(sql_error)?;
         if let Some(existing) = load_claim(&transaction, claim.identity)? {
-            return if existing == claim { Ok(existing) } else { Err(PoolError::Conflict) };
+            return if existing == claim {
+                Ok(existing)
+            } else {
+                Err(PoolError::Conflict)
+            };
         }
-        transaction.execute(
-            "INSERT INTO root_claims (
+        transaction
+            .execute(
+                "INSERT INTO root_claims (
                 root_key, native_profile, namespace, image_digest, identity,
                 instance, operation, lease_epoch, owner_epoch, process_generation
              ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)",
-            params![&claim.root.key, profile, namespace, &claim.root.image_digest,
-                identity, &claim.instance, &claim.operation, lease_epoch, owner_epoch, generation],
-        ).map_err(|error| match error {
-            rusqlite::Error::SqliteFailure(failure, _)
-                if failure.code == ErrorCode::ConstraintViolation => PoolError::Conflict,
-            _ => PoolError::Storage,
-        })?;
+                params![
+                    &claim.root.key,
+                    profile,
+                    namespace,
+                    &claim.root.image_digest,
+                    identity,
+                    &claim.instance,
+                    &claim.operation,
+                    lease_epoch,
+                    owner_epoch,
+                    generation
+                ],
+            )
+            .map_err(|error| match error {
+                rusqlite::Error::SqliteFailure(failure, _)
+                    if failure.code == ErrorCode::ConstraintViolation =>
+                {
+                    PoolError::Conflict
+                }
+                _ => PoolError::Storage,
+            })?;
         transaction.commit().map_err(sql_error)?;
         Ok(claim)
     }
