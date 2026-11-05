@@ -24,6 +24,8 @@ fn root(number: u64) -> ApprovedRoot {
 fn witness(root: &ApprovedRoot) -> OwnerExclusion {
     OwnerExclusion {
         root: root.clone(),
+        instance: "instance-1".into(),
+        lease_epoch: 3,
         owner_epoch: 9,
         process_generation: 17,
         no_retained_owner: true,
@@ -92,6 +94,18 @@ fn root_exclusion_requires_positive_owner_witness_not_absence() -> Result<(), Po
     mismatched.root.namespace += 1;
     assert_eq!(
         pool.reserve(request(1, "op-1"), mismatched).err(),
+        Some(PoolError::UnverifiedOwner)
+    );
+    let mut wrong_instance = witness(&approved);
+    wrong_instance.instance = "different-instance".into();
+    assert_eq!(
+        pool.reserve(request(1, "op-1"), wrong_instance).err(),
+        Some(PoolError::UnverifiedOwner)
+    );
+    let mut stale_lease = witness(&approved);
+    stale_lease.lease_epoch = 2;
+    assert_eq!(
+        pool.reserve(request(1, "op-1"), stale_lease).err(),
         Some(PoolError::UnverifiedOwner)
     );
     assert!(pool.reserve(request(1, "op-1"), witness(&approved)).is_ok());
