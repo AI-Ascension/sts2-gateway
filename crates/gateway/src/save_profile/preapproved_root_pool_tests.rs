@@ -260,3 +260,42 @@ fn invalid_catalog_and_request_are_refused_before_any_claim() -> Result<(), Pool
     );
     Ok(())
 }
+
+#[test]
+fn corrupted_persisted_fences_are_never_cast_into_valid_owner_evidence() -> Result<(), PoolError> {
+    let path = database();
+    let approved = root(1);
+    let mut pool = CandidateRootPool::open(&path, vec![approved.clone()])?;
+    let saved = pool.reserve(request(7, "op-7"), witness(&approved))?;
+    let storage = rusqlite::Connection::open(&path).map_err(|_| PoolError::Storage)?;
+
+    for (column, original) in [
+        ("native_profile", 1_i64),
+        ("namespace", 101),
+        ("lease_epoch", 3),
+        ("owner_epoch", 9),
+        ("process_generation", 17),
+    ] {
+        for invalid in [-1_i64, 0] {
+            storage
+                .execute(
+                    &format!("UPDATE root_claims SET {column}=?1 WHERE root_key='root-1'"),
+                    rusqlite::params![invalid],
+                )
+                .map_err(|_| PoolError::Storage)?;
+            assert_eq!(
+                pool.reconcile(&request(7, "op-7")).err(),
+                Some(PoolError::Storage),
+                "corrupt {column}={invalid} must not become a usable unsigned witness"
+            );
+            storage
+                .execute(
+                    &format!("UPDATE root_claims SET {column}=?1 WHERE root_key='root-1'"),
+                    rusqlite::params![original],
+                )
+                .map_err(|_| PoolError::Storage)?;
+        }
+    }
+    assert_eq!(pool.reconcile(&request(7, "op-7"))?, Some(saved));
+    Ok(())
+}
