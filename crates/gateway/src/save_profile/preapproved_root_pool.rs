@@ -8,6 +8,7 @@ use std::path::Path;
 
 use rusqlite::{Connection, ErrorCode, OptionalExtension, TransactionBehavior, params};
 
+use super::preapproved_root_pool_decode::positive_persisted_u64;
 use super::types::UserDataIdentity;
 use crate::process_profile::LaunchProfileId;
 
@@ -80,14 +81,6 @@ fn valid_digest(value: &str) -> bool {
 
 fn sql_error(_: rusqlite::Error) -> PoolError {
     PoolError::Storage
-}
-
-fn positive_persisted_u64(row: &rusqlite::Row<'_>, column: usize) -> rusqlite::Result<u64> {
-    let value: i64 = row.get(column)?;
-    if value <= 0 {
-        return Err(rusqlite::Error::IntegralValueOutOfRange(column, value));
-    }
-    Ok(value as u64)
 }
 
 fn load_claim(

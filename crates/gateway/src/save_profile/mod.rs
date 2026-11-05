@@ -26,6 +26,8 @@ mod operation_store;
 mod preapproved_root_pool;
 #[cfg(test)]
 mod preapproved_root_pool_tests;
+#[cfg(test)]
+mod preapproved_root_pool_decode;
 mod provisioning;
 mod provisioning_descriptor;
 mod provisioning_record;
