@@ -180,6 +180,13 @@ where
         self.ownership.get(&instance_id)
     }
 
+    /// Positive exclusion for an unsettled approved process operation, even if its
+    /// durable ownership row is not currently available. This does not inspect
+    /// native liveness and an absent operation is never an idle authorization.
+    pub fn has_unsettled_operation(&self, instance_id: InstanceId) -> bool {
+        self.active_operation(instance_id).is_some()
+    }
+
     pub fn current_authority_epoch(&self, instance_id: InstanceId) -> AuthorityEpoch {
         match self.authority.get(&instance_id) {
             Some(epoch) => *epoch,

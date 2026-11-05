@@ -85,6 +85,26 @@ fn manager(
 }
 
 #[test]
+fn unsettled_operation_is_positive_exclusion_not_idle_proof() -> Result<(), String> {
+    let (lease, unrelated) = allocations()?;
+    let process = RecordingProcess::default();
+    let mut lifecycle = manager(process.clone(), InMemoryLifecycleStore::new(), lease, 2)?;
+    assert!(!lifecycle.has_unsettled_operation(lease.instance_id()));
+    lifecycle
+        .apply(LifecycleRequest::launch_new(
+            sts2_gateway::OperationId::new(23),
+            lease.proof(),
+            AuthorityEpoch::new(1),
+            LaunchProfileId::new(1),
+        ))
+        .map_err(|error| error.to_string())?;
+    assert!(lifecycle.has_unsettled_operation(lease.instance_id()));
+    assert!(!lifecycle.has_unsettled_operation(unrelated.instance_id()));
+    assert_eq!(process.starts(), 1);
+    Ok(())
+}
+
+#[test]
 fn launch_is_idempotent_and_attach_requires_the_retained_identity() -> Result<(), String> {
     let (lease, _) = allocations()?;
     let process = RecordingProcess::default();
