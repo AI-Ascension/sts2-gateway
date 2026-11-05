@@ -82,6 +82,14 @@ fn sql_error(_: rusqlite::Error) -> PoolError {
     PoolError::Storage
 }
 
+fn positive_persisted_u64(row: &rusqlite::Row<'_>, column: usize) -> rusqlite::Result<u64> {
+    let value: i64 = row.get(column)?;
+    if value <= 0 {
+        return Err(rusqlite::Error::IntegralValueOutOfRange(column, value));
+    }
+    Ok(value as u64)
+}
+
 fn load_claim(
     connection: &Connection,
     identity: UserDataIdentity,
@@ -96,16 +104,16 @@ fn load_claim(
                 Ok(RootClaim {
                     root: ApprovedRoot {
                         key: row.get(0)?,
-                        profile: LaunchProfileId::new(row.get::<_, i64>(1)? as u64),
-                        namespace: row.get::<_, i64>(2)? as u64,
+                        profile: LaunchProfileId::new(positive_persisted_u64(row, 1)?),
+                        namespace: positive_persisted_u64(row, 2)?,
                         image_digest: row.get(3)?,
                     },
-                    identity: UserDataIdentity::new(row.get::<_, i64>(4)? as u64),
+                    identity: UserDataIdentity::new(positive_persisted_u64(row, 4)?),
                     instance: row.get(5)?,
                     operation: row.get(6)?,
-                    lease_epoch: row.get::<_, i64>(7)? as u64,
-                    owner_epoch: row.get::<_, i64>(8)? as u64,
-                    process_generation: row.get::<_, i64>(9)? as u64,
+                    lease_epoch: positive_persisted_u64(row, 7)?,
+                    owner_epoch: positive_persisted_u64(row, 8)?,
+                    process_generation: positive_persisted_u64(row, 9)?,
                 })
             },
         )
