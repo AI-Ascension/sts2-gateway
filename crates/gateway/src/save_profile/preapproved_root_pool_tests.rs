@@ -144,13 +144,17 @@ fn logical_operation_cannot_claim_two_distinct_roots_across_restart() -> Result<
     drop(pool);
     let mut reopened = CandidateRootPool::open(&path, vec![first, second.clone()])?;
     assert_eq!(
-        reopened.reserve(request(8, "same-op"), witness(&second)).err(),
+        reopened
+            .reserve(request(8, "same-op"), witness(&second))
+            .err(),
         Some(PoolError::Conflict)
     );
     assert_eq!(reopened.reconcile(&request(7, "same-op"))?, Some(saved));
-    assert!(reopened
-        .reserve(request(8, "different-op"), witness(&second))
-        .is_ok());
+    assert!(
+        reopened
+            .reserve(request(8, "different-op"), witness(&second))
+            .is_ok()
+    );
     Ok(())
 }
 
