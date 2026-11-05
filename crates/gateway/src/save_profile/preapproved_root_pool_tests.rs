@@ -130,6 +130,31 @@ fn recovery_lookup_is_not_a_reservation_or_idle_witness() -> Result<(), PoolErro
 }
 
 #[test]
+fn logical_operation_cannot_claim_two_distinct_roots_across_restart() -> Result<(), PoolError> {
+    let path = database();
+    let first = root(1);
+    let second = root(2);
+    let mut pool = CandidateRootPool::open(&path, vec![first.clone(), second.clone()])?;
+    let saved = pool.reserve(request(7, "same-op"), witness(&first))?;
+    assert_eq!(
+        pool.reserve(request(8, "same-op"), witness(&second)).err(),
+        Some(PoolError::Conflict)
+    );
+
+    drop(pool);
+    let mut reopened = CandidateRootPool::open(&path, vec![first, second.clone()])?;
+    assert_eq!(
+        reopened.reserve(request(8, "same-op"), witness(&second)).err(),
+        Some(PoolError::Conflict)
+    );
+    assert_eq!(reopened.reconcile(&request(7, "same-op"))?, Some(saved));
+    assert!(reopened
+        .reserve(request(8, "different-op"), witness(&second))
+        .is_ok());
+    Ok(())
+}
+
+#[test]
 fn root_exclusion_requires_positive_owner_witness_not_absence() -> Result<(), PoolError> {
     let path = database();
     let approved = root(1);
