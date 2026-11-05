@@ -22,6 +22,9 @@ pub(super) struct ApprovedRoot {
 #[derive(Clone, Debug)]
 pub(super) struct OwnerExclusion {
     pub root: ApprovedRoot,
+    // An affirmative owner statement is scoped to the requesting instance and lease.
+    pub instance: String,
+    pub lease_epoch: u64,
     pub owner_epoch: u64,
     pub process_generation: u64,
     pub no_retained_owner: bool,
@@ -208,6 +211,8 @@ impl CandidateRootPool {
             || !witness.no_retained_owner
             || !witness.no_unsettled_operation
             || !witness.no_foreign_marker
+            || witness.instance != request.instance
+            || witness.lease_epoch != request.lease_epoch
             || witness.owner_epoch == 0
             || witness.process_generation == 0
         {
