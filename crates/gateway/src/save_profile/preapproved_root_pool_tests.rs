@@ -72,6 +72,54 @@ fn exact_claim_is_durable_and_idempotent_across_coordinator_restart() -> Result<
 }
 
 #[test]
+fn claimed_root_reconciles_read_only_after_restart_without_reassignment() -> Result<(), PoolError> {
+    let path = database();
+    let approved = root(1);
+    let claim = {
+        let mut first = CandidateRootPool::open(&path, vec![approved.clone()])?;
+        first.reserve(request(7, "op-7"), witness(&approved))?
+    };
+    let mut recovered = CandidateRootPool::open(&path, vec![approved.clone()])?;
+    assert_eq!(recovered.reconcile(&request(7, "op-7"))?, Some(claim.clone()));
+    assert_eq!(recovered.reconcile(&request(8, "op-8"))?, None);
+    assert_eq!(
+        recovered.reserve(request(8, "op-8"), witness(&approved)).err(),
+        Some(PoolError::Conflict)
+    );
+
+    let mut foreign = request(7, "op-7");
+    foreign.instance = "foreign-instance".into();
+    let mut stale_lease = request(7, "op-7");
+    stale_lease.lease_epoch = 2;
+    for mismatched in [request(7, "op-other"), foreign, stale_lease] {
+        assert_eq!(recovered.reconcile(&mismatched).err(), Some(PoolError::Conflict));
+    }
+    assert_eq!(recovered.reconcile(&request(7, "op-7"))?, Some(claim));
+    Ok(())
+}
+
+#[test]
+fn recovery_lookup_is_not_a_reservation_or_idle_witness() -> Result<(), PoolError> {
+    let path = database();
+    let approved = root(1);
+    let mut pool = CandidateRootPool::open(&path, vec![approved.clone()])?;
+    assert_eq!(pool.reconcile(&request(1, "op-1"))?, None);
+    assert_eq!(
+        pool.reconcile(&request(0, "op-1")).err(),
+        Some(PoolError::InvalidCatalog)
+    );
+    assert_eq!(
+        pool.reconcile(&request(1, "../foreign")).err(),
+        Some(PoolError::InvalidCatalog)
+    );
+    assert_eq!(
+        pool.reserve(request(1, "op-1"), witness(&approved))?.identity.value(),
+        1
+    );
+    Ok(())
+}
+
+#[test]
 fn root_exclusion_requires_positive_owner_witness_not_absence() -> Result<(), PoolError> {
     let path = database();
     let approved = root(1);
