@@ -48,15 +48,17 @@ Suggested transitions (source design only): **Unreserved → Reserved → Alloca
 
 ## Never infer negative idle from absence
 
-Admission for save mutation needs an affirmative **Ready** native owner witness at the exact instance/lease/authority epoch and process generation, plus an independently authoritative GameMod no-active-run witness at the same host incarnation and a reconciled durable operation ledger. *All* of these are required:
+**Separate two mutually exclusive phases.** Root reservation and initial provisioning occur **before** an owned native process exists; this phase must obtain a fenced, affirmative allocator/process-owner statement that the specific preapproved root has no retained or unresolved conflicting generation, unsettled operation, unknown marker, or foreign occupant. It cannot require a Ready process that has not yet launched. A missing ledger row or a configured profile list is not the affirmative statement. Once an immutable root reservation is durable, it cannot be reassigned during an uncertain launch or reconciliation.
 
-- current authenticated lease and nonexpired admission, same instance/caller/session/epoch;
-- explicit native Ready status with verified executable/image/birth identity and root ownership, not merely a configured profile ID;
-- no active or uncertain process for this allocation, no retained ownership and no unsettled lifecycle operation, verified by a fenced **affirmative owner query**, not the absence of an optional map entry;
-- no active game run, exact host/save-slot identity and baseline, and an affirmative host-thread readback before and after any mutation;
-- durable allocation/forwarding journals online, reconciled, uniquely owned and cryptographically or mechanically tied to the same root and operation.
+**Host save-slot discovery/selection/provisioning** occurs only **after** the correct native process is owner-confirmed Ready. Here Ready means an actual owned process *is present*. The separately required idle evidence means no active gameplay run or conflicting game save operation at the same GameMod host incarnation; it does **not** mean no running OS process. Admission requires each of these independent witnesses:
 
-An unavailable owner, stale grant, lost reply, restarted generation, missing live-host observation, unrelated profile, or detected positive retained-owner/operation row always causes a refusal. Current PR #152's exclusions remain a necessary safety layer but are not a negative-idle writer. `SaveProfileActiveRun::governed = Some(false)` must never be synthesized by tests, absence of records or `profiles()` enumeration in production.
+- authenticated current lease, same instance/caller/session/epoch, and exact durable allocation and process generation;
+- positively verified native Ready owner with executable/image/birth identity, immutable preapproved root ownership and matching retained reservation;
+- no **other** active or uncertain conflicting process generation or unsettled operation for this root, established by a fenced affirmative owner query and durable journal reconciliation, not the absence of an optional map entry;
+- an authoritative GameMod no-active-gameplay-run witness at the same host incarnation, exact opaque `SaveSlotId`, selected baseline, and host-thread readback before and after any permitted save mutation;
+- online and reconciled allocation/forwarding journals, uniquely owned and tied to the same immutable root, operation and admission fence.
+
+A disappeared/unavailable owner, stale grant, lost reply, restarted generation, absent positive observation, unrelated profile, positive retained conflict or unsettled operation always refuses. Draft PR #152's exclusion remains necessary but is **not** a negative-idle writer. `SaveProfileActiveRun::governed = Some(false)` must never be synthesized from fake fixtures, absence of records or `profiles()` enumeration in production.
 
 ## Concrete tests to qualify the decision
 
