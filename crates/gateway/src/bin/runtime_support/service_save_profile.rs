@@ -47,14 +47,9 @@ impl RuntimeService {
         // UNCONFIGURED unless a separate authoritative idle writer was installed.
         let instance =
             super::service_process_lifecycle_identity::instance_id(&self.config.instance_id);
-        let active_run = if self
-            .process_lifecycle
-            .lifecycle_mut()
-            .is_some_and(|owner| {
-                owner.retained_ownership(instance).is_some()
-                    || owner.has_unsettled_operation(instance)
-            })
-        {
+        let active_run = if self.process_lifecycle.lifecycle_mut().is_some_and(|owner| {
+            owner.retained_ownership(instance).is_some() || owner.has_unsettled_operation(instance)
+        }) {
             SaveProfileActiveRun {
                 governed: Some(true),
             }
