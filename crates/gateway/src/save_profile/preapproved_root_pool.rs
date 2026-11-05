@@ -154,7 +154,9 @@ impl CandidateRootPool {
                  lease_epoch INTEGER NOT NULL,
                  owner_epoch INTEGER NOT NULL,
                  process_generation INTEGER NOT NULL
-             );",
+             );
+             CREATE UNIQUE INDEX IF NOT EXISTS root_claims_instance_operation
+               ON root_claims(instance, operation);",
             )
             .map_err(sql_error)?;
         {
