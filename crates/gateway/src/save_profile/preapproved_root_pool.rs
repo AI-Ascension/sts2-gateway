@@ -199,10 +199,7 @@ impl CandidateRootPool {
     /// Recovers an exact durable claim after a lost response or restart.
     /// This lookup grants no native-process, host-save, or negative-idle authority
     /// and never reserves, releases, or reassigns a root.
-    pub(super) fn reconcile(
-        &self,
-        request: &ClaimRequest,
-    ) -> Result<Option<RootClaim>, PoolError> {
+    pub(super) fn reconcile(&self, request: &ClaimRequest) -> Result<Option<RootClaim>, PoolError> {
         if request.identity.value() == 0
             || request.lease_epoch == 0
             || !valid_id(&request.instance)
@@ -265,18 +262,13 @@ impl CandidateRootPool {
             owner_epoch: witness.owner_epoch,
             process_generation: witness.process_generation,
         };
-        let identity =
-            i64::try_from(claim.identity.value()).map_err(|_| PoolError::InvalidCatalog)?;
-        let profile =
-            i64::try_from(claim.root.profile.value()).map_err(|_| PoolError::InvalidCatalog)?;
-        let namespace =
-            i64::try_from(claim.root.namespace).map_err(|_| PoolError::InvalidCatalog)?;
-        let lease_epoch =
-            i64::try_from(claim.lease_epoch).map_err(|_| PoolError::InvalidCatalog)?;
-        let owner_epoch =
-            i64::try_from(claim.owner_epoch).map_err(|_| PoolError::InvalidCatalog)?;
-        let generation =
-            i64::try_from(claim.process_generation).map_err(|_| PoolError::InvalidCatalog)?;
+        let invalid = |_| PoolError::InvalidCatalog;
+        let identity = i64::try_from(claim.identity.value()).map_err(invalid)?;
+        let profile = i64::try_from(claim.root.profile.value()).map_err(invalid)?;
+        let namespace = i64::try_from(claim.root.namespace).map_err(invalid)?;
+        let lease_epoch = i64::try_from(claim.lease_epoch).map_err(invalid)?;
+        let owner_epoch = i64::try_from(claim.owner_epoch).map_err(invalid)?;
+        let generation = i64::try_from(claim.process_generation).map_err(invalid)?;
         let transaction = self
             .connection
             .transaction_with_behavior(TransactionBehavior::Immediate)
