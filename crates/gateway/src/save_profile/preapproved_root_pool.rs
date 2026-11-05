@@ -196,6 +196,37 @@ impl CandidateRootPool {
         })
     }
 
+    /// Recovers an exact durable claim after a lost response or restart.
+    /// This lookup grants no native-process, host-save, or negative-idle authority
+    /// and never reserves, releases, or reassigns a root.
+    pub(super) fn reconcile(
+        &self,
+        request: &ClaimRequest,
+    ) -> Result<Option<RootClaim>, PoolError> {
+        if request.identity.value() == 0
+            || request.lease_epoch == 0
+            || !valid_id(&request.instance)
+            || !valid_id(&request.operation)
+        {
+            return Err(PoolError::InvalidCatalog);
+        }
+        match load_claim(&self.connection, request.identity)? {
+            None => Ok(None),
+            Some(existing) => {
+                if self.catalog.get(&existing.root.key) != Some(&existing.root) {
+                    return Err(PoolError::InvalidCatalog);
+                }
+                if existing.instance != request.instance
+                    || existing.operation != request.operation
+                    || existing.lease_epoch != request.lease_epoch
+                {
+                    return Err(PoolError::Conflict);
+                }
+                Ok(Some(existing))
+            }
+        }
+    }
+
     /// Only an affirmative, exact owner witness may reserve a candidate.
     /// This is not a real owner oracle and cannot be used for production admission.
     pub(super) fn reserve(
