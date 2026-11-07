@@ -11,10 +11,7 @@ use super::types::UserDataIdentity;
 use crate::process_profile::LaunchProfileId;
 
 fn database() -> PathBuf {
-    std::env::temp_dir().join(format!(
-        "sts2-root-catalog-{}.sqlite",
-        uuid::Uuid::new_v4()
-    ))
+    std::env::temp_dir().join(format!("sts2-root-catalog-{}.sqlite", uuid::Uuid::new_v4()))
 }
 
 fn root(number: u64) -> ApprovedRoot {
