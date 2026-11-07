@@ -85,7 +85,7 @@ fn claimed_root_does_not_hide_drift_of_an_unclaimed_root() -> Result<(), PoolErr
         CandidateRootPool::open(&path, vec![first.clone(), root(3)]),
         Err(PoolError::InvalidCatalog)
     ));
-    let mut reopened = CandidateRootPool::open(&path, vec![first, second])?;
+    let reopened = CandidateRootPool::open(&path, vec![first, second])?;
     assert_eq!(reopened.reconcile(&request())?, Some(claim));
     Ok(())
 }

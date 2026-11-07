@@ -60,8 +60,7 @@ pub(super) enum PoolError {
     Storage,
 }
 
-/// Source-only allocator. Its rows cannot be released or reassigned; any uncertain
-/// outcome remains retained. Production composition deliberately has no constructor.
+/// Test-only immutable root claims; never released, reassigned, or wired into production.
 pub(super) struct CandidateRootPool {
     connection: Connection,
     catalog: BTreeMap<String, ApprovedRoot>,
