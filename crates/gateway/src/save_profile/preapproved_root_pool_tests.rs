@@ -1,0 +1,301 @@
+// SPDX-License-Identifier: MIT
+
+use std::path::PathBuf;
+
+use super::preapproved_root_pool::{
+    ApprovedRoot, CandidateRootPool, ClaimRequest, OwnerExclusion, PoolError,
+};
+use super::types::UserDataIdentity;
+use crate::process_profile::LaunchProfileId;
+
+fn database() -> PathBuf {
+    std::env::temp_dir().join(format!("sts2-root-claim-{}.sqlite", uuid::Uuid::new_v4()))
+}
+
+fn root(number: u64) -> ApprovedRoot {
+    ApprovedRoot {
+        key: format!("root-{number}"),
+        profile: LaunchProfileId::new(number),
+        namespace: number + 100,
+        image_digest: format!("{number:064x}"),
+    }
+}
+
+fn witness(root: &ApprovedRoot) -> OwnerExclusion {
+    OwnerExclusion {
+        root: root.clone(),
+        instance: "instance-1".into(),
+        lease_epoch: 3,
+        owner_epoch: 9,
+        process_generation: 17,
+        no_retained_owner: true,
+        no_unsettled_operation: true,
+        no_foreign_marker: true,
+    }
+}
+
+fn request(identity: u64, operation: &str) -> ClaimRequest {
+    ClaimRequest {
+        identity: UserDataIdentity::new(identity),
+        instance: "instance-1".into(),
+        operation: operation.into(),
+        lease_epoch: 3,
+    }
+}
+
+#[test]
+fn exact_claim_is_durable_and_idempotent_across_coordinator_restart() -> Result<(), PoolError> {
+    let path = database();
+    let approved = root(1);
+    let first = {
+        let mut pool = CandidateRootPool::open(&path, vec![approved.clone()])?;
+        pool.reserve(request(1, "op-1"), witness(&approved))?
+    };
+    let mut reopened = CandidateRootPool::open(&path, vec![approved.clone()])?;
+    assert_eq!(
+        reopened.reserve(request(1, "op-1"), witness(&approved))?,
+        first
+    );
+    assert_eq!(
+        reopened
+            .reserve(request(1, "op-other"), witness(&approved))
+            .err(),
+        Some(PoolError::Conflict)
+    );
+    assert_eq!(
+        reopened
+            .reserve(request(2, "op-2"), witness(&approved))
+            .err(),
+        Some(PoolError::Conflict)
+    );
+    Ok(())
+}
+
+#[test]
+fn claimed_root_reconciles_read_only_after_restart_without_reassignment() -> Result<(), PoolError> {
+    let path = database();
+    let approved = root(1);
+    let claim = {
+        let mut first = CandidateRootPool::open(&path, vec![approved.clone()])?;
+        first.reserve(request(7, "op-7"), witness(&approved))?
+    };
+    let mut recovered = CandidateRootPool::open(&path, vec![approved.clone()])?;
+    assert_eq!(
+        recovered.reconcile(&request(7, "op-7"))?,
+        Some(claim.clone())
+    );
+    assert_eq!(recovered.reconcile(&request(8, "op-8"))?, None);
+    assert_eq!(
+        recovered
+            .reserve(request(8, "op-8"), witness(&approved))
+            .err(),
+        Some(PoolError::Conflict)
+    );
+
+    let mut foreign = request(7, "op-7");
+    foreign.instance = "foreign-instance".into();
+    let mut stale_lease = request(7, "op-7");
+    stale_lease.lease_epoch = 2;
+    for mismatched in [request(7, "op-other"), foreign, stale_lease] {
+        assert_eq!(
+            recovered.reconcile(&mismatched).err(),
+            Some(PoolError::Conflict)
+        );
+    }
+    assert_eq!(recovered.reconcile(&request(7, "op-7"))?, Some(claim));
+    Ok(())
+}
+
+#[test]
+fn recovery_lookup_is_not_a_reservation_or_idle_witness() -> Result<(), PoolError> {
+    let path = database();
+    let approved = root(1);
+    let mut pool = CandidateRootPool::open(&path, vec![approved.clone()])?;
+    assert_eq!(pool.reconcile(&request(1, "op-1"))?, None);
+    assert_eq!(
+        pool.reconcile(&request(0, "op-1")).err(),
+        Some(PoolError::InvalidCatalog)
+    );
+    assert_eq!(
+        pool.reconcile(&request(1, "../foreign")).err(),
+        Some(PoolError::InvalidCatalog)
+    );
+    assert_eq!(
+        pool.reserve(request(1, "op-1"), witness(&approved))?
+            .identity
+            .value(),
+        1
+    );
+    Ok(())
+}
+
+#[test]
+fn logical_operation_cannot_claim_two_distinct_roots_across_restart() -> Result<(), PoolError> {
+    let path = database();
+    let first = root(1);
+    let second = root(2);
+    let mut pool = CandidateRootPool::open(&path, vec![first.clone(), second.clone()])?;
+    let saved = pool.reserve(request(7, "same-op"), witness(&first))?;
+    assert_eq!(
+        pool.reserve(request(8, "same-op"), witness(&second)).err(),
+        Some(PoolError::Conflict)
+    );
+
+    drop(pool);
+    let mut reopened = CandidateRootPool::open(&path, vec![first, second.clone()])?;
+    assert_eq!(
+        reopened
+            .reserve(request(8, "same-op"), witness(&second))
+            .err(),
+        Some(PoolError::Conflict)
+    );
+    assert_eq!(reopened.reconcile(&request(7, "same-op"))?, Some(saved));
+    assert!(
+        reopened
+            .reserve(request(8, "different-op"), witness(&second))
+            .is_ok()
+    );
+    Ok(())
+}
+
+#[test]
+fn root_exclusion_requires_positive_owner_witness_not_absence() -> Result<(), PoolError> {
+    let path = database();
+    let approved = root(1);
+    let mut pool = CandidateRootPool::open(&path, vec![approved.clone()])?;
+    for field in 0..5 {
+        let mut proof = witness(&approved);
+        match field {
+            0 => proof.no_retained_owner = false,
+            1 => proof.no_unsettled_operation = false,
+            2 => proof.no_foreign_marker = false,
+            3 => proof.owner_epoch = 0,
+            _ => proof.process_generation = 0,
+        }
+        assert_eq!(
+            pool.reserve(request(1, "op-1"), proof).err(),
+            Some(PoolError::UnverifiedOwner)
+        );
+    }
+    let mut mismatched = witness(&approved);
+    mismatched.root.namespace += 1;
+    assert_eq!(
+        pool.reserve(request(1, "op-1"), mismatched).err(),
+        Some(PoolError::UnverifiedOwner)
+    );
+    let mut wrong_instance = witness(&approved);
+    wrong_instance.instance = "different-instance".into();
+    assert_eq!(
+        pool.reserve(request(1, "op-1"), wrong_instance).err(),
+        Some(PoolError::UnverifiedOwner)
+    );
+    let mut stale_lease = witness(&approved);
+    stale_lease.lease_epoch = 2;
+    assert_eq!(
+        pool.reserve(request(1, "op-1"), stale_lease).err(),
+        Some(PoolError::UnverifiedOwner)
+    );
+    assert!(pool.reserve(request(1, "op-1"), witness(&approved)).is_ok());
+    Ok(())
+}
+
+#[test]
+fn competing_coordinators_cannot_reassign_one_fixed_native_root() -> Result<(), PoolError> {
+    let path = database();
+    let approved = root(1);
+    let mut first = CandidateRootPool::open(&path, vec![approved.clone()])?;
+    let mut second = CandidateRootPool::open(&path, vec![approved.clone()])?;
+    first.reserve(request(1, "op-1"), witness(&approved))?;
+    assert_eq!(
+        second.reserve(request(2, "op-2"), witness(&approved)).err(),
+        Some(PoolError::Conflict)
+    );
+    Ok(())
+}
+
+#[test]
+fn orphaned_claim_refuses_catalog_drift_instead_of_reallocating() -> Result<(), PoolError> {
+    let path = database();
+    let approved = root(1);
+    {
+        let mut pool = CandidateRootPool::open(&path, vec![approved.clone()])?;
+        pool.reserve(request(1, "op-1"), witness(&approved))?;
+    }
+    let mut changed = approved.clone();
+    changed.image_digest = "f".repeat(64);
+    assert!(matches!(
+        CandidateRootPool::open(&path, vec![changed]),
+        Err(PoolError::InvalidCatalog)
+    ));
+    assert!(matches!(
+        CandidateRootPool::open(&path, vec![root(2)]),
+        Err(PoolError::InvalidCatalog)
+    ));
+    Ok(())
+}
+
+#[test]
+fn invalid_catalog_and_request_are_refused_before_any_claim() -> Result<(), PoolError> {
+    let path = database();
+    assert!(matches!(
+        CandidateRootPool::open(&path, vec![root(1), root(1)]),
+        Err(PoolError::InvalidCatalog)
+    ));
+    let mut invalid = root(1);
+    invalid.key = "../foreign".into();
+    assert!(matches!(
+        CandidateRootPool::open(&path, vec![invalid]),
+        Err(PoolError::InvalidCatalog)
+    ));
+    let approved = root(1);
+    let mut pool = CandidateRootPool::open(&path, vec![approved.clone()])?;
+    assert_eq!(
+        pool.reserve(request(0, "op-1"), witness(&approved)).err(),
+        Some(PoolError::InvalidCatalog)
+    );
+    assert_eq!(
+        pool.reserve(request(1, "../foreign"), witness(&approved))
+            .err(),
+        Some(PoolError::InvalidCatalog)
+    );
+    Ok(())
+}
+
+#[test]
+fn corrupted_persisted_fences_are_never_cast_into_valid_owner_evidence() -> Result<(), PoolError> {
+    let path = database();
+    let approved = root(1);
+    let mut pool = CandidateRootPool::open(&path, vec![approved.clone()])?;
+    let saved = pool.reserve(request(7, "op-7"), witness(&approved))?;
+    let storage = rusqlite::Connection::open(&path).map_err(|_| PoolError::Storage)?;
+
+    for (column, original) in [
+        ("native_profile", 1_i64),
+        ("namespace", 101),
+        ("lease_epoch", 3),
+        ("owner_epoch", 9),
+        ("process_generation", 17),
+    ] {
+        for invalid in [-1_i64, 0] {
+            storage
+                .execute(
+                    &format!("UPDATE root_claims SET {column}=?1 WHERE root_key='root-1'"),
+                    rusqlite::params![invalid],
+                )
+                .map_err(|_| PoolError::Storage)?;
+            assert_eq!(
+                pool.reconcile(&request(7, "op-7")).err(),
+                Some(PoolError::Storage),
+                "corrupt {column}={invalid} must not become a usable unsigned witness"
+            );
+            storage
+                .execute(
+                    &format!("UPDATE root_claims SET {column}=?1 WHERE root_key='root-1'"),
+                    rusqlite::params![original],
+                )
+                .map_err(|_| PoolError::Storage)?;
+        }
+    }
+    assert_eq!(pool.reconcile(&request(7, "op-7"))?, Some(saved));
+    Ok(())
+}
