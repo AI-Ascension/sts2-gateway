@@ -25,6 +25,10 @@ mod operation_store;
 #[cfg(test)]
 mod preapproved_root_pool;
 #[cfg(test)]
+mod preapproved_root_pool_catalog;
+#[cfg(test)]
+mod preapproved_root_pool_catalog_tests;
+#[cfg(test)]
 mod preapproved_root_pool_decode;
 #[cfg(test)]
 mod preapproved_root_pool_tests;

@@ -136,7 +136,7 @@ impl CandidateRootPool {
                 return Err(PoolError::InvalidCatalog);
             }
         }
-        let connection = Connection::open(path).map_err(sql_error)?;
+        let mut connection = Connection::open(path).map_err(sql_error)?;
         connection
             .busy_timeout(std::time::Duration::from_millis(250))
             .map_err(sql_error)?;
@@ -160,6 +160,7 @@ impl CandidateRootPool {
                ON root_claims(instance, operation);",
             )
             .map_err(sql_error)?;
+        super::preapproved_root_pool_catalog::seal_exact_catalog(&mut connection, &catalog)?;
         {
             let mut query = connection
                 .prepare(
