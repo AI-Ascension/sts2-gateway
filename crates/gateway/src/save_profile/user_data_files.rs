@@ -64,11 +64,21 @@ impl FilesystemUserDataPort {
         allocation_directory(&self.root, identity)
     }
 
+    #[cfg(target_os = "linux")]
+    fn ensure_original_root(&self) -> Result<(), UserDataPortError> {
+        // A removed owner root is temporarily unavailable; a replaced real directory
+        // or symlink is a different inode and must never be adopted.
+        fs::symlink_metadata(&self.root).map_err(|_| UserDataPortError::Unavailable)?;
+        if same_directory_identity(&self.root_handle, &self.root) {
+            Ok(())
+        } else {
+            Err(UserDataPortError::SymlinkEscape)
+        }
+    }
+
     fn verify(&self, identity: UserDataIdentity, existing: bool) -> Result<(), UserDataPortError> {
         #[cfg(target_os = "linux")]
-        if !same_directory_identity(&self.root_handle, &self.root) {
-            return Err(UserDataPortError::SymlinkEscape);
-        }
+        self.ensure_original_root()?;
         verify_identity(identity)?;
         if identity.value() > self.capacity as u64 {
             return Err(UserDataPortError::Traversal);
@@ -226,9 +236,7 @@ impl UserDataPort for FilesystemUserDataPort {
             return Err(UserDataPortError::Traversal);
         }
         #[cfg(target_os = "linux")]
-        if !same_directory_identity(&self.root_handle, &self.root) {
-            return Err(UserDataPortError::SymlinkEscape);
-        }
+        self.ensure_original_root()?;
         let inspected = inspect_identity(&self.root, identity)?;
         if matches!(inspected, UserDataInspection::Owned(_)) {
             self.sync_owned(identity)?;
