@@ -4,7 +4,7 @@
 use std::fs::{self, File, OpenOptions};
 use std::path::Path;
 
-use super::provisioning_types::UserDataPortError;
+use super::super::provisioning_types::UserDataPortError;
 
 #[cfg(target_os = "linux")]
 pub(super) fn pinned_directory(path: &Path) -> Result<File, UserDataPortError> {
