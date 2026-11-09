@@ -36,8 +36,6 @@ pub struct FilesystemUserDataPort {
     capacity: usize,
 }
 
-
-
 impl FilesystemUserDataPort {
     /// Binds the port to an absolute, canonical, server-owned root path.
     pub fn try_new(root: impl Into<PathBuf>, capacity: usize) -> Result<Self, UserDataPortError> {
