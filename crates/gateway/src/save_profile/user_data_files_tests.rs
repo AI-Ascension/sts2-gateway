@@ -165,6 +165,37 @@ fn symlinked_allocation_is_refused_as_an_escape() -> Result<(), String> {
     Ok(())
 }
 
+#[cfg(target_os = "linux")]
+#[test]
+fn post_allocation_child_swap_refuses_foreign_readback() -> Result<(), String> {
+    use std::os::unix::fs::symlink;
+
+    let root = TestRoot::new();
+    let outside = TestRoot::new();
+    let sentinel = outside.0.join("keep.txt");
+    fs::write(&sentinel, b"outside data").map_err(|error| error.to_string())?;
+    let mut port = root.port().map_err(|error| format!("{error:?}"))?;
+    port.create(request(1, "op-1")?)
+        .map_err(|error| format!("{error:?}"))?;
+    fs::rename(root.0.join("run-1"), root.0.join("original"))
+        .map_err(|error| error.to_string())?;
+    symlink(&outside.0, root.0.join("run-1")).map_err(|error| error.to_string())?;
+    assert!(matches!(
+        port.inspect(UserDataIdentity::new(1)),
+        Err(UserDataPortError::SymlinkEscape)
+    ));
+    assert!(matches!(
+        port.create(request(1, "op-1")?),
+        Err(UserDataPortError::SymlinkEscape)
+    ));
+    assert_eq!(
+        fs::read(&sentinel).map_err(|error| error.to_string())?,
+        b"outside data"
+    );
+    assert!(root.0.join("original").join(PROVENANCE_FILE).exists());
+    Ok(())
+}
+
 #[test]
 fn identity_outside_the_bounded_root_is_refused() -> Result<(), String> {
     let root = TestRoot::new();

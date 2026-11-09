@@ -16,9 +16,11 @@ mod linux;
 use linux::{pinned_directory, same_directory_identity};
 
 use super::user_data_files_validation::{
-    PROVENANCE_FILE, allocation_directory, inspect_identity, is_absent, read_owned,
-    verify_containment, verify_identity, verify_root,
+    PROVENANCE_FILE, allocation_directory, read_owned, verify_containment, verify_identity,
+    verify_root,
 };
+#[cfg(not(target_os = "linux"))]
+use super::user_data_files_validation::{inspect_identity, is_absent};
 
 /// Default bound on identities a single configured root will serve.
 pub const USER_DATA_ROOT_CAPACITY: usize = 64;
@@ -74,6 +76,49 @@ impl FilesystemUserDataPort {
         } else {
             Err(UserDataPortError::SymlinkEscape)
         }
+    }
+
+    #[cfg(target_os = "linux")]
+    fn inspect_pinned(
+        &self,
+        identity: UserDataIdentity,
+    ) -> Result<UserDataInspection, UserDataPortError> {
+        use std::os::fd::AsRawFd;
+
+        // Read only through the originally approved root descriptor. Replacing a
+        // pathname must never redirect provenance reads to an unrelated root.
+        self.ensure_original_root()?;
+        let child_path = PathBuf::from(format!(
+            "/proc/self/fd/{}/run-{}",
+            self.root_handle.as_raw_fd(),
+            identity.value()
+        ));
+        match fs::symlink_metadata(&child_path) {
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                self.ensure_original_root()?;
+                return Ok(UserDataInspection::Absent);
+            }
+            Err(_) => return Err(UserDataPortError::Unavailable),
+            Ok(metadata) if metadata.file_type().is_symlink() => {
+                return Err(UserDataPortError::SymlinkEscape);
+            }
+            Ok(metadata) if !metadata.is_dir() => {
+                return Err(UserDataPortError::UnknownContents);
+            }
+            Ok(_) => {}
+        }
+
+        let child = pinned_directory(&child_path)?;
+        let pinned_child = PathBuf::from(format!("/proc/self/fd/{}", child.as_raw_fd()));
+        let provenance = read_owned(&pinned_child, identity)?;
+        if !same_directory_identity(&child, &child_path) {
+            return Err(UserDataPortError::SymlinkEscape);
+        }
+        self.ensure_original_root()?;
+        Ok(match provenance {
+            Some(value) => UserDataInspection::Owned(value),
+            None => UserDataInspection::UnknownContents,
+        })
     }
 
     fn verify(&self, identity: UserDataIdentity, existing: bool) -> Result<(), UserDataPortError> {
@@ -202,7 +247,11 @@ impl FilesystemUserDataPort {
                 child.as_raw_fd(),
                 PROVENANCE_FILE
             ));
-            File::open(marker)
+            use std::os::unix::fs::OpenOptionsExt;
+            OpenOptions::new()
+                .read(true)
+                .custom_flags(0o400000) // O_NOFOLLOW on provenance replay
+                .open(&marker)
                 .and_then(|file| file.sync_all())
                 .and_then(|()| child.sync_all())
                 .and_then(|()| parent.sync_all())
@@ -236,7 +285,8 @@ impl UserDataPort for FilesystemUserDataPort {
             return Err(UserDataPortError::Traversal);
         }
         #[cfg(target_os = "linux")]
-        self.ensure_original_root()?;
+        let inspected = self.inspect_pinned(identity)?;
+        #[cfg(not(target_os = "linux"))]
         let inspected = inspect_identity(&self.root, identity)?;
         if matches!(inspected, UserDataInspection::Owned(_)) {
             self.sync_owned(identity)?;
@@ -258,9 +308,19 @@ impl UserDataPort for FilesystemUserDataPort {
             return Err(UserDataPortError::UnknownContents);
         }
         self.verify(identity, false)?;
-        let directory = self.directory(identity);
-        match read_owned(&directory, identity)? {
-            Some(provenance) => {
+        #[cfg(target_os = "linux")]
+        let inspected = self.inspect_pinned(identity)?;
+        #[cfg(not(target_os = "linux"))]
+        let inspected = {
+            let directory = self.directory(identity);
+            match read_owned(&directory, identity)? {
+                Some(value) => UserDataInspection::Owned(value),
+                None if is_absent(&directory) => UserDataInspection::Absent,
+                None => UserDataInspection::UnknownContents,
+            }
+        };
+        match inspected {
+            UserDataInspection::Owned(provenance) => {
                 return if provenance == descriptor.provenance {
                     self.sync_owned(identity)?;
                     Ok(UserDataCreateOutcome::AlreadyCreated(descriptor))
@@ -268,10 +328,8 @@ impl UserDataPort for FilesystemUserDataPort {
                     Err(UserDataPortError::ExistingContents)
                 };
             }
-            None if !is_absent(&directory) => {
-                return Err(UserDataPortError::ExistingContents);
-            }
-            None => self.create_new(identity, &descriptor.provenance)?,
+            UserDataInspection::Absent => self.create_new(identity, &descriptor.provenance)?,
+            _ => return Err(UserDataPortError::ExistingContents),
         }
         Ok(UserDataCreateOutcome::Created(descriptor))
     }
