@@ -177,8 +177,7 @@ fn post_allocation_child_swap_refuses_foreign_readback() -> Result<(), String> {
     let mut port = root.port().map_err(|error| format!("{error:?}"))?;
     port.create(request(1, "op-1")?)
         .map_err(|error| format!("{error:?}"))?;
-    fs::rename(root.0.join("run-1"), root.0.join("original"))
-        .map_err(|error| error.to_string())?;
+    fs::rename(root.0.join("run-1"), root.0.join("original")).map_err(|error| error.to_string())?;
     symlink(&outside.0, root.0.join("run-1")).map_err(|error| error.to_string())?;
     assert!(matches!(
         port.inspect(UserDataIdentity::new(1)),

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 
-use std::fs::{self, Metadata};
 #[cfg(not(target_os = "linux"))]
 use std::fs::File;
+use std::fs::{self, Metadata};
 use std::io::Read;
 use std::path::Path;
 

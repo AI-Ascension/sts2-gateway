@@ -16,11 +16,10 @@ mod linux;
 use linux::{pinned_directory, same_directory_identity};
 
 use super::user_data_files_validation::{
-    PROVENANCE_FILE, allocation_directory, read_owned, verify_containment, verify_identity,
-    verify_root,
+    PROVENANCE_FILE, allocation_directory, verify_containment, verify_identity, verify_root,
 };
 #[cfg(not(target_os = "linux"))]
-use super::user_data_files_validation::{inspect_identity, is_absent};
+use super::user_data_files_validation::{inspect_identity, is_absent, read_owned};
 
 /// Default bound on identities a single configured root will serve.
 pub const USER_DATA_ROOT_CAPACITY: usize = 64;
@@ -76,49 +75,6 @@ impl FilesystemUserDataPort {
         } else {
             Err(UserDataPortError::SymlinkEscape)
         }
-    }
-
-    #[cfg(target_os = "linux")]
-    fn inspect_pinned(
-        &self,
-        identity: UserDataIdentity,
-    ) -> Result<UserDataInspection, UserDataPortError> {
-        use std::os::fd::AsRawFd;
-
-        // Read only through the originally approved root descriptor. Replacing a
-        // pathname must never redirect provenance reads to an unrelated root.
-        self.ensure_original_root()?;
-        let child_path = PathBuf::from(format!(
-            "/proc/self/fd/{}/run-{}",
-            self.root_handle.as_raw_fd(),
-            identity.value()
-        ));
-        match fs::symlink_metadata(&child_path) {
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                self.ensure_original_root()?;
-                return Ok(UserDataInspection::Absent);
-            }
-            Err(_) => return Err(UserDataPortError::Unavailable),
-            Ok(metadata) if metadata.file_type().is_symlink() => {
-                return Err(UserDataPortError::SymlinkEscape);
-            }
-            Ok(metadata) if !metadata.is_dir() => {
-                return Err(UserDataPortError::UnknownContents);
-            }
-            Ok(_) => {}
-        }
-
-        let child = pinned_directory(&child_path)?;
-        let pinned_child = PathBuf::from(format!("/proc/self/fd/{}", child.as_raw_fd()));
-        let provenance = read_owned(&pinned_child, identity)?;
-        if !same_directory_identity(&child, &child_path) {
-            return Err(UserDataPortError::SymlinkEscape);
-        }
-        self.ensure_original_root()?;
-        Ok(match provenance {
-            Some(value) => UserDataInspection::Owned(value),
-            None => UserDataInspection::UnknownContents,
-        })
     }
 
     fn verify(&self, identity: UserDataIdentity, existing: bool) -> Result<(), UserDataPortError> {
