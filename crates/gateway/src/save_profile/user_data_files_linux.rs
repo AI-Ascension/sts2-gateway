@@ -19,7 +19,9 @@ pub(super) fn pinned_directory(path: &Path) -> Result<File, UserDataPortError> {
     let opened = options
         .open(path)
         .map_err(|_| UserDataPortError::SymlinkEscape)?;
-    let actual = opened.metadata().map_err(|_| UserDataPortError::Unavailable)?;
+    let actual = opened
+        .metadata()
+        .map_err(|_| UserDataPortError::Unavailable)?;
     if !actual.is_dir() || before.dev() != actual.dev() || before.ino() != actual.ino() {
         return Err(UserDataPortError::SymlinkEscape);
     }
@@ -40,8 +42,8 @@ pub(super) fn same_directory_identity(opened: &File, path: &Path) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::pinned_directory;
     use super::super::PROVENANCE_FILE;
+    use super::pinned_directory;
     use std::fs;
     use std::os::fd::AsRawFd;
     use std::os::unix::fs::symlink;
