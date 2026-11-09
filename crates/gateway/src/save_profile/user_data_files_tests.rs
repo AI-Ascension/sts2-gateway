@@ -195,6 +195,36 @@ fn post_allocation_child_swap_refuses_foreign_readback() -> Result<(), String> {
     Ok(())
 }
 
+#[cfg(target_os = "linux")]
+#[test]
+fn linked_provenance_on_replay_refuses_foreign_marker() -> Result<(), String> {
+    use std::os::unix::fs::symlink;
+
+    let root = TestRoot::new();
+    let outside = TestRoot::new();
+    let sentinel = outside.0.join("important.json");
+    fs::write(&sentinel, b"outside data").map_err(|error| error.to_string())?;
+    let mut port = root.port().map_err(|error| format!("{error:?}"))?;
+    port.create(request(1, "op-1")?)
+        .map_err(|error| format!("{error:?}"))?;
+    let marker = root.0.join("run-1").join(PROVENANCE_FILE);
+    fs::remove_file(&marker).map_err(|error| error.to_string())?;
+    symlink(&sentinel, &marker).map_err(|error| error.to_string())?;
+    assert_eq!(
+        port.inspect(UserDataIdentity::new(1)),
+        Err(UserDataPortError::SymlinkEscape)
+    );
+    assert_eq!(
+        port.create(request(1, "op-1")?),
+        Err(UserDataPortError::SymlinkEscape)
+    );
+    assert_eq!(
+        fs::read(&sentinel).map_err(|error| error.to_string())?,
+        b"outside data"
+    );
+    Ok(())
+}
+
 #[test]
 fn identity_outside_the_bounded_root_is_refused() -> Result<(), String> {
     let root = TestRoot::new();
