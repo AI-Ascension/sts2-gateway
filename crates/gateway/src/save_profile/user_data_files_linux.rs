@@ -2,13 +2,13 @@
 
 //! Linux-only handle-pinned partial provisioning hardening; no unsafe FFI.
 use std::fs::{self, File, OpenOptions};
-use std::path::{Path, PathBuf};
 use std::os::fd::AsRawFd;
+use std::path::{Path, PathBuf};
 
-use super::FilesystemUserDataPort;
 use super::super::provisioning_types::{UserDataInspection, UserDataPortError};
 use super::super::types::UserDataIdentity;
 use super::super::user_data_provenance::read_owned;
+use super::FilesystemUserDataPort;
 
 #[cfg(target_os = "linux")]
 pub(super) fn pinned_directory(path: &Path) -> Result<File, UserDataPortError> {
