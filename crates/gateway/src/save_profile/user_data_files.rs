@@ -34,6 +34,8 @@ pub const USER_DATA_ROOT_CAPACITY: usize = 64;
 pub struct FilesystemUserDataPort {
     root: PathBuf,
     capacity: usize,
+    #[cfg(target_os = "linux")]
+    root_handle: File,
 }
 
 impl FilesystemUserDataPort {
@@ -42,9 +44,14 @@ impl FilesystemUserDataPort {
         if capacity == 0 || capacity > USER_DATA_ROOT_CAPACITY {
             return Err(UserDataPortError::Unavailable);
         }
+        let root = verify_root(&root.into())?;
+        #[cfg(target_os = "linux")]
+        let root_handle = pinned_directory(&root)?;
         Ok(Self {
-            root: verify_root(&root.into())?,
+            root,
             capacity,
+            #[cfg(target_os = "linux")]
+            root_handle,
         })
     }
 
@@ -58,6 +65,10 @@ impl FilesystemUserDataPort {
     }
 
     fn verify(&self, identity: UserDataIdentity, existing: bool) -> Result<(), UserDataPortError> {
+        #[cfg(target_os = "linux")]
+        if !same_directory_identity(&self.root_handle, &self.root) {
+            return Err(UserDataPortError::SymlinkEscape);
+        }
         verify_identity(identity)?;
         if identity.value() > self.capacity as u64 {
             return Err(UserDataPortError::Traversal);
@@ -77,7 +88,10 @@ impl FilesystemUserDataPort {
         // descriptors. A replaced child pathname cannot redirect a marker write.
         // /proc/self/fd must be available; otherwise fail closed.
         #[cfg(target_os = "linux")]
-        let parent = pinned_directory(&self.root)?;
+        let parent = self
+            .root_handle
+            .try_clone()
+            .map_err(|_| UserDataPortError::Unavailable)?;
         #[cfg(target_os = "linux")]
         let directory = {
             use std::os::fd::AsRawFd;
@@ -163,7 +177,10 @@ impl FilesystemUserDataPort {
         #[cfg(target_os = "linux")]
         {
             use std::os::fd::AsRawFd;
-            let parent = pinned_directory(&self.root)?;
+            let parent = self
+            .root_handle
+            .try_clone()
+            .map_err(|_| UserDataPortError::Unavailable)?;
             let directory = PathBuf::from(format!(
                 "/proc/self/fd/{}/run-{}",
                 parent.as_raw_fd(),
@@ -207,6 +224,10 @@ impl UserDataPort for FilesystemUserDataPort {
         verify_identity(identity)?;
         if identity.value() > self.capacity as u64 {
             return Err(UserDataPortError::Traversal);
+        }
+        #[cfg(target_os = "linux")]
+        if !same_directory_identity(&self.root_handle, &self.root) {
+            return Err(UserDataPortError::SymlinkEscape);
         }
         let inspected = inspect_identity(&self.root, identity)?;
         if matches!(inspected, UserDataInspection::Owned(_)) {
