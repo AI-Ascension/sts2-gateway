@@ -68,6 +68,29 @@ mod tests {
         fs::remove_dir_all(&base)
     }
 
+
+    #[test]
+    fn replacing_approved_root_with_regular_directory_is_refused() -> std::io::Result<()> {
+        use super::super::super::provisioning_types::{UserDataPort, UserDataPortError};
+        use super::super::super::types::UserDataIdentity;
+        use super::super::FilesystemUserDataPort;
+
+        let base = std::env::temp_dir().join(format!("sts2-pinned-replaced-root-{}", Uuid::new_v4()));
+        let root = base.join("root");
+        fs::create_dir_all(&root)?;
+        let mut port = FilesystemUserDataPort::try_new(&root, 8)
+            .map_err(|_| std::io::Error::other("could not bind initial root"))?;
+        fs::rename(&root, base.join("former-root"))?;
+        fs::create_dir(&root)?;
+        assert_eq!(
+            port.inspect(UserDataIdentity::new(1)),
+            Err(UserDataPortError::SymlinkEscape),
+            "a new real directory at an approved pathname is not the originally approved inode"
+        );
+        assert!(fs::read_dir(&root)?.next().is_none());
+        fs::remove_dir_all(&base)
+    }
+
     #[test]
     fn renamed_root_cannot_redirect_pinned_creation() -> std::io::Result<()> {
         let base = std::env::temp_dir().join(format!("sts2-pinned-root-{}", Uuid::new_v4()));
