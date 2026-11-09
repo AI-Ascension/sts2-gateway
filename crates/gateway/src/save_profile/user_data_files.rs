@@ -178,9 +178,9 @@ impl FilesystemUserDataPort {
         {
             use std::os::fd::AsRawFd;
             let parent = self
-            .root_handle
-            .try_clone()
-            .map_err(|_| UserDataPortError::Unavailable)?;
+                .root_handle
+                .try_clone()
+                .map_err(|_| UserDataPortError::Unavailable)?;
             let directory = PathBuf::from(format!(
                 "/proc/self/fd/{}/run-{}",
                 parent.as_raw_fd(),
