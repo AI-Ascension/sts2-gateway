@@ -2,7 +2,6 @@
 
 //! Linux-only handle-pinned partial provisioning hardening; no unsafe FFI.
 use std::fs::{self, File, OpenOptions};
-use std::os::fd::AsRawFd;
 use std::path::{Path, PathBuf};
 
 use super::super::provisioning_types::{UserDataInspection, UserDataPortError};

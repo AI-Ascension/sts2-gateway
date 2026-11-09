@@ -3,7 +3,9 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use super::provisioning_types::{UserDataInspection, UserDataPortError};
+#[cfg(not(target_os = "linux"))]
+use super::provisioning_types::UserDataInspection;
+use super::provisioning_types::UserDataPortError;
 use super::types::UserDataIdentity;
 
 pub(super) use super::user_data_provenance::{PROVENANCE_FILE, read_owned};
@@ -80,6 +82,7 @@ pub(super) fn verify_containment(
 }
 
 /// True when the allocation directory does not exist yet.
+#[cfg(not(target_os = "linux"))]
 pub(super) fn is_absent(directory: &Path) -> bool {
     matches!(
         fs::symlink_metadata(directory),
@@ -88,6 +91,7 @@ pub(super) fn is_absent(directory: &Path) -> bool {
 }
 
 /// Inspects one identity without writing, mapping the observation to a typed classification.
+#[cfg(not(target_os = "linux"))]
 pub(super) fn inspect_identity(
     root: &Path,
     identity: UserDataIdentity,
