@@ -68,14 +68,14 @@ mod tests {
         fs::remove_dir_all(&base)
     }
 
-
     #[test]
     fn replacing_approved_root_with_regular_directory_is_refused() -> std::io::Result<()> {
         use super::super::super::provisioning_types::{UserDataPort, UserDataPortError};
         use super::super::super::types::UserDataIdentity;
         use super::super::FilesystemUserDataPort;
 
-        let base = std::env::temp_dir().join(format!("sts2-pinned-replaced-root-{}", Uuid::new_v4()));
+        let base =
+            std::env::temp_dir().join(format!("sts2-pinned-replaced-root-{}", Uuid::new_v4()));
         let root = base.join("root");
         fs::create_dir_all(&root)?;
         let mut port = FilesystemUserDataPort::try_new(&root, 8)
