@@ -167,7 +167,7 @@ mod tests {
         let base = std::env::temp_dir().join(format!("sts2-pinned-fifo-{}", Uuid::new_v4()));
         let root = base.join("root");
         let marker = root.join("run-1").join(PROVENANCE_FILE);
-        fs::create_dir_all(marker.parent().expect("marker has a parent"))?;
+        fs::create_dir_all(root.join("run-1"))?;
         assert!(
             std::process::Command::new("mkfifo")
                 .arg(&marker)
