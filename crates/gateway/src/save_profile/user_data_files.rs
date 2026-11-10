@@ -206,7 +206,8 @@ impl FilesystemUserDataPort {
             use std::os::unix::fs::OpenOptionsExt;
             OpenOptions::new()
                 .read(true)
-                .custom_flags(0o400000) // O_NOFOLLOW on provenance replay
+                // Both flags are needed: a FIFO swapped after readback cannot hang sync.
+                .custom_flags(0o400000 | 0o4000)
                 .open(&marker)
                 .and_then(|file| file.sync_all())
                 .and_then(|()| child.sync_all())

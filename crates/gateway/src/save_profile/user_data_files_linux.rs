@@ -158,4 +158,27 @@ mod tests {
         assert!(!outside.join("run-1").exists());
         fs::remove_dir_all(&base)
     }
+    #[test]
+    fn replayed_marker_fifo_does_not_block_without_a_writer() -> std::io::Result<()> {
+        use super::super::super::provisioning_types::UserDataPortError;
+        use super::super::super::types::UserDataIdentity;
+        use super::super::FilesystemUserDataPort;
+
+        let base = std::env::temp_dir().join(format!("sts2-pinned-fifo-{}", Uuid::new_v4()));
+        let root = base.join("root");
+        let marker = root.join("run-1").join(PROVENANCE_FILE);
+        fs::create_dir_all(marker.parent().expect("marker has a parent"))?;
+        assert!(std::process::Command::new("mkfifo")
+            .arg(&marker)
+            .status()?
+            .success());
+        let port = FilesystemUserDataPort::try_new(&root, 8)
+            .map_err(|_| std::io::Error::other("could not bind fixture root"))?;
+        assert_eq!(
+            port.sync_owned(UserDataIdentity::new(1)),
+            Err(UserDataPortError::TimeoutAfterWrite)
+        );
+        fs::remove_dir_all(&base)
+    }
+
 }
