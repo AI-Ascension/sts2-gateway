@@ -168,10 +168,12 @@ mod tests {
         let root = base.join("root");
         let marker = root.join("run-1").join(PROVENANCE_FILE);
         fs::create_dir_all(marker.parent().expect("marker has a parent"))?;
-        assert!(std::process::Command::new("mkfifo")
-            .arg(&marker)
-            .status()?
-            .success());
+        assert!(
+            std::process::Command::new("mkfifo")
+                .arg(&marker)
+                .status()?
+                .success()
+        );
         let port = FilesystemUserDataPort::try_new(&root, 8)
             .map_err(|_| std::io::Error::other("could not bind fixture root"))?;
         assert_eq!(
@@ -180,5 +182,4 @@ mod tests {
         );
         fs::remove_dir_all(&base)
     }
-
 }
