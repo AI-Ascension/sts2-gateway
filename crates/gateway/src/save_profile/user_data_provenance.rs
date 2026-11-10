@@ -64,7 +64,9 @@ pub(super) fn read_owned(
         use std::os::unix::fs::OpenOptionsExt;
         fs::OpenOptions::new()
             .read(true)
-            .custom_flags(0o400000) // O_NOFOLLOW prevents final-component symlink races
+            // O_NOFOLLOW prevents final-component symlink races; O_NONBLOCK
+            // prevents a concurrent regular-file -> FIFO swap hanging replay.
+            .custom_flags(0o400000 | 0o4000)
             .open(&path)
             .map_err(|_| UserDataPortError::Unavailable)?
     };
