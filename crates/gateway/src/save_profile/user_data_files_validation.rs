@@ -8,9 +8,9 @@ use super::provisioning_types::UserDataInspection;
 use super::provisioning_types::UserDataPortError;
 use super::types::UserDataIdentity;
 
+pub(super) use super::user_data_provenance::PROVENANCE_FILE;
 #[cfg(not(target_os = "linux"))]
 pub(super) use super::user_data_provenance::read_owned;
-pub(super) use super::user_data_provenance::PROVENANCE_FILE;
 
 /// Resolves and verifies the server-owned root once per port construction.
 ///
