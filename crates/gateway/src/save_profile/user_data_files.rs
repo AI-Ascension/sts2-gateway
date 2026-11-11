@@ -184,7 +184,11 @@ impl FilesystemUserDataPort {
         Ok(())
     }
 
-    fn sync_owned(&self, identity: UserDataIdentity) -> Result<(), UserDataPortError> {
+    fn sync_owned(
+        &self,
+        identity: UserDataIdentity,
+        expected: &UserDataProvenance,
+    ) -> Result<(), UserDataPortError> {
         #[cfg(target_os = "linux")]
         {
             use std::os::fd::AsRawFd;
@@ -213,6 +217,17 @@ impl FilesystemUserDataPort {
                 .and_then(|()| child.sync_all())
                 .and_then(|()| parent.sync_all())
                 .map_err(|_| UserDataPortError::TimeoutAfterWrite)?;
+            // Recheck that the acknowledged marker still names this owner's
+            // expected operation after synchronization. This is not a same-UID
+            // hostile-writer or atomic mkdir/open guarantee.
+            let pinned_child = PathBuf::from(format!("/proc/self/fd/{}", child.as_raw_fd()));
+            if super::user_data_provenance::read_owned(&pinned_child, identity)
+                .map_err(|_| UserDataPortError::TimeoutAfterWrite)?
+                .as_ref()
+                != Some(expected)
+            {
+                return Err(UserDataPortError::TimeoutAfterWrite);
+            }
             if !same_directory_identity(&child, &directory)
                 || !same_directory_identity(&parent, &self.root)
             {
@@ -222,6 +237,7 @@ impl FilesystemUserDataPort {
         }
         #[cfg(not(target_os = "linux"))]
         {
+            let _ = expected;
             let directory = self.directory(identity);
             File::open(directory.join(PROVENANCE_FILE))
                 .and_then(|file| file.sync_all())
@@ -245,8 +261,8 @@ impl UserDataPort for FilesystemUserDataPort {
         let inspected = self.inspect_pinned(identity)?;
         #[cfg(not(target_os = "linux"))]
         let inspected = inspect_identity(&self.root, identity)?;
-        if matches!(inspected, UserDataInspection::Owned(_)) {
-            self.sync_owned(identity)?;
+        if let UserDataInspection::Owned(ref provenance) = inspected {
+            self.sync_owned(identity, provenance)?;
         }
         Ok(inspected)
     }
@@ -279,7 +295,7 @@ impl UserDataPort for FilesystemUserDataPort {
         match inspected {
             UserDataInspection::Owned(provenance) => {
                 return if provenance == descriptor.provenance {
-                    self.sync_owned(identity)?;
+                    self.sync_owned(identity, &provenance)?;
                     Ok(UserDataCreateOutcome::AlreadyCreated(descriptor))
                 } else {
                     Err(UserDataPortError::ExistingContents)

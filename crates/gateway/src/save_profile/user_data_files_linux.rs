@@ -90,12 +90,51 @@ impl FilesystemUserDataPort {
 #[cfg(test)]
 mod tests {
     use super::super::PROVENANCE_FILE;
+    use super::super::super::provisioning_descriptor::PROVENANCE_OWNER;
+    use super::super::super::types::{LAUNCH_PROFILE_CONTRACT, UserDataProvenance};
     use super::pinned_directory;
     use std::fs;
     use std::os::fd::AsRawFd;
     use std::os::unix::fs::symlink;
     use std::path::PathBuf;
     use uuid::Uuid;
+
+    fn fixture_provenance(operation: &str) -> UserDataProvenance {
+        UserDataProvenance {
+            owner: PROVENANCE_OWNER.to_owned(),
+            instance_id: String::from("instance-1"),
+            operation_id: operation.to_owned(),
+            contract: LAUNCH_PROFILE_CONTRACT.to_owned(),
+        }
+    }
+
+    #[test]
+    fn replay_sync_refuses_another_valid_owners_marker() -> std::io::Result<()> {
+        use super::super::super::provisioning_types::UserDataPortError;
+        use super::super::super::types::UserDataIdentity;
+        use super::FilesystemUserDataPort;
+
+        let base = std::env::temp_dir().join(format!("sts2-sync-foreign-{}", Uuid::new_v4()));
+        let root = base.join("root");
+        let marker = root.join("run-1").join(PROVENANCE_FILE);
+        fs::create_dir_all(root.join("run-1"))?;
+        let identity = UserDataIdentity::new(1);
+        let other = super::super::super::user_data_provenance::encode(
+            identity,
+            &fixture_provenance("different-operation"),
+        )
+        .map_err(|_| std::io::Error::other("test provenance encode"))?;
+        fs::write(&marker, &other)?;
+        let port = FilesystemUserDataPort::try_new(&root, 8)
+            .map_err(|_| std::io::Error::other("test root pin"))?;
+        assert_eq!(
+            port.sync_owned(identity, &fixture_provenance("original-operation")),
+            Err(UserDataPortError::TimeoutAfterWrite),
+            "a valid marker for another operation must never settle the prior owner",
+        );
+        assert_eq!(fs::read(&marker)?, other);
+        fs::remove_dir_all(base)
+    }
 
     #[test]
     fn swapped_child_symlink_is_not_followed() -> std::io::Result<()> {
@@ -177,7 +216,7 @@ mod tests {
         let port = FilesystemUserDataPort::try_new(&root, 8)
             .map_err(|_| std::io::Error::other("could not bind fixture root"))?;
         assert_eq!(
-            port.sync_owned(UserDataIdentity::new(1)),
+            port.sync_owned(UserDataIdentity::new(1), &fixture_provenance("op-1")),
             Err(UserDataPortError::TimeoutAfterWrite)
         );
         fs::remove_dir_all(&base)
