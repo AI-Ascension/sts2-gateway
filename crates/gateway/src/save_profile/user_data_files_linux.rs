@@ -89,9 +89,9 @@ impl FilesystemUserDataPort {
 
 #[cfg(test)]
 mod tests {
-    use super::super::PROVENANCE_FILE;
     use super::super::super::provisioning_descriptor::PROVENANCE_OWNER;
     use super::super::super::types::{LAUNCH_PROFILE_CONTRACT, UserDataProvenance};
+    use super::super::PROVENANCE_FILE;
     use super::pinned_directory;
     use std::fs;
     use std::os::fd::AsRawFd;
