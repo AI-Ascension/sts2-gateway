@@ -172,6 +172,12 @@ impl FilesystemUserDataPort {
             {
                 return Err(UserDataPortError::TimeoutAfterWrite);
             }
+            // An fsynced marker can still have been replaced before acknowledgement.
+            // Require exact owner/operation readback through pinned handles;
+            // any mismatch after physical creation is uncertain, never Created.
+            // This is not a same-UID hostile-writer atomicity guarantee.
+            self.sync_owned(identity, provenance)
+                .map_err(|_| UserDataPortError::TimeoutAfterWrite)?;
         }
         #[cfg(not(target_os = "linux"))]
         {
