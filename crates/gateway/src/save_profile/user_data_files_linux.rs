@@ -151,8 +151,8 @@ mod tests {
         fs::write(original.join(PROVENANCE_FILE), &bytes)?;
         let port = FilesystemUserDataPort::try_new(&root, 8)
             .map_err(|_| std::io::Error::other("test root pin"))?;
-        let created = pinned_directory(&original)
-            .map_err(|_| std::io::Error::other("test child pin"))?;
+        let created =
+            pinned_directory(&original).map_err(|_| std::io::Error::other("test child pin"))?;
         fs::rename(&original, root.join("original-moved"))?;
         fs::create_dir(&original)?;
         fs::write(original.join(PROVENANCE_FILE), &bytes)?;
@@ -166,7 +166,10 @@ mod tests {
             Err(UserDataPortError::TimeoutAfterWrite),
             "the originally created inode must survive through acknowledgement"
         );
-        assert_eq!(fs::read(root.join("original-moved").join(PROVENANCE_FILE))?, bytes);
+        assert_eq!(
+            fs::read(root.join("original-moved").join(PROVENANCE_FILE))?,
+            bytes
+        );
         fs::remove_dir_all(base)
     }
 
