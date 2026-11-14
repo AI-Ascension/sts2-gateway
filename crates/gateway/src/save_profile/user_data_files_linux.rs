@@ -1,0 +1,289 @@
+// SPDX-License-Identifier: MIT
+
+//! Linux-only handle-pinned partial provisioning hardening; no unsafe FFI.
+use std::fs::{self, File, OpenOptions};
+use std::path::{Path, PathBuf};
+
+use super::super::provisioning_types::{UserDataInspection, UserDataPortError};
+use super::super::types::{UserDataIdentity, UserDataProvenance};
+use super::super::user_data_provenance::read_owned;
+use super::FilesystemUserDataPort;
+
+#[cfg(target_os = "linux")]
+pub(super) fn pinned_directory(path: &Path) -> Result<File, UserDataPortError> {
+    use std::os::unix::fs::{MetadataExt, OpenOptionsExt};
+    let before = fs::symlink_metadata(path).map_err(|_| UserDataPortError::Unavailable)?;
+    if before.file_type().is_symlink() || !before.is_dir() {
+        return Err(UserDataPortError::SymlinkEscape);
+    }
+    // Linux O_DIRECTORY | O_NOFOLLOW. No unsafe FFI or extra dependency.
+    let mut options = OpenOptions::new();
+    options.read(true).custom_flags(0o600000);
+    let opened = options
+        .open(path)
+        .map_err(|_| UserDataPortError::SymlinkEscape)?;
+    let actual = opened
+        .metadata()
+        .map_err(|_| UserDataPortError::Unavailable)?;
+    if !actual.is_dir() || before.dev() != actual.dev() || before.ino() != actual.ino() {
+        return Err(UserDataPortError::SymlinkEscape);
+    }
+    Ok(opened)
+}
+
+#[cfg(target_os = "linux")]
+pub(super) fn same_directory_identity(opened: &File, path: &Path) -> bool {
+    use std::os::unix::fs::MetadataExt;
+    let (Ok(actual), Ok(named)) = (opened.metadata(), fs::symlink_metadata(path)) else {
+        return false;
+    };
+    named.is_dir()
+        && !named.file_type().is_symlink()
+        && actual.dev() == named.dev()
+        && actual.ino() == named.ino()
+}
+
+impl FilesystemUserDataPort {
+    /// Recheck the original created inode after replay/sync, not a same-name replacement.
+    /// This is fail-closed race detection, not isolation against a hostile same-UID peer.
+    pub(super) fn verify_created_child_after_sync(
+        &self,
+        created: &File,
+        path: &Path,
+        identity: UserDataIdentity,
+        expected: &UserDataProvenance,
+    ) -> Result<(), UserDataPortError> {
+        use std::os::fd::AsRawFd;
+        if !same_directory_identity(created, path)
+            || !same_directory_identity(&self.root_handle, &self.root)
+        {
+            return Err(UserDataPortError::TimeoutAfterWrite);
+        }
+        let pinned = PathBuf::from(format!("/proc/self/fd/{}", created.as_raw_fd()));
+        if read_owned(&pinned, identity)
+            .map_err(|_| UserDataPortError::TimeoutAfterWrite)?
+            .as_ref()
+            != Some(expected)
+        {
+            return Err(UserDataPortError::TimeoutAfterWrite);
+        }
+        Ok(())
+    }
+
+    pub(super) fn inspect_pinned(
+        &self,
+        identity: UserDataIdentity,
+    ) -> Result<UserDataInspection, UserDataPortError> {
+        use std::os::fd::AsRawFd;
+
+        // Read only through the originally approved root descriptor. Replacing a
+        // pathname must never redirect provenance reads to an unrelated root.
+        self.ensure_original_root()?;
+        let child_path = PathBuf::from(format!(
+            "/proc/self/fd/{}/run-{}",
+            self.root_handle.as_raw_fd(),
+            identity.value()
+        ));
+        match fs::symlink_metadata(&child_path) {
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                self.ensure_original_root()?;
+                return Ok(UserDataInspection::Absent);
+            }
+            Err(_) => return Err(UserDataPortError::Unavailable),
+            Ok(metadata) if metadata.file_type().is_symlink() => {
+                return Err(UserDataPortError::SymlinkEscape);
+            }
+            Ok(metadata) if !metadata.is_dir() => {
+                return Err(UserDataPortError::UnknownContents);
+            }
+            Ok(_) => {}
+        }
+
+        let child = pinned_directory(&child_path)?;
+        let pinned_child = PathBuf::from(format!("/proc/self/fd/{}", child.as_raw_fd()));
+        let provenance = read_owned(&pinned_child, identity)?;
+        if !same_directory_identity(&child, &child_path) {
+            return Err(UserDataPortError::SymlinkEscape);
+        }
+        self.ensure_original_root()?;
+        Ok(match provenance {
+            Some(value) => UserDataInspection::Owned(value),
+            None => UserDataInspection::UnknownContents,
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::super::provisioning_descriptor::PROVENANCE_OWNER;
+    use super::super::super::types::{LAUNCH_PROFILE_CONTRACT, UserDataProvenance};
+    use super::super::PROVENANCE_FILE;
+    use super::pinned_directory;
+    use std::fs;
+    use std::os::fd::AsRawFd;
+    use std::os::unix::fs::symlink;
+    use std::path::PathBuf;
+    use uuid::Uuid;
+
+    fn fixture_provenance(operation: &str) -> UserDataProvenance {
+        UserDataProvenance {
+            owner: PROVENANCE_OWNER.to_owned(),
+            instance_id: String::from("instance-1"),
+            operation_id: operation.to_owned(),
+            contract: LAUNCH_PROFILE_CONTRACT.to_owned(),
+        }
+    }
+
+    #[test]
+    fn created_child_replacement_with_matching_provenance_stays_uncertain() -> std::io::Result<()> {
+        use super::super::super::provisioning_types::UserDataPortError;
+        use super::super::super::types::UserDataIdentity;
+        use super::FilesystemUserDataPort;
+
+        let base = std::env::temp_dir().join(format!("sts2-created-inode-{}", Uuid::new_v4()));
+        let root = base.join("root");
+        let original = root.join("run-1");
+        fs::create_dir_all(&original)?;
+        let identity = UserDataIdentity::new(1);
+        let expected = fixture_provenance("same-operation");
+        let bytes = super::super::super::user_data_provenance::encode(identity, &expected)
+            .map_err(|_| std::io::Error::other("test provenance encode"))?;
+        fs::write(original.join(PROVENANCE_FILE), &bytes)?;
+        let port = FilesystemUserDataPort::try_new(&root, 8)
+            .map_err(|_| std::io::Error::other("test root pin"))?;
+        let created =
+            pinned_directory(&original).map_err(|_| std::io::Error::other("test child pin"))?;
+        fs::rename(&original, root.join("original-moved"))?;
+        fs::create_dir(&original)?;
+        fs::write(original.join(PROVENANCE_FILE), &bytes)?;
+        assert_eq!(
+            port.sync_owned(identity, &expected),
+            Ok(()),
+            "same-name replay alone cannot distinguish cloned marker directories"
+        );
+        assert_eq!(
+            port.verify_created_child_after_sync(&created, &original, identity, &expected),
+            Err(UserDataPortError::TimeoutAfterWrite),
+            "the originally created inode must survive through acknowledgement"
+        );
+        assert_eq!(
+            fs::read(root.join("original-moved").join(PROVENANCE_FILE))?,
+            bytes
+        );
+        fs::remove_dir_all(base)
+    }
+
+    #[test]
+    fn replay_sync_refuses_another_valid_owners_marker() -> std::io::Result<()> {
+        use super::super::super::provisioning_types::UserDataPortError;
+        use super::super::super::types::UserDataIdentity;
+        use super::FilesystemUserDataPort;
+
+        let base = std::env::temp_dir().join(format!("sts2-sync-foreign-{}", Uuid::new_v4()));
+        let root = base.join("root");
+        let marker = root.join("run-1").join(PROVENANCE_FILE);
+        fs::create_dir_all(root.join("run-1"))?;
+        let identity = UserDataIdentity::new(1);
+        let other = super::super::super::user_data_provenance::encode(
+            identity,
+            &fixture_provenance("different-operation"),
+        )
+        .map_err(|_| std::io::Error::other("test provenance encode"))?;
+        fs::write(&marker, &other)?;
+        let port = FilesystemUserDataPort::try_new(&root, 8)
+            .map_err(|_| std::io::Error::other("test root pin"))?;
+        assert_eq!(
+            port.sync_owned(identity, &fixture_provenance("original-operation")),
+            Err(UserDataPortError::TimeoutAfterWrite),
+            "a valid marker for another operation must never settle the prior owner",
+        );
+        assert_eq!(fs::read(&marker)?, other);
+        fs::remove_dir_all(base)
+    }
+
+    #[test]
+    fn swapped_child_symlink_is_not_followed() -> std::io::Result<()> {
+        let base = std::env::temp_dir().join(format!("sts2-pinned-child-{}", Uuid::new_v4()));
+        let root = base.join("root");
+        let outside = base.join("outside");
+        fs::create_dir_all(&root)?;
+        fs::create_dir(&outside)?;
+        let parent = pinned_directory(&root)
+            .map_err(|_| std::io::Error::other("could not pin fixture root"))?;
+        let child = PathBuf::from(format!("/proc/self/fd/{}/run-1", parent.as_raw_fd()));
+        fs::create_dir(&child)?;
+        fs::rename(&child, root.join("moved"))?;
+        symlink(&outside, &child)?;
+        assert!(pinned_directory(&child).is_err());
+        assert!(!outside.join(PROVENANCE_FILE).exists());
+        fs::remove_dir_all(&base)
+    }
+
+    #[test]
+    fn replacing_approved_root_with_regular_directory_is_refused() -> std::io::Result<()> {
+        use super::super::super::provisioning_types::{UserDataPort, UserDataPortError};
+        use super::super::super::types::UserDataIdentity;
+        use super::super::FilesystemUserDataPort;
+
+        let base =
+            std::env::temp_dir().join(format!("sts2-pinned-replaced-root-{}", Uuid::new_v4()));
+        let root = base.join("root");
+        fs::create_dir_all(&root)?;
+        let mut port = FilesystemUserDataPort::try_new(&root, 8)
+            .map_err(|_| std::io::Error::other("could not bind initial root"))?;
+        fs::rename(&root, base.join("former-root"))?;
+        fs::create_dir(&root)?;
+        assert_eq!(
+            port.inspect(UserDataIdentity::new(1)),
+            Err(UserDataPortError::SymlinkEscape),
+            "a new real directory at an approved pathname is not the originally approved inode"
+        );
+        assert!(fs::read_dir(&root)?.next().is_none());
+        fs::remove_dir_all(&base)
+    }
+
+    #[test]
+    fn renamed_root_cannot_redirect_pinned_creation() -> std::io::Result<()> {
+        let base = std::env::temp_dir().join(format!("sts2-pinned-root-{}", Uuid::new_v4()));
+        let root = base.join("root");
+        let moved = base.join("moved");
+        let outside = base.join("outside");
+        fs::create_dir_all(&root)?;
+        fs::create_dir(&outside)?;
+        let parent = pinned_directory(&root)
+            .map_err(|_| std::io::Error::other("could not pin fixture root"))?;
+        fs::rename(&root, &moved)?;
+        symlink(&outside, &root)?;
+        fs::create_dir(PathBuf::from(format!(
+            "/proc/self/fd/{}/run-1",
+            parent.as_raw_fd()
+        )))?;
+        assert!(moved.join("run-1").is_dir());
+        assert!(!outside.join("run-1").exists());
+        fs::remove_dir_all(&base)
+    }
+    #[test]
+    fn replayed_marker_fifo_does_not_block_without_a_writer() -> std::io::Result<()> {
+        use super::super::super::provisioning_types::UserDataPortError;
+        use super::super::super::types::UserDataIdentity;
+        use super::super::FilesystemUserDataPort;
+
+        let base = std::env::temp_dir().join(format!("sts2-pinned-fifo-{}", Uuid::new_v4()));
+        let root = base.join("root");
+        let marker = root.join("run-1").join(PROVENANCE_FILE);
+        fs::create_dir_all(root.join("run-1"))?;
+        assert!(
+            std::process::Command::new("mkfifo")
+                .arg(&marker)
+                .status()?
+                .success()
+        );
+        let port = FilesystemUserDataPort::try_new(&root, 8)
+            .map_err(|_| std::io::Error::other("could not bind fixture root"))?;
+        assert_eq!(
+            port.sync_owned(UserDataIdentity::new(1), &fixture_provenance("op-1")),
+            Err(UserDataPortError::TimeoutAfterWrite)
+        );
+        fs::remove_dir_all(&base)
+    }
+}
