@@ -43,12 +43,29 @@ pub(super) fn same_directory_identity(opened: &File, path: &Path) -> bool {
         && actual.ino() == named.ino()
 }
 
+/// The newly-created marker must still be the original inode after readback.
+/// A replacement file with identical valid owner JSON is not this creation.
+fn same_regular_file_identity(created: &File, path: &Path) -> bool {
+    use std::os::unix::fs::MetadataExt;
+    let (Ok(original), Ok(named)) = (created.metadata(), fs::symlink_metadata(path)) else {
+        return false;
+    };
+    original.is_file()
+        && named.is_file()
+        && !named.file_type().is_symlink()
+        && original.nlink() == 1
+        && named.nlink() == 1
+        && original.dev() == named.dev()
+        && original.ino() == named.ino()
+}
+
 impl FilesystemUserDataPort {
     /// Recheck the original created inode after replay/sync, not a same-name replacement.
     /// This is fail-closed race detection, not isolation against a hostile same-UID peer.
     pub(super) fn verify_created_child_after_sync(
         &self,
         created: &File,
+        created_marker: &File,
         path: &Path,
         identity: UserDataIdentity,
         expected: &UserDataProvenance,
@@ -60,10 +77,13 @@ impl FilesystemUserDataPort {
             return Err(UserDataPortError::TimeoutAfterWrite);
         }
         let pinned = PathBuf::from(format!("/proc/self/fd/{}", created.as_raw_fd()));
-        if read_owned(&pinned, identity)
-            .map_err(|_| UserDataPortError::TimeoutAfterWrite)?
-            .as_ref()
-            != Some(expected)
+        let marker = pinned.join(super::PROVENANCE_FILE);
+        if !same_regular_file_identity(created_marker, &marker)
+            || read_owned(&pinned, identity)
+                .map_err(|_| UserDataPortError::TimeoutAfterWrite)?
+                .as_ref()
+                != Some(expected)
+            || !same_regular_file_identity(created_marker, &marker)
         {
             return Err(UserDataPortError::TimeoutAfterWrite);
         }
@@ -153,6 +173,7 @@ mod tests {
             .map_err(|_| std::io::Error::other("test root pin"))?;
         let created =
             pinned_directory(&original).map_err(|_| std::io::Error::other("test child pin"))?;
+        let created_marker = fs::File::open(original.join(PROVENANCE_FILE))?;
         fs::rename(&original, root.join("original-moved"))?;
         fs::create_dir(&original)?;
         fs::write(original.join(PROVENANCE_FILE), &bytes)?;
@@ -162,7 +183,7 @@ mod tests {
             "same-name replay alone cannot distinguish cloned marker directories"
         );
         assert_eq!(
-            port.verify_created_child_after_sync(&created, &original, identity, &expected),
+            port.verify_created_child_after_sync(&created, &created_marker, &original, identity, &expected),
             Err(UserDataPortError::TimeoutAfterWrite),
             "the originally created inode must survive through acknowledgement"
         );
@@ -170,6 +191,46 @@ mod tests {
             fs::read(root.join("original-moved").join(PROVENANCE_FILE))?,
             bytes
         );
+        fs::remove_dir_all(base)
+    }
+
+    #[test]
+    fn replaced_marker_with_identical_owned_bytes_is_not_original_creation() -> std::io::Result<()> {
+        use super::super::super::provisioning_types::UserDataPortError;
+        use super::super::super::types::UserDataIdentity;
+        use super::FilesystemUserDataPort;
+
+        let base = std::env::temp_dir().join(format!("sts2-created-marker-{}", Uuid::new_v4()));
+        let root = base.join("root");
+        let directory = root.join("run-1");
+        fs::create_dir_all(&directory)?;
+        let identity = UserDataIdentity::new(1);
+        let expected = fixture_provenance("same-operation");
+        let bytes = super::super::super::user_data_provenance::encode(identity, &expected)
+            .map_err(|_| std::io::Error::other("test provenance encode"))?;
+        let marker = directory.join(PROVENANCE_FILE);
+        fs::write(&marker, &bytes)?;
+        let port = FilesystemUserDataPort::try_new(&root, 8)
+            .map_err(|_| std::io::Error::other("test root pin"))?;
+        let created = pinned_directory(&directory)
+            .map_err(|_| std::io::Error::other("test child pin"))?;
+        let created_marker = fs::File::open(&marker)?;
+        assert_eq!(
+            port.verify_created_child_after_sync(
+                &created, &created_marker, &directory, identity, &expected
+            ),
+            Ok(())
+        );
+        fs::rename(&marker, directory.join("original-marker"))?;
+        fs::write(&marker, &bytes)?;
+        assert_eq!(
+            port.verify_created_child_after_sync(
+                &created, &created_marker, &directory, identity, &expected
+            ),
+            Err(UserDataPortError::TimeoutAfterWrite),
+            "same-name, identical-provenance replacement is not the originally created marker"
+        );
+        assert_eq!(fs::read(directory.join("original-marker"))?, bytes);
         fs::remove_dir_all(base)
     }
 
