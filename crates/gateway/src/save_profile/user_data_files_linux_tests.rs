@@ -68,8 +68,7 @@ fn created_child_replacement_with_matching_provenance_stays_uncertain() -> std::
 }
 
 #[test]
-fn replaced_marker_with_identical_owned_bytes_is_not_original_creation() -> std::io::Result<()>
-{
+fn replaced_marker_with_identical_owned_bytes_is_not_original_creation() -> std::io::Result<()> {
     use super::super::super::provisioning_types::UserDataPortError;
     use super::super::super::types::UserDataIdentity;
     use super::FilesystemUserDataPort;
@@ -151,8 +150,8 @@ fn swapped_child_symlink_is_not_followed() -> std::io::Result<()> {
     let outside = base.join("outside");
     fs::create_dir_all(&root)?;
     fs::create_dir(&outside)?;
-    let parent = pinned_directory(&root)
-        .map_err(|_| std::io::Error::other("could not pin fixture root"))?;
+    let parent =
+        pinned_directory(&root).map_err(|_| std::io::Error::other("could not pin fixture root"))?;
     let child = PathBuf::from(format!("/proc/self/fd/{}/run-1", parent.as_raw_fd()));
     fs::create_dir(&child)?;
     fs::rename(&child, root.join("moved"))?;
@@ -168,8 +167,7 @@ fn replacing_approved_root_with_regular_directory_is_refused() -> std::io::Resul
     use super::super::super::types::UserDataIdentity;
     use super::super::FilesystemUserDataPort;
 
-    let base =
-        std::env::temp_dir().join(format!("sts2-pinned-replaced-root-{}", Uuid::new_v4()));
+    let base = std::env::temp_dir().join(format!("sts2-pinned-replaced-root-{}", Uuid::new_v4()));
     let root = base.join("root");
     fs::create_dir_all(&root)?;
     let mut port = FilesystemUserDataPort::try_new(&root, 8)
@@ -193,8 +191,8 @@ fn renamed_root_cannot_redirect_pinned_creation() -> std::io::Result<()> {
     let outside = base.join("outside");
     fs::create_dir_all(&root)?;
     fs::create_dir(&outside)?;
-    let parent = pinned_directory(&root)
-        .map_err(|_| std::io::Error::other("could not pin fixture root"))?;
+    let parent =
+        pinned_directory(&root).map_err(|_| std::io::Error::other("could not pin fixture root"))?;
     fs::rename(&root, &moved)?;
     symlink(&outside, &root)?;
     fs::create_dir(PathBuf::from(format!(
