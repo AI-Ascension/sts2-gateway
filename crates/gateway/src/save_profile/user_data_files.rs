@@ -180,7 +180,7 @@ impl FilesystemUserDataPort {
                 .map_err(|_| UserDataPortError::TimeoutAfterWrite)?;
             // Keep the original created directory authoritative through acknowledgement.
             // A same-UID replacement with copied provenance is not this allocation.
-            self.verify_created_child_after_sync(&child, &directory, identity, provenance)?;
+            self.verify_created_child_after_sync(&child, &file, &directory, identity, provenance)?;
         }
         #[cfg(not(target_os = "linux"))]
         {
