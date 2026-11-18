@@ -167,6 +167,19 @@ where
         self.records.values()
     }
 
+    /// Read-only durable process-ownership reservation for one instance.
+    ///
+    /// This includes identity-less reservations retained during uncertain launch or cleanup.
+    /// It does not inspect OS liveness or attest gameplay readiness. In particular, an absent
+    /// record is not proof that no native game is running and cannot authorize a save-profile
+    /// mutation; that decision requires a separately accepted active-run owner and lease fence.
+    pub fn retained_ownership(
+        &self,
+        instance_id: InstanceId,
+    ) -> Option<&crate::LifecycleOwnership> {
+        self.ownership.get(&instance_id)
+    }
+
     pub fn current_authority_epoch(&self, instance_id: InstanceId) -> AuthorityEpoch {
         match self.authority.get(&instance_id) {
             Some(epoch) => *epoch,
