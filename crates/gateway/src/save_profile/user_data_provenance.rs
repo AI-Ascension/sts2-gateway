@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 
-use std::fs::{self, File, Metadata};
+#[cfg(not(target_os = "linux"))]
+use std::fs::File;
+use std::fs::{self, Metadata};
 use std::io::Read;
 use std::path::Path;
 
@@ -57,6 +59,18 @@ pub(super) fn read_owned(
         Err(_) => return Err(UserDataPortError::Unavailable),
     };
     regular_record(&before)?;
+    #[cfg(target_os = "linux")]
+    let file = {
+        use std::os::unix::fs::OpenOptionsExt;
+        fs::OpenOptions::new()
+            .read(true)
+            // O_NOFOLLOW prevents final-component symlink races; O_NONBLOCK
+            // prevents a concurrent regular-file -> FIFO swap hanging replay.
+            .custom_flags(0o400000 | 0o4000)
+            .open(&path)
+            .map_err(|_| UserDataPortError::Unavailable)?
+    };
+    #[cfg(not(target_os = "linux"))]
     let file = File::open(&path).map_err(|_| UserDataPortError::Unavailable)?;
     let opened = file
         .metadata()

@@ -9,10 +9,17 @@ use super::provisioning_types::{
     UserDataPortError,
 };
 use super::types::{UserDataIdentity, UserDataProvenance};
+#[cfg(target_os = "linux")]
+#[path = "user_data_files_linux.rs"]
+mod linux;
+#[cfg(target_os = "linux")]
+use linux::{pinned_directory, same_directory_identity};
+
 use super::user_data_files_validation::{
-    PROVENANCE_FILE, allocation_directory, inspect_identity, is_absent, read_owned,
-    verify_containment, verify_identity, verify_root,
+    PROVENANCE_FILE, allocation_directory, verify_containment, verify_identity, verify_root,
 };
+#[cfg(not(target_os = "linux"))]
+use super::user_data_files_validation::{inspect_identity, is_absent, read_owned};
 
 /// Default bound on identities a single configured root will serve.
 pub const USER_DATA_ROOT_CAPACITY: usize = 64;
@@ -28,6 +35,8 @@ pub const USER_DATA_ROOT_CAPACITY: usize = 64;
 pub struct FilesystemUserDataPort {
     root: PathBuf,
     capacity: usize,
+    #[cfg(target_os = "linux")]
+    root_handle: File,
 }
 
 impl FilesystemUserDataPort {
@@ -36,9 +45,14 @@ impl FilesystemUserDataPort {
         if capacity == 0 || capacity > USER_DATA_ROOT_CAPACITY {
             return Err(UserDataPortError::Unavailable);
         }
+        let root = verify_root(&root.into())?;
+        #[cfg(target_os = "linux")]
+        let root_handle = pinned_directory(&root)?;
         Ok(Self {
-            root: verify_root(&root.into())?,
+            root,
             capacity,
+            #[cfg(target_os = "linux")]
+            root_handle,
         })
     }
 
@@ -51,7 +65,21 @@ impl FilesystemUserDataPort {
         allocation_directory(&self.root, identity)
     }
 
+    #[cfg(target_os = "linux")]
+    fn ensure_original_root(&self) -> Result<(), UserDataPortError> {
+        // A removed owner root is temporarily unavailable; a replaced real directory
+        // or symlink is a different inode and must never be adopted.
+        fs::symlink_metadata(&self.root).map_err(|_| UserDataPortError::Unavailable)?;
+        if same_directory_identity(&self.root_handle, &self.root) {
+            Ok(())
+        } else {
+            Err(UserDataPortError::SymlinkEscape)
+        }
+    }
+
     fn verify(&self, identity: UserDataIdentity, existing: bool) -> Result<(), UserDataPortError> {
+        #[cfg(target_os = "linux")]
+        self.ensure_original_root()?;
         verify_identity(identity)?;
         if identity.value() > self.capacity as u64 {
             return Err(UserDataPortError::Traversal);
@@ -64,9 +92,29 @@ impl FilesystemUserDataPort {
         identity: UserDataIdentity,
         provenance: &UserDataProvenance,
     ) -> Result<(), UserDataPortError> {
-        let directory = self.directory(identity);
         self.verify(identity, false)?;
         let bytes = super::user_data_provenance::encode(identity, provenance)?;
+
+        // On Linux, anchor both directory creation and marker I/O to open directory
+        // descriptors. A replaced child pathname cannot redirect a marker write.
+        // /proc/self/fd must be available; otherwise fail closed.
+        #[cfg(target_os = "linux")]
+        let parent = self
+            .root_handle
+            .try_clone()
+            .map_err(|_| UserDataPortError::Unavailable)?;
+        #[cfg(target_os = "linux")]
+        let directory = {
+            use std::os::fd::AsRawFd;
+            PathBuf::from(format!(
+                "/proc/self/fd/{}/run-{}",
+                parent.as_raw_fd(),
+                identity.value()
+            ))
+        };
+        #[cfg(not(target_os = "linux"))]
+        let directory = self.directory(identity);
+
         let mut builder = fs::DirBuilder::new();
         #[cfg(unix)]
         {
@@ -79,6 +127,23 @@ impl FilesystemUserDataPort {
                 std::io::ErrorKind::AlreadyExists => UserDataPortError::ExistingContents,
                 _ => UserDataPortError::Unavailable,
             })?;
+
+        // Any error below follows a physical creation. Never report settled.
+        #[cfg(target_os = "linux")]
+        let child =
+            pinned_directory(&directory).map_err(|_| UserDataPortError::TimeoutAfterWrite)?;
+        #[cfg(target_os = "linux")]
+        let marker = {
+            use std::os::fd::AsRawFd;
+            PathBuf::from(format!(
+                "/proc/self/fd/{}/{}",
+                child.as_raw_fd(),
+                PROVENANCE_FILE
+            ))
+        };
+        #[cfg(not(target_os = "linux"))]
+        let marker = directory.join(PROVENANCE_FILE);
+
         let mut options = OpenOptions::new();
         options.write(true).create_new(true);
         #[cfg(unix)]
@@ -86,25 +151,109 @@ impl FilesystemUserDataPort {
             use std::os::unix::fs::OpenOptionsExt;
             options.mode(0o600);
         }
-        // Every error from this point follows a physical effect, so retain an unknown outcome.
+        #[cfg(target_os = "linux")]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            options.custom_flags(0o400000); // O_NOFOLLOW on the marker itself
+        }
         let mut file = options
-            .open(directory.join(PROVENANCE_FILE))
+            .open(&marker)
             .map_err(|_| UserDataPortError::TimeoutAfterWrite)?;
-        file.write_all(&bytes)
-            .and_then(|()| file.sync_all())
-            .and_then(|()| File::open(&directory)?.sync_all())
-            .and_then(|()| File::open(&self.root)?.sync_all())
-            .map_err(|_| UserDataPortError::TimeoutAfterWrite)?;
+
+        #[cfg(target_os = "linux")]
+        {
+            file.write_all(&bytes)
+                .and_then(|()| file.sync_all())
+                .and_then(|()| child.sync_all())
+                .and_then(|()| parent.sync_all())
+                .map_err(|_| UserDataPortError::TimeoutAfterWrite)?;
+            if !same_directory_identity(&child, &directory)
+                || !same_directory_identity(&parent, &self.root)
+            {
+                return Err(UserDataPortError::TimeoutAfterWrite);
+            }
+            // An fsynced marker can still have been replaced before acknowledgement.
+            // Require exact owner/operation readback through pinned handles;
+            // any mismatch after physical creation is uncertain, never Created.
+            // This is not a same-UID hostile-writer atomicity guarantee.
+            self.sync_owned(identity, provenance)
+                .map_err(|_| UserDataPortError::TimeoutAfterWrite)?;
+            // Keep the original created directory authoritative through acknowledgement.
+            // A same-UID replacement with copied provenance is not this allocation.
+            self.verify_created_child_after_sync(&child, &directory, identity, provenance)?;
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            file.write_all(&bytes)
+                .and_then(|()| file.sync_all())
+                .and_then(|()| File::open(&directory)?.sync_all())
+                .and_then(|()| File::open(&self.root)?.sync_all())
+                .map_err(|_| UserDataPortError::TimeoutAfterWrite)?;
+        }
         Ok(())
     }
 
-    fn sync_owned(&self, identity: UserDataIdentity) -> Result<(), UserDataPortError> {
-        let directory = self.directory(identity);
-        File::open(directory.join(PROVENANCE_FILE))
-            .and_then(|file| file.sync_all())
-            .and_then(|()| File::open(&directory)?.sync_all())
-            .and_then(|()| File::open(&self.root)?.sync_all())
-            .map_err(|_| UserDataPortError::TimeoutAfterWrite)
+    fn sync_owned(
+        &self,
+        identity: UserDataIdentity,
+        expected: &UserDataProvenance,
+    ) -> Result<(), UserDataPortError> {
+        #[cfg(target_os = "linux")]
+        {
+            use std::os::fd::AsRawFd;
+            let parent = self
+                .root_handle
+                .try_clone()
+                .map_err(|_| UserDataPortError::Unavailable)?;
+            let directory = PathBuf::from(format!(
+                "/proc/self/fd/{}/run-{}",
+                parent.as_raw_fd(),
+                identity.value()
+            ));
+            let child = pinned_directory(&directory)?;
+            let marker = PathBuf::from(format!(
+                "/proc/self/fd/{}/{}",
+                child.as_raw_fd(),
+                PROVENANCE_FILE
+            ));
+            use std::os::unix::fs::OpenOptionsExt;
+            OpenOptions::new()
+                .read(true)
+                // Both flags are needed: a FIFO swapped after readback cannot hang sync.
+                .custom_flags(0o400000 | 0o4000)
+                .open(&marker)
+                .and_then(|file| file.sync_all())
+                .and_then(|()| child.sync_all())
+                .and_then(|()| parent.sync_all())
+                .map_err(|_| UserDataPortError::TimeoutAfterWrite)?;
+            // Recheck that the acknowledged marker still names this owner's
+            // expected operation after synchronization. This is not a same-UID
+            // hostile-writer or atomic mkdir/open guarantee.
+            let pinned_child = PathBuf::from(format!("/proc/self/fd/{}", child.as_raw_fd()));
+            if super::user_data_provenance::read_owned(&pinned_child, identity)
+                .map_err(|_| UserDataPortError::TimeoutAfterWrite)?
+                .as_ref()
+                != Some(expected)
+            {
+                return Err(UserDataPortError::TimeoutAfterWrite);
+            }
+            if !same_directory_identity(&child, &directory)
+                || !same_directory_identity(&parent, &self.root)
+            {
+                return Err(UserDataPortError::TimeoutAfterWrite);
+            }
+            Ok(())
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            let _ = expected;
+            let directory = self.directory(identity);
+            File::open(directory.join(PROVENANCE_FILE))
+                .and_then(|file| file.sync_all())
+                .and_then(|()| File::open(&directory)?.sync_all())
+                .and_then(|()| File::open(&self.root)?.sync_all())
+                .map_err(|_| UserDataPortError::TimeoutAfterWrite)
+        }
     }
 }
 
@@ -117,9 +266,12 @@ impl UserDataPort for FilesystemUserDataPort {
         if identity.value() > self.capacity as u64 {
             return Err(UserDataPortError::Traversal);
         }
+        #[cfg(target_os = "linux")]
+        let inspected = self.inspect_pinned(identity)?;
+        #[cfg(not(target_os = "linux"))]
         let inspected = inspect_identity(&self.root, identity)?;
-        if matches!(inspected, UserDataInspection::Owned(_)) {
-            self.sync_owned(identity)?;
+        if let UserDataInspection::Owned(ref provenance) = inspected {
+            self.sync_owned(identity, provenance)?;
         }
         Ok(inspected)
     }
@@ -138,20 +290,28 @@ impl UserDataPort for FilesystemUserDataPort {
             return Err(UserDataPortError::UnknownContents);
         }
         self.verify(identity, false)?;
-        let directory = self.directory(identity);
-        match read_owned(&directory, identity)? {
-            Some(provenance) => {
+        #[cfg(target_os = "linux")]
+        let inspected = self.inspect_pinned(identity)?;
+        #[cfg(not(target_os = "linux"))]
+        let inspected = {
+            let directory = self.directory(identity);
+            match read_owned(&directory, identity)? {
+                Some(value) => UserDataInspection::Owned(value),
+                None if is_absent(&directory) => UserDataInspection::Absent,
+                None => UserDataInspection::UnknownContents,
+            }
+        };
+        match inspected {
+            UserDataInspection::Owned(provenance) => {
                 return if provenance == descriptor.provenance {
-                    self.sync_owned(identity)?;
+                    self.sync_owned(identity, &provenance)?;
                     Ok(UserDataCreateOutcome::AlreadyCreated(descriptor))
                 } else {
                     Err(UserDataPortError::ExistingContents)
                 };
             }
-            None if !is_absent(&directory) => {
-                return Err(UserDataPortError::ExistingContents);
-            }
-            None => self.create_new(identity, &descriptor.provenance)?,
+            UserDataInspection::Absent => self.create_new(identity, &descriptor.provenance)?,
+            _ => return Err(UserDataPortError::ExistingContents),
         }
         Ok(UserDataCreateOutcome::Created(descriptor))
     }
