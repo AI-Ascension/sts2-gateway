@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: MIT
 
+use std::path::Path;
+
 use sts2_gateway::{
-    InMemorySaveProfileRecordStore, LaunchProfileBindingPort, SaveProfileLedgerError,
-    SaveProfileOperationRecord, SaveProfileRecordStore, UserDataPort, UserDataProvisioner,
+    FilesystemUserDataPort, InMemorySaveProfileRecordStore, LaunchProfileBindingPort,
+    SaveProfileLedgerError, SaveProfileOperationRecord, SaveProfileRecordStore,
+    SqliteSaveProfileOperationStore, SqliteUserDataRecordStore, UserDataPort, UserDataProvisioner,
     UserDataRecordStore,
 };
 
@@ -48,6 +51,42 @@ impl SaveProfileDependencies {
     /// No durable intent store, isolated-allocation port, or launch-profile binding port.
     pub(super) fn unavailable() -> Self {
         Self::default()
+    }
+
+    /// Assemble durable allocation and operation ports only with an explicitly owned
+    /// deployment root and an independently accepted launch-profile owner. This is a
+    /// preparation seam, not native admission: no runtime path calls it by default.
+    /// Active-run authority must be composed separately before any mutation.
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub(super) fn from_owned_storage(
+        allocation_root: &Path,
+        allocation_journal: &Path,
+        operation_journal: &Path,
+        capacity: usize,
+        launch_profile: Box<dyn LaunchProfileBindingPort + Send>,
+    ) -> Result<Self, String> {
+        // The two durable stores have distinct schemas and locks. Refuse shared
+        // path identity before creating or opening either database.
+        if allocation_journal == operation_journal
+            || (allocation_journal.exists()
+                && operation_journal.exists()
+                && allocation_journal.canonicalize().ok() == operation_journal.canonicalize().ok())
+        {
+            return Err(String::from("save-profile journals must be distinct"));
+        }
+        // Validate the owned root before any journal can be created.
+        let allocation_port = FilesystemUserDataPort::try_new(allocation_root, capacity)
+            .map_err(|_| String::from("save-profile owned allocation root unavailable"))?;
+        let allocation_intents = SqliteUserDataRecordStore::open(allocation_journal)
+            .map_err(|_| String::from("save-profile allocation journal unavailable"))?;
+        let intents = SqliteSaveProfileOperationStore::open(operation_journal)
+            .map_err(|_| String::from("save-profile operation journal unavailable"))?;
+        Ok(Self {
+            intents: Some(Box::new(intents)),
+            allocation_port: Some(Box::new(allocation_port)),
+            allocation_intents: Some(Box::new(allocation_intents)),
+            launch_profile: Some(launch_profile),
+        })
     }
 }
 
