@@ -31,6 +31,36 @@ pub(super) fn pinned_directory(path: &Path) -> Result<File, UserDataPortError> {
     Ok(opened)
 }
 
+/// Open every approved-root ancestor relative to a pinned directory handle.
+///
+/// The ordinary path check in `verify_root` is not a race-free open. Here each
+/// next component is a single O_NOFOLLOW/O_DIRECTORY lookup beneath the prior
+/// pinned descriptor, so an intervening ancestor swap cannot redirect the
+/// actual approved handle. This is not hostile same-UID process isolation.
+#[cfg(target_os = "linux")]
+pub(super) fn pinned_approved_root(path: &Path) -> Result<File, UserDataPortError> {
+    use std::os::fd::AsRawFd;
+    use std::path::Component;
+
+    if !path.is_absolute() {
+        return Err(UserDataPortError::SymlinkEscape);
+    }
+    let mut directory = pinned_directory(Path::new("/"))?;
+    for component in path.components() {
+        let name = match component {
+            Component::RootDir => continue,
+            Component::Normal(name) => name,
+            _ => return Err(UserDataPortError::SymlinkEscape),
+        };
+        let child = PathBuf::from(format!("/proc/self/fd/{}", directory.as_raw_fd())).join(name);
+        directory = pinned_directory(&child)?;
+    }
+    if !same_directory_identity(&directory, path) {
+        return Err(UserDataPortError::SymlinkEscape);
+    }
+    Ok(directory)
+}
+
 #[cfg(target_os = "linux")]
 pub(super) fn same_directory_identity(opened: &File, path: &Path) -> bool {
     use std::os::unix::fs::MetadataExt;
@@ -43,12 +73,29 @@ pub(super) fn same_directory_identity(opened: &File, path: &Path) -> bool {
         && actual.ino() == named.ino()
 }
 
+/// The newly-created marker must still be the original inode after readback.
+/// A replacement file with identical valid owner JSON is not this creation.
+fn same_regular_file_identity(created: &File, path: &Path) -> bool {
+    use std::os::unix::fs::MetadataExt;
+    let (Ok(original), Ok(named)) = (created.metadata(), fs::symlink_metadata(path)) else {
+        return false;
+    };
+    original.is_file()
+        && named.is_file()
+        && !named.file_type().is_symlink()
+        && original.nlink() == 1
+        && named.nlink() == 1
+        && original.dev() == named.dev()
+        && original.ino() == named.ino()
+}
+
 impl FilesystemUserDataPort {
     /// Recheck the original created inode after replay/sync, not a same-name replacement.
     /// This is fail-closed race detection, not isolation against a hostile same-UID peer.
     pub(super) fn verify_created_child_after_sync(
         &self,
         created: &File,
+        created_marker: &File,
         path: &Path,
         identity: UserDataIdentity,
         expected: &UserDataProvenance,
@@ -60,10 +107,13 @@ impl FilesystemUserDataPort {
             return Err(UserDataPortError::TimeoutAfterWrite);
         }
         let pinned = PathBuf::from(format!("/proc/self/fd/{}", created.as_raw_fd()));
-        if read_owned(&pinned, identity)
-            .map_err(|_| UserDataPortError::TimeoutAfterWrite)?
-            .as_ref()
-            != Some(expected)
+        let marker = pinned.join(super::PROVENANCE_FILE);
+        if !same_regular_file_identity(created_marker, &marker)
+            || read_owned(&pinned, identity)
+                .map_err(|_| UserDataPortError::TimeoutAfterWrite)?
+                .as_ref()
+                != Some(expected)
+            || !same_regular_file_identity(created_marker, &marker)
         {
             return Err(UserDataPortError::TimeoutAfterWrite);
         }
@@ -114,176 +164,9 @@ impl FilesystemUserDataPort {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::super::super::provisioning_descriptor::PROVENANCE_OWNER;
-    use super::super::super::types::{LAUNCH_PROFILE_CONTRACT, UserDataProvenance};
-    use super::super::PROVENANCE_FILE;
-    use super::pinned_directory;
-    use std::fs;
-    use std::os::fd::AsRawFd;
-    use std::os::unix::fs::symlink;
-    use std::path::PathBuf;
-    use uuid::Uuid;
+#[path = "user_data_files_linux_tests.rs"]
+mod tests;
 
-    fn fixture_provenance(operation: &str) -> UserDataProvenance {
-        UserDataProvenance {
-            owner: PROVENANCE_OWNER.to_owned(),
-            instance_id: String::from("instance-1"),
-            operation_id: operation.to_owned(),
-            contract: LAUNCH_PROFILE_CONTRACT.to_owned(),
-        }
-    }
-
-    #[test]
-    fn created_child_replacement_with_matching_provenance_stays_uncertain() -> std::io::Result<()> {
-        use super::super::super::provisioning_types::UserDataPortError;
-        use super::super::super::types::UserDataIdentity;
-        use super::FilesystemUserDataPort;
-
-        let base = std::env::temp_dir().join(format!("sts2-created-inode-{}", Uuid::new_v4()));
-        let root = base.join("root");
-        let original = root.join("run-1");
-        fs::create_dir_all(&original)?;
-        let identity = UserDataIdentity::new(1);
-        let expected = fixture_provenance("same-operation");
-        let bytes = super::super::super::user_data_provenance::encode(identity, &expected)
-            .map_err(|_| std::io::Error::other("test provenance encode"))?;
-        fs::write(original.join(PROVENANCE_FILE), &bytes)?;
-        let port = FilesystemUserDataPort::try_new(&root, 8)
-            .map_err(|_| std::io::Error::other("test root pin"))?;
-        let created =
-            pinned_directory(&original).map_err(|_| std::io::Error::other("test child pin"))?;
-        fs::rename(&original, root.join("original-moved"))?;
-        fs::create_dir(&original)?;
-        fs::write(original.join(PROVENANCE_FILE), &bytes)?;
-        assert_eq!(
-            port.sync_owned(identity, &expected),
-            Ok(()),
-            "same-name replay alone cannot distinguish cloned marker directories"
-        );
-        assert_eq!(
-            port.verify_created_child_after_sync(&created, &original, identity, &expected),
-            Err(UserDataPortError::TimeoutAfterWrite),
-            "the originally created inode must survive through acknowledgement"
-        );
-        assert_eq!(
-            fs::read(root.join("original-moved").join(PROVENANCE_FILE))?,
-            bytes
-        );
-        fs::remove_dir_all(base)
-    }
-
-    #[test]
-    fn replay_sync_refuses_another_valid_owners_marker() -> std::io::Result<()> {
-        use super::super::super::provisioning_types::UserDataPortError;
-        use super::super::super::types::UserDataIdentity;
-        use super::FilesystemUserDataPort;
-
-        let base = std::env::temp_dir().join(format!("sts2-sync-foreign-{}", Uuid::new_v4()));
-        let root = base.join("root");
-        let marker = root.join("run-1").join(PROVENANCE_FILE);
-        fs::create_dir_all(root.join("run-1"))?;
-        let identity = UserDataIdentity::new(1);
-        let other = super::super::super::user_data_provenance::encode(
-            identity,
-            &fixture_provenance("different-operation"),
-        )
-        .map_err(|_| std::io::Error::other("test provenance encode"))?;
-        fs::write(&marker, &other)?;
-        let port = FilesystemUserDataPort::try_new(&root, 8)
-            .map_err(|_| std::io::Error::other("test root pin"))?;
-        assert_eq!(
-            port.sync_owned(identity, &fixture_provenance("original-operation")),
-            Err(UserDataPortError::TimeoutAfterWrite),
-            "a valid marker for another operation must never settle the prior owner",
-        );
-        assert_eq!(fs::read(&marker)?, other);
-        fs::remove_dir_all(base)
-    }
-
-    #[test]
-    fn swapped_child_symlink_is_not_followed() -> std::io::Result<()> {
-        let base = std::env::temp_dir().join(format!("sts2-pinned-child-{}", Uuid::new_v4()));
-        let root = base.join("root");
-        let outside = base.join("outside");
-        fs::create_dir_all(&root)?;
-        fs::create_dir(&outside)?;
-        let parent = pinned_directory(&root)
-            .map_err(|_| std::io::Error::other("could not pin fixture root"))?;
-        let child = PathBuf::from(format!("/proc/self/fd/{}/run-1", parent.as_raw_fd()));
-        fs::create_dir(&child)?;
-        fs::rename(&child, root.join("moved"))?;
-        symlink(&outside, &child)?;
-        assert!(pinned_directory(&child).is_err());
-        assert!(!outside.join(PROVENANCE_FILE).exists());
-        fs::remove_dir_all(&base)
-    }
-
-    #[test]
-    fn replacing_approved_root_with_regular_directory_is_refused() -> std::io::Result<()> {
-        use super::super::super::provisioning_types::{UserDataPort, UserDataPortError};
-        use super::super::super::types::UserDataIdentity;
-        use super::super::FilesystemUserDataPort;
-
-        let base =
-            std::env::temp_dir().join(format!("sts2-pinned-replaced-root-{}", Uuid::new_v4()));
-        let root = base.join("root");
-        fs::create_dir_all(&root)?;
-        let mut port = FilesystemUserDataPort::try_new(&root, 8)
-            .map_err(|_| std::io::Error::other("could not bind initial root"))?;
-        fs::rename(&root, base.join("former-root"))?;
-        fs::create_dir(&root)?;
-        assert_eq!(
-            port.inspect(UserDataIdentity::new(1)),
-            Err(UserDataPortError::SymlinkEscape),
-            "a new real directory at an approved pathname is not the originally approved inode"
-        );
-        assert!(fs::read_dir(&root)?.next().is_none());
-        fs::remove_dir_all(&base)
-    }
-
-    #[test]
-    fn renamed_root_cannot_redirect_pinned_creation() -> std::io::Result<()> {
-        let base = std::env::temp_dir().join(format!("sts2-pinned-root-{}", Uuid::new_v4()));
-        let root = base.join("root");
-        let moved = base.join("moved");
-        let outside = base.join("outside");
-        fs::create_dir_all(&root)?;
-        fs::create_dir(&outside)?;
-        let parent = pinned_directory(&root)
-            .map_err(|_| std::io::Error::other("could not pin fixture root"))?;
-        fs::rename(&root, &moved)?;
-        symlink(&outside, &root)?;
-        fs::create_dir(PathBuf::from(format!(
-            "/proc/self/fd/{}/run-1",
-            parent.as_raw_fd()
-        )))?;
-        assert!(moved.join("run-1").is_dir());
-        assert!(!outside.join("run-1").exists());
-        fs::remove_dir_all(&base)
-    }
-    #[test]
-    fn replayed_marker_fifo_does_not_block_without_a_writer() -> std::io::Result<()> {
-        use super::super::super::provisioning_types::UserDataPortError;
-        use super::super::super::types::UserDataIdentity;
-        use super::super::FilesystemUserDataPort;
-
-        let base = std::env::temp_dir().join(format!("sts2-pinned-fifo-{}", Uuid::new_v4()));
-        let root = base.join("root");
-        let marker = root.join("run-1").join(PROVENANCE_FILE);
-        fs::create_dir_all(root.join("run-1"))?;
-        assert!(
-            std::process::Command::new("mkfifo")
-                .arg(&marker)
-                .status()?
-                .success()
-        );
-        let port = FilesystemUserDataPort::try_new(&root, 8)
-            .map_err(|_| std::io::Error::other("could not bind fixture root"))?;
-        assert_eq!(
-            port.sync_owned(UserDataIdentity::new(1), &fixture_provenance("op-1")),
-            Err(UserDataPortError::TimeoutAfterWrite)
-        );
-        fs::remove_dir_all(&base)
-    }
-}
+#[cfg(test)]
+#[path = "user_data_files_root_ancestor_tests.rs"]
+mod root_ancestor_tests;
