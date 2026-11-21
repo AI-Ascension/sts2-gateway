@@ -31,6 +31,36 @@ pub(super) fn pinned_directory(path: &Path) -> Result<File, UserDataPortError> {
     Ok(opened)
 }
 
+/// Open every approved-root ancestor relative to a pinned directory handle.
+///
+/// The ordinary path check in `verify_root` is not a race-free open. Here each
+/// next component is a single O_NOFOLLOW/O_DIRECTORY lookup beneath the prior
+/// pinned descriptor, so an intervening ancestor swap cannot redirect the
+/// actual approved handle. This is not hostile same-UID process isolation.
+#[cfg(target_os = "linux")]
+pub(super) fn pinned_approved_root(path: &Path) -> Result<File, UserDataPortError> {
+    use std::os::fd::AsRawFd;
+    use std::path::Component;
+
+    if !path.is_absolute() {
+        return Err(UserDataPortError::SymlinkEscape);
+    }
+    let mut directory = pinned_directory(Path::new("/"))?;
+    for component in path.components() {
+        let name = match component {
+            Component::RootDir => continue,
+            Component::Normal(name) => name,
+            _ => return Err(UserDataPortError::SymlinkEscape),
+        };
+        let child = PathBuf::from(format!("/proc/self/fd/{}", directory.as_raw_fd())).join(name);
+        directory = pinned_directory(&child)?;
+    }
+    if !same_directory_identity(&directory, path) {
+        return Err(UserDataPortError::SymlinkEscape);
+    }
+    Ok(directory)
+}
+
 #[cfg(target_os = "linux")]
 pub(super) fn same_directory_identity(opened: &File, path: &Path) -> bool {
     use std::os::unix::fs::MetadataExt;
@@ -136,3 +166,7 @@ impl FilesystemUserDataPort {
 #[cfg(test)]
 #[path = "user_data_files_linux_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "user_data_files_root_ancestor_tests.rs"]
+mod root_ancestor_tests;
