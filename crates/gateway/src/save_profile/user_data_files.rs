@@ -13,7 +13,7 @@ use super::types::{UserDataIdentity, UserDataProvenance};
 #[path = "user_data_files_linux.rs"]
 mod linux;
 #[cfg(target_os = "linux")]
-use linux::{pinned_directory, same_directory_identity};
+use linux::{pinned_approved_root, pinned_directory, same_directory_identity};
 
 use super::user_data_files_validation::{
     PROVENANCE_FILE, allocation_directory, verify_containment, verify_identity, verify_root,
@@ -47,7 +47,7 @@ impl FilesystemUserDataPort {
         }
         let root = verify_root(&root.into())?;
         #[cfg(target_os = "linux")]
-        let root_handle = pinned_directory(&root)?;
+        let root_handle = pinned_approved_root(&root)?;
         Ok(Self {
             root,
             capacity,
